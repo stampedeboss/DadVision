@@ -1,0 +1,172 @@
+import logging
+import logging.handlers
+import re
+import sys
+import threading
+
+# A level more detailed than DEBUG
+TRACE = 5
+# A level more detailed than INFO
+VERBOSE = 15
+
+_logging_configured = False
+_mem_handler = None
+_logging_started = False
+
+
+class DaddyVisionLogger(logging.Logger):
+    """Custom logger that adds library and execution info to log records."""
+    local = threading.local()
+
+    def makeRecord(self, name, level, fn, lno, msg, args, exc_info, func=None, extra=None):
+        extra = {'library': getattr(DaddyVisionLogger.local, 'library', u''),
+                 'execution': getattr(DaddyVisionLogger.local, 'execution', '')}
+        return logging.Logger.makeRecord(self, name, level, fn, lno, msg, args, exc_info, func, extra)
+
+    def trace(self, msg, *args, **kwargs):
+        """Log at TRACE level (more detailed than DEBUG)."""
+        self.log(TRACE, msg, *args, **kwargs)
+
+    def verbose(self, msg, *args, **kwargs):
+        """Log at VERBOSE level (more detail than INFO less detail than DEBUG.)"""
+        self.log(VERBOSE, msg, *args, **kwargs)
+
+
+class DaddyVisionFormatter(logging.Formatter):
+    """Custom formatter that can handle both regular log records and those created by DaddyVisionLogger"""
+    plain_fmt = '%(asctime)-15s %(levelname)-8s %(name)-29s %(message)s'
+    daddyvision_fmt = '%(asctime)-15s %(levelname)-8s %(name)-13s %(library)-15s %(message)s'
+
+    def __init__(self):
+        logging.Formatter.__init__(self, self.plain_fmt, '%Y-%m-%d %H:%M')
+
+    def format(self, record):
+        if hasattr(record, 'library'):
+            self._fmt = self.daddyvision_fmt
+        else:
+            self._fmt = self.plain_fmt
+        return logging.Formatter.format(self, record)
+
+
+def set_execution(execution):
+    DaddyVisionLogger.local.execution = execution
+
+
+def set_library(library):
+    DaddyVisionLogger.local.library = library
+
+
+class PrivacyFilter(logging.Filter):
+    """Edits log messages and <hides> obviously private information."""
+
+    def __init__(self):
+        self.replaces = []
+
+        def hide(name):
+            s = '([?&]%s=)\w+' % name
+            p = re.compile(s)
+            self.replaces.append(p)
+
+        for param in ['passwd', 'password', 'pw', 'pass', 'passkey',
+            'key', 'apikey', 'user', 'username', 'uname', 'login', 'id']:
+            hide(param)
+
+    def filter(self, record):
+        if not isinstance(record.msg, basestring):
+            return False
+        for p in self.replaces:
+            record.msg = p.sub(r'\g<1><hidden>', record.msg)
+            record.msg = record.msg
+        return False
+
+_logging_configured = False
+_mem_handler = None
+_logging_started = False
+
+def initialize(unit_test=False):
+    """Prepare logging.
+    """
+    global _logging_configured, _mem_handler
+
+    if _logging_configured:
+        return
+
+    logging.addLevelName(TRACE, 'TRACE')
+    logging.addLevelName(VERBOSE, 'VERBOSE')
+    _logging_configured = True
+
+    # with unit test we want a bit simpler setup
+    if unit_test:
+        logging.basicConfig()
+        return
+
+    # root logger
+    logger = logging.getLogger()
+    formatter = DaddyVisionFormatter()
+
+    _mem_handler = logging.handlers.MemoryHandler(1000 * 1000, 100)
+    _mem_handler.setFormatter(formatter)
+    logger.addHandler(_mem_handler)
+
+    #
+    # Process commandline options, unfortunately we need to do it before optparse is available
+    #
+
+    # turn on debug level
+    if '--debug' in sys.argv:
+        logger.setLevel(logging.DEBUG)
+    elif '--trace' in sys.argv:
+        logger.setLevel(TRACE)
+    elif '--verbose' in sys.argv:
+        logger.setLevel(VERBOSE)
+    else:
+        logger.setLevel(logging.INFO)
+
+    console = logging.StreamHandler()
+    console.setFormatter(formatter)
+    logger.addHandler(console)
+
+
+def start(filename=None, level=logging.INFO, debug=False):
+    """After initialization, start file logging.
+    """
+    global _logging_started
+
+    assert _logging_configured
+    if _logging_started:
+        return
+
+    if debug:
+        handler = logging.StreamHandler()
+    else:
+        handler = logging.handlers.RotatingFileHandler(filename, maxBytes=1000 * 1024, backupCount=9)
+
+    handler.setFormatter(_mem_handler.formatter)
+
+    _mem_handler.setTarget(handler)
+
+    # root logger
+    logger = logging.getLogger()
+    logger.removeHandler(_mem_handler)
+    logger.addHandler(handler)
+    logger.addFilter(PrivacyFilter())
+    logger.setLevel(level)
+
+    # flush what we have stored from the plugin initialization
+    _mem_handler.flush()
+    _logging_started = True
+
+
+def flush_logging_to_console():
+    """Flushes memory logger to console"""
+    console = logging.StreamHandler()
+    console.setFormatter(_mem_handler.formatter)
+    logger = logging.getLogger()
+    logger.addHandler(console)
+    if len(_mem_handler.buffer) > 0:
+        for record in _mem_handler.buffer:
+            console.handle(record)
+    _mem_handler.flush()
+
+# Set our custom logger class as default
+logging.setLoggerClass(DaddyVisionLogger)

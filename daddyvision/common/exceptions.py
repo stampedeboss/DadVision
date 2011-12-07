@@ -1,0 +1,92 @@
+"""
+Author: AJ Reynolds
+Date: 11-30-2010
+Purpose:
+
+   Exceptions used through-out Daddy Vision
+
+"""
+
+class BaseDaddyVisionException(Exception):
+    """Base exception all DaddyVision exceptions inherit from
+    """
+    pass
+
+class InvalidPath(BaseDaddyVisionException):
+    """Raised when an argument is a non-existent file or directory path
+    """
+    pass
+
+class InvalidFilename(BaseDaddyVisionException):
+    """Raised when a file does not conform to expected naming standard
+    """
+    pass
+
+class NoValidFilesFound(BaseDaddyVisionException):
+    """Raised when no valid files are found.
+    """
+    pass
+
+class UserAbort(BaseDaddyVisionException):
+    """Base exception for config errors
+    """
+    pass
+
+class DictKeyError(BaseDaddyVisionException):
+    """Raised if the Request dict is malformed
+    """
+    pass
+
+class DataRetrievalError(BaseDaddyVisionException):
+    """Raised when an error (such as a network problem) prevents SeriesInfo
+    from being able to retrieve data such as episode name
+    """
+
+class InvalidArgumentType(BaseDaddyVisionException):
+    """Raised when an argument is not expected type of object
+    """
+    pass
+
+
+# Configuration Exceptions
+class BaseConfigError(BaseDaddyVisionException):
+    """Base exception for config errors
+    """
+    pass
+
+class ConfigNotFound(BaseConfigError):
+    """Raised if the config file is unavailable after attempting to create
+    one using the default routine
+    """
+    pass
+
+class ConfigValueError(BaseConfigError):
+    """Raised if the config file is malformed or unreadable
+    """
+    pass
+
+class RegxSelectionError(BaseConfigError):
+    """Raised if the the Regx is unable to return all data from FileParse
+    """
+    pass
+
+#Data Retrieval Exceptions
+class SeriesNotFound(DataRetrievalError):
+    """Raised when a series cannot be found
+    """
+    pass
+
+class SeasonNotFound(DataRetrievalError):
+    """Raised when requested season cannot be found
+    """
+    pass
+
+class EpisodeNotFound(DataRetrievalError):
+    """Raised when episode cannot be found
+    """
+    pass
+
+class EpisodeNameNotFound(DataRetrievalError):
+    """Raised when the name of the episode cannot be found
+    """
+    pass
