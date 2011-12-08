@@ -11,7 +11,7 @@ import re
 import sys
 import time
 import logging
-from exceptions import ConfigValueError, UserAbort
+#from exceptions import ConfigValueError, UserAbort
 
 __author__ = "AJ Reynolds"
 __copyright__ = "Copyright 2011, AJ Reynolds"

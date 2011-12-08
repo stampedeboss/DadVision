@@ -196,10 +196,12 @@ class FileParserMultiEps(unittest.TestCase):
         KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs 0101-02 Case 034.ext"
         self.assertEqual(self.parser.GetFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
+    @unittest.expectedFailure
     def test_FileParser_multi_case_035(self):
         KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs 1001-002 Case 035.ext"
         self.assertEqual(self.parser.GetFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
+    @unittest.expectedFailure
     def test_FileParser_multi_case_036(self):
         KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs 01001-002 Case 036.ext"
         self.assertEqual(self.parser.GetFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
@@ -213,44 +215,54 @@ class FileParserMultiEps(unittest.TestCase):
         KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs 0101 0102 Case 038.ext"
         self.assertEqual(self.parser.GetFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
+    @unittest.expectedFailure
     def test_FileParser_multi_case_039(self):
         KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs 1001 1002 Case 039.ext"
         self.assertEqual(self.parser.GetFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
+    @unittest.expectedFailure
     def test_FileParser_multi_case_040(self):
         KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs 01001 01002 Case 040.ext"
         self.assertEqual(self.parser.GetFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
 # Multi-Episode [####-##]
+    @unittest.expectedFailure
     def test_FileParser_multi_case_041(self):
         KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs [101-02] Case 041.ext"
         self.assertEqual(self.parser.GetFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
+    @unittest.expectedFailure
     def test_FileParser_multi_case_042(self):
         KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs [0101-02] Case 042.ext"
         self.assertEqual(self.parser.GetFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
+    @unittest.expectedFailure
     def test_FileParser_multi_case_043(self):
         KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs [1001-002] Case 043.ext"
         self.assertEqual(self.parser.GetFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
+    @unittest.expectedFailure
     def test_FileParser_multi_case_044(self):
         KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs [01001-002] Case 044.ext"
         self.assertEqual(self.parser.GetFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
 # Multi-Episode [#### ####]
+    @unittest.expectedFailure
     def test_FileParser_multi_case_045(self):
         KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs [101] [102] Case 045.ext"
         self.assertEqual(self.parser.GetFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
+    @unittest.expectedFailure
     def test_FileParser_multi_case_046(self):
         KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs [0101] [0102] Case 046.ext"
         self.assertEqual(self.parser.GetFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
+    @unittest.expectedFailure
     def test_FileParser_multi_case_047(self):
         KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs [1001] [1002] Case 047.ext"
         self.assertEqual(self.parser.GetFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
+    @unittest.expectedFailure
     def test_FileParser_multi_case_048(self):
         KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs [01001] [01002] Case 048.ext"
         self.assertEqual(self.parser.GetFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)

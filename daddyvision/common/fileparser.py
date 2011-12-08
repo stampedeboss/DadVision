@@ -18,12 +18,22 @@ import logging
 import logging.handlers
 import os
 import re
+import sys
 import tempfile
 import time
 import sqlite3
 
-__version__ = '$Rev$'
+__author__ = "AJ Reynolds"
+__copyright__ = "Copyright 2011, AJ Reynolds"
+__credits__ = []
+__license__ = "GPL"
+
 __pgmname__ = 'fileparser'
+__version__ = '$Rev$'
+
+__maintainer__ = "AJ Reynolds"
+__email__ = "stampedeboss@gmail.com"
+__status__ = "Development"
 
 logging.addLevelName(5, 'TRACE')
 logging.addLevelName(15, 'VERBOSE')
@@ -239,149 +249,130 @@ class FileParser(dict):
              re.X|re.I))
 
 #----------------------------------------------------------------------------------------
-#        # Multiepisode
-#        self.RegxParse.append(re.compile(
-#            '''                                     # RegEx 3
-#            ^(/.*/)?                                # Optional Directory
-#            (?P<SeriesName>.*)                      # Series Name
-#            [/\._ \-]                               # Sep 1
-#            [s|season]                              # s|season
-#            [/\._ \-]?                              # Optional Sep 1
-#            (?P<SeasonNum>[0-9]+)                   # Season Number (##)
-#            [/\._ \-]?                              # Sep 1
-#            [E|e]                                   # e
-#            (?P<EpisodeNumStart>[0-9][0-9]+)        # Starting Episode Number (##)
-#            [\.\- ]?                                # Sep 1
-#            [e]?                                    # Optional e
-#            (?P<EpisodeNumEnd>[0-9][0-9]+)          # Ending Episode Number (##)
-#            [\.\- ]                                 # Sep 1
-#            (?P<EpisodeName>.*)                     # Optional Title
-#            \.(?P<Ext>....?)$                       # Extension
-#            ''',
-#            re.X|re.I))
-#
-#        self.RegxParse.append(re.compile(
-#            '''                                     # RegEx 4
-#            ^(/.*/)?                                # Optional Directory
-#            (?P<SeriesName>.*)                      # Series Name
-#            [/\._ \-]                               # Sep 1
-#            [s|season]                              # s|season
-#            [/\._ \-]?                              # Optional Sep 1
-#            (?P<SeasonNum>[0-9]+)                   # Season Number (##)
-#            [/\._ \-]?                              # Optional Sep 1
-#            [E|e]                                   # e
-#            (?P<EpisodeNum>[0-9][0-9]+)             # Episode Number (##)
-#            [/\._ \-]?                              # Optional Sep 1
-#            (?P<EpisodeName>.*)                     # Optional Title
-#            \.(?P<Ext>....?)$                       # Extension
-#            ''',
-#            re.X|re.I))
-#
-#        self.RegxParse.append(re.compile(
-#            '''                                    # foo s01e23 s01e24 s01e25 *
-#            ^((?P<SeriesName>.+?)[ \._\-])?        # show name
-#            [Ss](?P<SeasonNum>[0-9][0-9]+)         # s01
-#            [\.\- ]?                               # separator
-#            [Ee](?P<EpisodeNumStart>[0-9][0-9]+)   # first e23
-#            ([\.\- ]+                              # separator
-#            [Ss](?P<SeasonNum>[0-9][0-9]+)         # s01
-#            [\.\- ]?                               # separator
-#            [Ee][0-9][0-9]+)*                      # e24 etc (middle groups)
-#            ([\.\- ]+                              # separator
-#            [Ss](?P<SeasonNum>[0-9][0-9]+)         # s01
-#            [\.\- ]?                               # separator
-#            [Ee](?P<EpisodeNumEnd>[0-9][0-9]+))    # final episode number
-#            [^\/]*$
-#            ''',
-#            re.X|re.I))
-#
-#        self.RegxParse.append(re.compile(
-#            '''                                      # foo.s01e23e24*
-#            ^((?P<SeriesName>.+?)[ \._\-])?          # show name
-#            [Ss](?P<SeasonNum>[0-9][0-9]+)           # s01
-#            [\.\- ]?                                 # separator
-#            [Ee](?P<EpisodeNumStart>[0-9][0-9]+)     # first e23
-#            ([\.\- ]?                                # separator
-#            [Ee][0-9][0-9]+)*                        # e24e25 etc
-#            [\.\- ]?[Ee](?P<EpisodeNumEnd>[0-9][0-9]+) # final episode num
-#            [^\/]*$
-#            ''',
-#            re.X|re.I))
-#
-#        self.RegxParse.append(re.compile(
-#            '''                                      # foo.1x23 1x24 1x25
-#            ^((?P<SeriesName>.+?)[ \._\-])?          # show name
-#            (?P<SeasonNum>[0-9]+)                    # first season number (1)
-#            [xX](?P<EpisodeNumStart>[0-9][0-9]+)     # first episode (x23)
-#            ([ \._\-]+                               # separator
-#            (?P=SeasonNum)                           # more season numbers (1)
-#            [xX][0-9][0-9]+)*                        # more episode numbers (x24)
-#            ([ \._\-]+                               # separator
-#            (?P=SeasonNum)                           # last season number (1)
-#            [xX](?P<EpisodeNumEnd>[0-9][0-9]+))      # last episode number (x25)
-#            [^\/]*$
-#            ''',
-#            re.X|re.I))
-#
-#        self.RegxParse.append(re.compile(
-#            '''                                      # foo.1x23x24*
-#            ^((?P<SeriesName>.+?)[ \._\-])?          # show name
-#            (?P<SeasonNum>[0-9]+)                    # 1
-#            [xX](?P<EpisodeNumStart>[0-9][0-9]+)     # first x23
-#            ([xX][0-9][0-9]+)*                       # x24x25 etc
-#            [xX](?P<EpisodeNumEnd>[0-9][0-9]+)       # final episode num
-#            [^\/]*$
-#            ''',
-#            re.X|re.I))
-#
-#        self.RegxParse.append(re.compile(
-#            '''                                      # foo.s01e23-24*
-#            ^((?P<SeriesName>.+?)[ \._\-])?          # show name
-#            [Ss](?P<SeasonNum>[0-9][0-9]+)           # s01
-#            [\.\- ]?                                 # separator
-#            [Ee](?P<EpisodeNumStart>[0-9][0-9]+)     # first e23
-#            (                                        # -24 etc
-#                    [\-]
-#                    [Ee]?[0-9][0-9]+
-#            )*
-#                    [\-]                                # separator
-#                    [Ee]?(?P<EpisodeNumEnd>[0-9][0-9]+) # final episode num
-#            [\.\- ]                                  # must have a separator (prevents s01e01-720p from being 720 episodes)
-#            [^\/]*$
-#            ''',
-#            re.X|re.I))
-#
-#        self.RegxParse.append(re.compile(
-#            '''                                      # foo.1x23-24*
-#            ^((?P<SeriesName>.+?)[ \._\-])?          # show name
-#            (?P<SeasonNum>[0-9]+)                    # 1
-#            [xX](?P<EpisodeNumStart>[0-9][0-9]+)     # first x23
-#            (                                        # -24 etc
-#                    [\-][0-9][0-9]+
-#            )*
-#                    [\-]                             # separator
-#                    (?P<EpisodeNumEnd>[0-9][0-9]+)   # final episode num
-#            ([\.\- ].*                               # must have a separator (prevents 1x01-720p from being 720 episodes)
-#            |
-#            $)
-#            ''',
-#            re.X|re.I))
-#
-#        self.RegxParse.append(re.compile(
-#            '''                                      # foo.[1x09-11]*
-#            ^(?P<SeriesName>.+?)[ \._\-]             # show name and padding
-#            \[                                       # [
-#                    ?(?P<SeasonNum>[0-9]+)           # season
-#            [xX]                                     # x
-#                    (?P<EpisodeNumStart>[0-9][0-9]+) # episode
-#                    (- [0-9][0-9]+)*
-#            -                                        # -
-#                    (?P<EpisodeNumEnd>[0-9][0-9]+)   # episode
-#            \]                                       # \]
-#            [^\\/]*$
-#            ''',
-#            re.X|re.I))
-#
+        # Multiepisode
+        self.RegxParse.append(re.compile(
+            '''                                     # RegEx 3 foo.s01e23e24* foo.s01e23-24*
+            ^(/.*/)?                                # Optional Directory
+            (?P<SeriesName>.*)                      # Series Name
+            [/\._ \-]                               # Sep 1
+            [s|season]                              # s|season
+            [/\._ \-]?                              # Optional Sep 1
+            (?P<SeasonNum>[0-9]+)                   # Season Number (##)
+            [/\._ \-]?                              # Sep 1
+            [E|e|x|X]                               # e
+            (?P<EpisodeNumStart>[0-9][0-9]+)        # Starting Episode Number (##)
+            [\.\- ]?                                # Sep 1
+            [e]?                                    # Optional e
+            (?P<EpisodeNumEnd>[0-9][0-9]+)          # Ending Episode Number (##)
+            [\.\- ]                                 # Sep 1
+            (?P<EpisodeName>.*)                     # Optional Title
+            \.(?P<Ext>....?)$                       # Extension
+            ''',
+            re.X|re.I))
+
+        self.RegxParse.append(re.compile(
+            '''                                     # RegEx 4 foo s01e23 s01e24 s01e25 *
+            ^(/.*/)?                                # Optional Directory
+            (?P<SeriesName>.*)                      # Series Name
+            [/\._ \-]                               # Sep 1
+            [s|season]                              # s|season
+            (?P<SeasonNum>[0-9]+)                   # Season Number (##)
+            [E|e|x|X]                               # e
+            (?P<EpisodeNumStart>[0-9][0-9]+)        # Starting Episode Number (##)
+            [\.\- ]?                                # Sep 1
+            [S|s]([0-9]+)                           # s01
+            [e|E|x|X]?                              # Optional e
+            (?P<EpisodeNumEnd>[0-9][0-9]+)          # Ending Episode Number (##)
+            [\.\- ]                                 # Sep 1
+            (?P<EpisodeName>.*)                     # Optional Title
+            \.(?P<Ext>....?)$                       # Extension
+            ''',
+            re.X|re.I))
+
+        self.RegxParse.append(re.compile(
+            '''                                     # Regex #5 foo.1x23x24*
+            ^(/.*/)?                                # Optional Directory
+            ((?P<SeriesName>.+?)[ \._\-])?          # show name
+            (?P<SeasonNum>[0-9]+)                   # 1
+            [xX](?P<EpisodeNumStart>[0-9][0-9]+)    # first x23
+            [ \._\-]?                               # separator
+            ([xX][0-9][0-9]+)*                      # x24x25 etc
+            [ \._\-]?                               # separator
+            [xX](?P<EpisodeNumEnd>[0-9][0-9]+)      # final episode num
+            [/\._ \-]?                              # Optional Sep 1
+            (?P<EpisodeName>.+)                     # Optional Title
+            \.(?P<Ext>....?)$                       # extension
+            ''',
+            re.X|re.I))
+
+        self.RegxParse.append(re.compile(
+            '''                                      # Regex #6 foo.1x23-24*
+            ^(/.*/)?                                # Optional Directory
+            ((?P<SeriesName>.+?)[ \._\-])?          # show name
+            (?P<SeasonNum>[0-9]+)                    # 1
+            [xX](?P<EpisodeNumStart>[0-9][0-9]+)     # first x23
+            (                                        # -24 etc
+                    [\-][0-9][0-9]+
+            )*
+                    [\-]                             # separator
+                    (?P<EpisodeNumEnd>[0-9][0-9]+)   # final episode num
+            ([\.\- ].*                               # must have a separator (prevents 1x01-720p from being 720 episodes)
+            \.(?P<Ext>....?)$                       # Extension
+            $)
+            ''',
+            re.X|re.I))
+
+        self.RegxParse.append(re.compile(
+            '''                                     # Regex #7 foo.1x23 1x24 1x25
+            ^(/.*/)?                                # Optional Directory
+            ((?P<SeriesName>.+?)[ \._\-])?          # show name
+            (?P<SeasonNum>[0-9]+)                   # 1
+            [x|X]                                   # X
+            (?P<EpisodeNumStart>[0-9][0-9]+)        # first episode (x23)
+            [ \._\-]                                # separator
+            ([0-9]+)                                # more season numbers (1)
+            [x|X]                                   # X
+            (?P<EpisodeNumEnd>[0-9][0-9]+)*         # last episode number (x25)
+            [ \._\-]                                # separator
+            (?P<EpisodeName>.+)                     # Optional Title
+            \.(?P<Ext>....?)$                       # Extension
+            [^\/]*$
+            ''',
+            re.X|re.I))
+
+        self.RegxParse.append(re.compile(
+            '''                                      # Regex #8 foo.123-24*
+            ^(/.*/)?                                # Optional Directory
+            ((?P<SeriesName>.+?)[ \._\-])?          # show name
+            (?P<SeasonNum>[0-9]+)                    # 1
+            (?P<EpisodeNumStart>[0-9][0-9]+)     # first x23
+            (                                        # -24 etc
+                    [\-][0-9][0-9]+
+            )*
+                    [\-]                             # separator
+                    (?P<EpisodeNumEnd>[0-9][0-9]+)   # final episode num
+            ([\.\- ].*                               # must have a separator (prevents 1x01-720p from being 720 episodes)
+            \.(?P<Ext>....?)$                       # Extension
+            $)
+            ''',
+            re.X|re.I))
+
+        self.RegxParse.append(re.compile(
+            '''                                     # Regex #9 foo.123 124 125
+            ^(/.*/)*                                # Directory
+            (?P<SeriesName>.*)                      # Series Name
+            [ \._\-]                                # Sep
+            (?P<SeasonNum>[0-9]+)                   # first season number (1)
+            (?P<EpisodeNumStart>[0-9][0-9]+)        # first episode (x23)
+            [ \._\-]                                # separator
+            (?P<SeasonNumEnd>[0-9]+)                # more season numbers (1)
+            (?P<EpisodeNumEnd>[0-9][0-9]+)          # last episode number (25)
+            (?P<EpisodeName>.+)                     # Optional Title
+            \.(?P<Ext>....?)$                       # Extension
+            [^\/]*$
+            ''',
+            re.X|re.I))
+
 #        self.RegxParse.append(re.compile(
 #            '''                                      # foo.s0101, foo.0201
 #            ^(?P<SeriesName>.+?)[ \._\-]
@@ -415,11 +406,11 @@ class FileParser(dict):
 #----------------------------------------------------------------------------------------
         #Groups
         self.RegxParse.append(re.compile(
-            '''                                     # # 3  RegEx 1
+            '''                                     # # 10  RegEx 1
             ^(/.*/)?                                # Optional Directory
             ({.*})                                  # { GROUP NAME }
             [\._ \-]?[\._ \-]?[\._ \-]?             # Optional Sep 1-3
-            (?P<SeriesName>.*)                      # Series Name
+            (?P<SeriesName>.*?)                      # Series Name
             [/\._ \-]                               # Sep 1
             [S|s]                                   # s|S
             [/\._ \-]?                              # Optional Sep 1
@@ -434,11 +425,11 @@ class FileParser(dict):
             re.X|re.I))
 
         self.RegxParse.append(re.compile(
-            '''                                     # RegEx 4
+            '''                                     # RegEx 11
             ^(/.*/)?                                # Optional Directory
             (\[.*\])                                # { GROUP NAME }
             [\._ \-]?[\._ \-]?[\._ \-]?             # Optional Sep 1-3
-            (?P<SeriesName>.*)                      # Series Name
+            (?P<SeriesName>.*?)                      # Series Name
             [/\._ \-]                               # Sep 1
             [S|s]                                   # s|S
             [/\._ \-]?                              # Optional Sep 1
@@ -453,11 +444,11 @@ class FileParser(dict):
             re.X|re.I))
 
         self.RegxParse.append(re.compile(
-            '''                                     # # 5  RegEx 1
+            '''                                     # # 12  RegEx 1
             ^(/.*/)?                                # Optional Directory
             ({.*})                                  # { GROUP NAME }
             [\._ \-]?[\._ \-]?[\._ \-]?             # Optional Sep 0-3
-            (?P<SeriesName>.*)                      # Series Name
+            (?P<SeriesName>.*?)                      # Series Name
             [/\._ \-]+                              # Sep 1
             [/\._ \-]?                              # Optional Sep 1
             (?P<SeasonNum>[0-9]+)                   # Season Number (##)
@@ -471,11 +462,11 @@ class FileParser(dict):
             re.X|re.I))
 
         self.RegxParse.append(re.compile(
-            '''                                     # RegEx 6
+            '''                                     # RegEx 13
             ^(/.*/)?                                # Optional Directory
             (\[.*\])                                # { GROUP NAME }
             [\._ \-]?[\._ \-]?[\._ \-]?             # Optional Sep 0-3
-            (?P<SeriesName>.*)                      # Series Name
+            (?P<SeriesName>.*?)                      # Series Name
             [/\._ \-]                               # Sep 1
             (?P<SeasonNum>[0-9]+)                   # Season Number (##)
             [/\._ \-]?                              # Optional Sep 1
@@ -490,15 +481,13 @@ class FileParser(dict):
 #----------------------------------------------------------------------------------------
         #Single Episode with S or Season
         self.RegxParse.append(re.compile(
-            '''                                     # RegEx 7
+            '''                                     # RegEx 14
             ^(/.*/)?                                # Optional Directory
-            (?P<SeriesName>.*)                      # Series Name
+            (?P<SeriesName>.*?)                     # Series Name
             [/\._ \-]                               # Sep 1
             [s|season]                              # s|season
             [/\._ \-]?                              # Optional Sep 1
             (?P<SeasonNum>[0-9]+)                   # Season Number (##)
-            [/\._ \-]?                              # Optional Sep 1
-            (hdtv)?                                 # Optional "hdtv"
             [/\._ \-]?                              # Optional Sep 1
             [E|e]                                   # e
             (?P<EpisodeNum>[0-9][0-9]+)             # Episode Number (##)
@@ -511,7 +500,7 @@ class FileParser(dict):
 #----------------------------------------------------------------------------------------
         #Single Episode No S or Season
         self.RegxParse.append(re.compile(
-            '''                                    # #8  foo ##e|x##
+            '''                                    # #15  foo ##e|x##
             ^(/.*/)?                               # Optional Directory
             (?P<SeriesName>.*?)                    # Series Name
             [/\._ \-]+                             # Sep 1 or More
@@ -525,7 +514,7 @@ class FileParser(dict):
             re.X|re.I))
 
         self.RegxParse.append(re.compile(
-            '''                                    # #9  foo #e|x##
+            '''                                    # #16  foo #e|x##
             ^(/.*/)?                               # Optional Directory
             (?P<SeriesName>.*?)                    # Series Name
             [/\._ \-]+                             # Sep
@@ -571,7 +560,7 @@ class FileParser(dict):
 #----------------------------------------------------------------------------------------
         # DATE AIRED
         self.RegxParse.append(re.compile(
-            '''                                    # RegEx 10
+            '''                                    # RegEx 17
             ^(/.*/)?                               # Optional Directory
             (?P<SeriesName>.+?)                    # Series name
             [/\._ \-]                              # Sep 1
@@ -588,6 +577,21 @@ class FileParser(dict):
 
 #------------------------------------------------------------------------------------------
 #        # Special Cases
+#        self.RegxParse.append(re.compile(
+#            '''                                      # foo.[1x09-11]*
+#            ^(?P<SeriesName>.+?)[ \._\-]             # show name and padding
+#            \[                                       # [
+#                    ?(?P<SeasonNum>[0-9]+)           # season
+#            [xX]                                     # x
+#                    (?P<EpisodeNumStart>[0-9][0-9]+) # episode
+#                    (- [0-9][0-9]+)*
+#            -                                        # -
+#                    (?P<EpisodeNumEnd>[0-9][0-9]+)   # episode
+#            \]                                       # \]
+#            [^\\/]*$
+#            ''',
+#            re.X|re.I))
+#
 #        self.RegxParse.append(re.compile(
 #            '''                                      # Show - Episode 9999 [S 12 - Ep 131] - etc
 #            (?P<SeriesName>.+)                       # Showname
@@ -636,6 +640,7 @@ if __name__ == '__main__':
     ConfigDir = os.path.join(ConfigDirB, 'xbmcsupt')
     LogDir = os.path.join(HomeDir, 'log')
     TEMP_LOC = os.path.join(HomeDir, __pgmname__)
+    RunDir      = sys.path[0]
 
     log.setLevel('TRACE')
     _formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)-8s - %(message)s")
@@ -698,7 +703,7 @@ if __name__ == '__main__':
     if len(args) > 0:
         _answer = _my_parser.GetFileDetails(args[0])
     else:
-        _answer = _my_parser.GetFileDetails()
+        _answer = _my_parser.GetFileDetails(args[0])
 
     print
     print _answer
