@@ -8,7 +8,7 @@ Purpose:
 from __future__ import division
 from configobj import ConfigObj
 from optparse import OptionParser, OptionGroup
-from exceptions import ConfigValueError
+from daddyvision.common.exceptions import ConfigValueError
 import datetime
 import operator
 import logging

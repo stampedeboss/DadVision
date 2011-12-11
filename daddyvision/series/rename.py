@@ -6,9 +6,9 @@ Purpose:
 Program to rename and update Modification Time to Air Date
 
 """
-from seriesExceptions import *
+from daddyvision.common.exceptions import *
 from seriesinfo import SeriesInfo
-from getconfig import GetConfig
+from daddyvision.common.settings import Settings
 import re
 import os
 import sys
@@ -20,8 +20,17 @@ import datetime
 import time
 import unicodedata
 
+__author__ = "AJ Reynolds"
+__copyright__ = "Copyright 2011, AJ Reynolds"
+__credits__ = []
+__license__ = "GPL"
+
+__pgmname__ = 'rename'
 __version__ = '$Rev$'
-__pgmname__ = 'DownloadMonitor'
+
+__maintainer__ = "AJ Reynolds"
+__email__ = "stampedeboss@gmail.com"
+__status__ = "Development"
 
 #Level     Numeric value
 #CRITICAL    50
@@ -38,11 +47,11 @@ VERBOSE = 15
 
 logging.addLevelName(5, 'TRACE')
 logging.addLevelName(15, 'VERBOSE')
-logger = logging.getLogger()
-setattr(logger, 'TRACE', lambda *args: logger.log(5, *args))
-setattr(logger, 'VERBOSE', lambda *args: logger.log(15, *args))
+log = logging.getLogger()
+setattr(log, 'TRACE', lambda *args: log.log(5, *args))
+setattr(log, 'VERBOSE', lambda *args: log.log(15, *args))
 
-class RenameShows(object):
+class Rename(object):
     def __init__(self, parms, options):
         logger.TRACE('RenameShows.__init__')
         logger.debug(options)

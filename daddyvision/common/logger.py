@@ -9,17 +9,13 @@ TRACE = 5
 # A level more detailed than INFO
 VERBOSE = 15
 
-_logging_configured = False
-_mem_handler = None
-_logging_started = False
-
 
 class DaddyVisionLogger(logging.Logger):
-    """Custom logger that adds library and execution info to log records."""
+    """Custom logger that adds feed and execution info to log records."""
     local = threading.local()
 
     def makeRecord(self, name, level, fn, lno, msg, args, exc_info, func=None, extra=None):
-        extra = {'library': getattr(DaddyVisionLogger.local, 'library', u''),
+        extra = {'feed': getattr(DaddyVisionLogger.local, 'feed', u''),
                  'execution': getattr(DaddyVisionLogger.local, 'execution', '')}
         return logging.Logger.makeRecord(self, name, level, fn, lno, msg, args, exc_info, func, extra)
 
@@ -28,21 +24,24 @@ class DaddyVisionLogger(logging.Logger):
         self.log(TRACE, msg, *args, **kwargs)
 
     def verbose(self, msg, *args, **kwargs):
-        """Log at VERBOSE level (more detail than INFO less detail than DEBUG.)"""
+        """Log at VERBOSE level (displayed when FlexGet is run interactively.)"""
         self.log(VERBOSE, msg, *args, **kwargs)
+
+    # backwards compatibility
+    debugall = trace
 
 
 class DaddyVisionFormatter(logging.Formatter):
     """Custom formatter that can handle both regular log records and those created by DaddyVisionLogger"""
     plain_fmt = '%(asctime)-15s %(levelname)-8s %(name)-29s %(message)s'
-    daddyvision_fmt = '%(asctime)-15s %(levelname)-8s %(name)-13s %(library)-15s %(message)s'
+    flexget_fmt = '%(asctime)-15s %(levelname)-8s %(name)-13s %(feed)-15s %(message)s'
 
     def __init__(self):
         logging.Formatter.__init__(self, self.plain_fmt, '%Y-%m-%d %H:%M')
 
     def format(self, record):
-        if hasattr(record, 'library'):
-            self._fmt = self.daddyvision_fmt
+        if hasattr(record, 'feed'):
+            self._fmt = self.flexget_fmt
         else:
             self._fmt = self.plain_fmt
         return logging.Formatter.format(self, record)
@@ -52,8 +51,8 @@ def set_execution(execution):
     DaddyVisionLogger.local.execution = execution
 
 
-def set_library(library):
-    DaddyVisionLogger.local.library = library
+def set_feed(feed):
+    DaddyVisionLogger.local.feed = feed
 
 
 class PrivacyFilter(logging.Filter):
@@ -83,6 +82,7 @@ _logging_configured = False
 _mem_handler = None
 _logging_started = False
 
+
 def initialize(unit_test=False):
     """Prepare logging.
     """
@@ -101,30 +101,30 @@ def initialize(unit_test=False):
         return
 
     # root logger
-    logger = logging.getLogger()
+    log = logging.getLogger()
     formatter = DaddyVisionFormatter()
 
     _mem_handler = logging.handlers.MemoryHandler(1000 * 1000, 100)
     _mem_handler.setFormatter(formatter)
-    logger.addHandler(_mem_handler)
+    log.addHandler(_mem_handler)
 
     #
     # Process commandline options, unfortunately we need to do it before optparse is available
     #
 
     # turn on debug level
-    if '--debug' in sys.argv:
-        logger.setLevel(logging.DEBUG)
-    elif '--trace' in sys.argv:
-        logger.setLevel(TRACE)
-    elif '--verbose' in sys.argv:
-        logger.setLevel(VERBOSE)
+    if '--verbose' or '-v' in sys.argv:
+        log.setLevel(VERBOSE)
+    elif '--debug' in sys.argv:
+        log.setLevel(logging.DEBUG)
+    elif '--debug-trace' in sys.argv:
+        log.setLevel(TRACE)
     else:
-        logger.setLevel(logging.INFO)
+        log.setLevel(logging.INFO)
 
     console = logging.StreamHandler()
     console.setFormatter(formatter)
-    logger.addHandler(console)
+    log.addHandler(console)
 
 
 def start(filename=None, level=logging.INFO, debug=False):
@@ -146,11 +146,11 @@ def start(filename=None, level=logging.INFO, debug=False):
     _mem_handler.setTarget(handler)
 
     # root logger
-    logger = logging.getLogger()
-    logger.removeHandler(_mem_handler)
-    logger.addHandler(handler)
-    logger.addFilter(PrivacyFilter())
-    logger.setLevel(level)
+    log = logging.getLogger()
+    log.removeHandler(_mem_handler)
+    log.addHandler(handler)
+    log.addFilter(PrivacyFilter())
+    log.setLevel(level)
 
     # flush what we have stored from the plugin initialization
     _mem_handler.flush()
@@ -161,8 +161,8 @@ def flush_logging_to_console():
     """Flushes memory logger to console"""
     console = logging.StreamHandler()
     console.setFormatter(_mem_handler.formatter)
-    logger = logging.getLogger()
-    logger.addHandler(console)
+    log = logging.getLogger()
+    log.addHandler(console)
     if len(_mem_handler.buffer) > 0:
         for record in _mem_handler.buffer:
             console.handle(record)

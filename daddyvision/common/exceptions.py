@@ -1,11 +1,22 @@
-"""
-Author: AJ Reynolds
-Date: 11-30-2010
+'''
 Purpose:
 
    Exceptions used through-out Daddy Vision
 
-"""
+'''
+
+__author__ = "AJ Reynolds"
+__copyright__ = "Copyright 2011, AJ Reynolds"
+__credits__ = []
+__license__ = "GPL"
+
+__pgmname__ = 'fileparser'
+__version__ = '$Rev$'
+
+__maintainer__ = "AJ Reynolds"
+__email__ = "stampedeboss@gmail.com"
+__status__ = "Development"
+
 
 class BaseDaddyVisionException(Exception):
     """Base exception all DaddyVision exceptions inherit from
