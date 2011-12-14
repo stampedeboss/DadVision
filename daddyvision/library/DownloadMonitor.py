@@ -42,17 +42,17 @@ class MyDaemon(Daemon):
                 log.error("Path Not Found: %s" % self.config.WatchDir)
                 raise ConfigValueError("Configuration Issue Watch Directory Not Found: %s" % self.config.WatchDir)
 
-            log.debug('Found watch directory: %s' % self.config.watch_dir)
+            log.debug('Found watch directory: %s' % self.config.WatchDir)
 
             pHandler = PackageHandler()
             watchManager  = pyinotify.WatchManager()
             mask    = IN_CREATE | IN_MOVED_TO
             handler = EventHandler(pHandler)
             notifier= pyinotify.Notifier(watchManager, handler)
-            log.trace('Notifier Created')
+            log.debug('Notifier Created')
             watchDir1 = watchManager.add_watch(self.config.WatchDir, mask, rec=True)
             log.info('Watching Directory: %s' % self.config.WatchDir)
-            if not options.debug:
+            if options.loglevel != 'DEBUG':
                 try:
                     notifier.loop()
                 except:
@@ -84,7 +84,7 @@ class PackageHandler(object):
         log.debug('PackageHandler Initialized')
 
     def NewDownload(self, pathname):
-        self.distribute.ProcessFile(pathname)
+        self.distribute.ProcessPathName(pathname)
 
 if __name__ == "__main__":
 
@@ -96,7 +96,11 @@ if __name__ == "__main__":
     options, args = parser.parse_args()
 
     log_level = logging.getLevelName(options.loglevel.upper())
-    log_file = os.path.expanduser(options.logfile)
+
+    if options.logfile == 'daddyvision.log':
+        log_file = 'DownloadMonitor.log'
+    else:
+        log_file = os.path.expanduser(options.logfile)
 
     # If an absolute path is not specified, use the default directory.
     if not os.path.isabs(log_file):
@@ -112,13 +116,13 @@ if __name__ == "__main__":
     log.info("Parsed command line options: %r" % options)
     log.debug("Parsed arguments: %r" % args)
 
-    if options.loglevel != 'DEBUG' and options.loglevel != 'VERBOSE':
+    if options.loglevel != 'DEBUG' and options.loglevel != 'TRACE':
         if len(args) != 1 or (args[0].lower() != 'start' and args[0].lower() != 'stop' and args[0].lower() != 'restart'):
             parser.error('Invalid or missing arguments')
 
     daemon = MyDaemon('/tmp/daemon-example.pid')
 
-    if options.debug or options.verbose:
+    if options.loglevel == 'DEBUG' or options.loglevel == 'TRACE':
         log.info('******* DEBUG Selected, Not using Daemon ********')
         log.info("**************    %s     ***************" % __version__)
         daemon.run()

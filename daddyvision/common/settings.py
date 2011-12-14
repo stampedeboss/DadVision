@@ -60,6 +60,9 @@ class Settings(object):
             self.SubscriptionDir = Library['SubscriptionDir']
             self.NewDir = Library['NewDir']
 
+            RunTime    = self.config['DownloadMonitor']
+            self.WatchDir = os.path.expanduser(RunTime['WatchDir'])
+
             if not os.path.exists(self.SeriesDir):
                 log.error("Path Not Found: %s" % self.SeriesDir)
                 log.error("Invalid Config Entries, Ending")
