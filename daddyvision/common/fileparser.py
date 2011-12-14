@@ -13,9 +13,10 @@ from __future__ import division
 from subprocess import Popen, call as Call, PIPE
 from logging import INFO, WARNING, ERROR, DEBUG
 from daddyvision.common.exceptions import InvalidFilename, RegxSelectionError
+from daddyvision.common.options import OptionParser, CoreOptionParser
+from daddyvision.common import logger
 import datetime
 import logging
-import logging.handlers
 import os
 import re
 import sys
@@ -35,11 +36,7 @@ __maintainer__ = "AJ Reynolds"
 __email__ = "stampedeboss@gmail.com"
 __status__ = "Development"
 
-logging.addLevelName(5, 'TRACE')
-logging.addLevelName(15, 'VERBOSE')
-log = logging.getLogger()
-setattr(log, 'TRACE', lambda *args: log.log(5, *args))
-setattr(log, 'VERBOSE', lambda *args: log.log(15, *args))
+log = logging.getLogger(__pgmname__)
 
 class FileParser(dict):
     """
@@ -47,14 +44,14 @@ class FileParser(dict):
     Returns an Dictionary instance containing extracted data.
     """
     def __init__(self):
-        log.TRACE("FileParser: __init__")
+        log.trace("Entering: __init__")
 
         self.FileDetails = {}
         self.RegxParse = self.GetRegx()
         self.check_suffix = re.compile('^(?P<SeriesName>.+?)[ \._\-](?P<Year>[0-9][0-9][0-9][0-9]|US|us|Us)$', re.VERBOSE)
 
-    def GetFileDetails(self, fq_name):
-        log.TRACE("FileParser: GetFileDetails- File: %s" % (fq_name))
+    def getFileDetails(self, fq_name):
+        log.trace("GetFileDetails: File: %s" % (fq_name))
 
         #tODO: Implement logging mod to track module reporting error
 
@@ -70,12 +67,12 @@ class FileParser(dict):
                 break
 
         if not _parse_details:
-            _error_msg = "FileParser: No Matching Regx - Unable to parse Filename: {}".format(fq_name)
-            log.TRACE(_error_msg)
-            raise InvalidFilename(_error_msg)
+            _error_msg = "No Matching Regx - Unable to parse Filename: {}".format(fq_name)
+            log.trace(_error_msg)
+            raise InvalidFilename('FileParser:' + _error_msg)
 
-        self.LogHeader = 'FileParser-RegEx {}'.format(self.RegExNumber)
-        log.VERBOSE('{}: RegEx Matched'.format(self.LogHeader))
+        self.LogHeader = 'RegEx {}'.format(self.RegExNumber)
+        log.verbose('{}: RegEx Matched'.format(self.LogHeader))
 
         with open('/home/aj/log/fileparse_regx.log', 'a') as tracker:
             tracker.write('RegEx: {} - {}: \n'.format(self.RegExNumber, fq_name))
@@ -84,7 +81,7 @@ class FileParser(dict):
         _parsed_keys = _parse_details.groupdict().keys()
 
         for _key in _parsed_keys:
-            log.VERBOSE("{}: {}".format(_key, _parse_details.group(_key)))
+            log.debug("{}: {}".format(_key, _parse_details.group(_key)))
 
         _air_date = ''
 
@@ -97,8 +94,8 @@ class FileParser(dict):
             except InvalidFilename as errmsg:
                 _air_date = self._get_date_aired(_parsed_keys, _parse_details)
         except InvalidFilename as errmsg:
-            log.TRACE('{errmsg} Filename: {fq_name}'.format(errmsg, fq_name))
-            raise RegxSelectionError('{errmsg} Filename: {fq_name}'.format(errmsg, fq_name))
+            log.trace('{errmsg} Filename: {fq_name}'.format(errmsg, fq_name))
+            raise RegxSelectionError('FileParser: {errmsg} Filename: {fq_name}'.format(errmsg, fq_name))
 
         if 'Ext' in _parsed_keys:
             _ext = _parse_details.group('Ext')
@@ -106,8 +103,8 @@ class FileParser(dict):
             _ext = _file_name[-4:]
             log.debug('{}: Parse Failed to Locate Extension Using: {}'.format(self.LogHeader, _ext))
         else:
-            log.TRACE('{}: Unable to Identify Extension for Filename: {}'.format(self.LogHeader, fq_name))
-            raise RegxSelectionError('{}: Unable to Identify Extension for Filename: {}'.format(self.LogHeader, fq_name))
+            log.trace('{}: Unable to Identify Extension for Filename: {}'.format(self.LogHeader, fq_name))
+            raise RegxSelectionError('FileParser: {}: Unable to Identify Extension for Filename: {}'.format(self.LogHeader, fq_name))
 
         self.File_Details = {}
         self.File_Details['FileName'] = fq_name
@@ -121,17 +118,17 @@ class FileParser(dict):
             self.File_Details['SeasonNum'] = _season_num
             self.File_Details['EpisodeNums'] = _episode_nums
 
-        log.TRACE('{}: File Details Found: {}'.format(self.LogHeader, self.File_Details))
+        log.trace('{}: File Details Found: {}'.format(self.LogHeader, self.File_Details))
 
         return self.File_Details
 
     def _get_series_name(self, _parsed_keys, _parse_details):
-        log.TRACE("{}: _get_series_name: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
+        log.trace("{}: _get_series_name: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
 
         if 'SeriesName' in _parsed_keys and _parse_details.group('SeriesName') != None:
             _series_name = _parse_details.group('SeriesName')
         else:
-            raise InvalidFilename('{}: Parse Did Not Find Series Name: {1}'.format(self.LogHeader, _parsed_keys))
+            raise InvalidFilename('FileParser: {}: Parse Did Not Find Series Name: {1}'.format(self.LogHeader, _parsed_keys))
 
         '''
         Cleans up series name by removing any . and _
@@ -147,25 +144,25 @@ class FileParser(dict):
         if _suffix:
             _series_name = '%s (%s)' % (_suffix.group('SeriesName'), _suffix.group('Year').upper())
 
-        log.TRACE('{}: Series Name: {}'.format(self.LogHeader, _series_name.strip()))
+        log.trace('{}: Series Name: {}'.format(self.LogHeader, _series_name.strip()))
 
         return _series_name.strip()
 
     def _get_season_number(self, _parsed_keys, _parse_details):
-        log.TRACE("{}: _get_season_number: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
+        log.trace("{}: _get_season_number: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
 
         if 'SeasonNum' in _parsed_keys:
             _season_num = int(_parse_details.group('SeasonNum'))
         else:
-            log.TRACE('{}: No Season / Episode Numbers or Air Date in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
-            raise RegxSelectionError('{}: No Season / Episode Numbers or Air Date in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
+            log.trace('{}: No Season / Episode Numbers or Air Date in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
+            raise RegxSelectionError('FileParser: {}: No Season / Episode Numbers or Air Date in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
 
-        log.TRACE('{}: Season Number: {}'.format(self.LogHeader, _season_num))
+        log.trace('{}: Season Number: {}'.format(self.LogHeader, _season_num))
 
         return _season_num
 
     def _get_episode_numbers(self, _parsed_keys, _parse_details):
-        log.TRACE("{}: _get_episode_numbers: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
+        log.trace("{}: _get_episode_numbers: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
 
         _episode_list = []
         if 'EpisodeNum1' in _parsed_keys:
@@ -185,7 +182,7 @@ class FileParser(dict):
         elif 'EpisodeNum' in _parsed_keys:
             _episode_numbers = [int(_parse_details.group('EpisodeNum')), ]
         else:
-            raise RegxSelectionError(("{}:"
+            raise RegxSelectionError(("FileParser: {}:"
                                    "Regex does not contain episode number group, should "
                                    "contain EpisodeNum, EpisodeNum1-9, or "
                                    "EpisodeNumStart and EpisodeNumEnd\n {}"
@@ -194,22 +191,22 @@ class FileParser(dict):
         return _episode_numbers
 
     def _get_date_aired(self, _parsed_keys, _parse_details):
-        log.TRACE("{}: _get_date_aired: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
+        log.trace("{}: _get_date_aired: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
 
         if 'year' in _parsed_keys or 'month' in _parsed_keys or 'day' in _parsed_keys:
             if not all(['year' in _parsed_keys, 'month' in _parsed_keys, 'day' in _parsed_keys]):
-                    raise RegxSelectionError("{}: Date-based regex must contain groups 'year', 'month' and 'day', Keys Found {}".format(self.LogHeader, _parsed_keys))
+                    raise RegxSelectionError("FileParser: {}: Date-based regex must contain groups 'year', 'month' and 'day', Keys Found {}".format(self.LogHeader, _parsed_keys))
 
-            _air_date = datetime.datetime(int(_parse_details.group('year')),
-                                          int(_parse_details.group('month')),
-                                          int(_parse_details.group('day')))
-            self.FileDetails.append({'AirDate': _air_date})
+            _date_aired = datetime.datetime(int(_parse_details.group('year')),
+                                            int(_parse_details.group('month')),
+                                            int(_parse_details.group('day')))
+            self.FileDetails.append({'DateAired': _date_aired})
         else:
             log.debug()
-            raise RegxSelectionError('{}: No Season / Episode Numbers or Air Date in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
+            raise RegxSelectionError('FileParser: {}: No Season / Episode Numbers or Date Aired in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
 
     def GetRegx(self):
-        log.TRACE("FileParse: GetRegx")
+        log.trace("FileParse: GetRegx")
 
 #----------------------------------------------------------------------------------------
         # My Library Standard
@@ -632,72 +629,29 @@ class FileParser(dict):
 
 if __name__ == '__main__':
 
-    from optparse import OptionParser, OptionGroup
+    logger.initialize()
+
+    parser = CoreOptionParser()
+    options, args = parser.parse_args()
+
+    log_level = logging.getLevelName(options.loglevel.upper())
+    log_file = os.path.expanduser(options.logfile)
+
+    # If an absolute path is not specified, use the default directory.
+    if not os.path.isabs(log_file):
+        log_file = os.path.join(logger.LogDir, log_file)
+
+    logger.start(log_file, log_level)
+
+    log.debug("Parsed command line options: {!s}".format(options))
+    log.debug("Parsed arguments: %r" % args)
 
     PgmDir = os.path.dirname(__file__)
     HomeDir = os.path.expanduser('~')
     ConfigDirB = os.path.join(HomeDir, '.config')
     ConfigDir = os.path.join(ConfigDirB, 'xbmcsupt')
-    LogDir = os.path.join(HomeDir, 'log')
     TEMP_LOC = os.path.join(HomeDir, __pgmname__)
     RunDir      = sys.path[0]
-
-    log.setLevel('TRACE')
-    _formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)-8s - %(message)s")
-
-    _mem_log = logging.handlers.MemoryHandler(1000 * 1000, 100)
-    _mem_log.setLevel(DEBUG)
-    _mem_log.setFormatter(_formatter)
-    log.addHandler(_mem_log)
-
-    _console = logging.StreamHandler()
-    _console.setLevel(INFO)
-    _console.setFormatter(_formatter)
-    log.addHandler(_console)
-
-#    _main_log = logging.handlers.RotatingFileHandler(os.path.join(LogDir, '%s.log' % __pgmname__), maxBytes=0, backupCount=7)
-#    _main_log.setLevel(DEBUG)
-#    _main_log.setFormatter(_formatter)
-#    log.addHandler(_main_log)
-#    _main_log.doRollover()
-#
-#    _error_log = logging.handlers.RotatingFileHandler(os.path.join(LogDir, '%s_error.log' % __pgmname__), maxBytes=0, backupCount=7)
-#    _error_log.setLevel(ERROR)
-#    _error_log.setFormatter(_formatter2)
-#    log.addHandler(_error_log)
-#    _error_log.doRollover()
-
-    parser = OptionParser(
-        "%prog [options] [<pathname>]",
-        version="%prog " + __version__)
-
-    group = OptionGroup(parser, "Logging Levels:")
-    group.add_option("--loglevel", dest="loglevel",
-        action="store", type="choice", default="INFO",
-        choices=['CRITICAL' ,'ERROR', 'WARNING', 'INFO', 'VERBOSE', 'DEBUG', 'TRACE'],
-        help="Specify by name the Level of logging desired, [CRITICAL|ERROR|WARNING|INFO|VERBOSE|DEBUG|TRACE]")
-    group.add_option("-e", "--errors", dest="loglevel",
-        action="store_const", const="ERROR",
-        help="Limit logging to only include Errors and Critical information")
-    group.add_option("-q", "--quiet", dest="loglevel",
-        action="store_const", const="WARNING",
-        help="Limit logging to only include Warning, Errors, and Critical information")
-    group.add_option("-v", "--verbose", dest="loglevel",
-        action="store_const", const="VERBOSE",
-        help="increase logging to include informational information")
-    group.add_option("--debug", dest="loglevel",
-        action="store_const", const="DEBUG",
-        help="increase logging to include debug information")
-    group.add_option("--trace", dest="loglevel",
-        action="store_const", const="TRACE",
-        help="increase logging to include program trace information")
-    parser.add_option_group(group)
-
-    options, args = parser.parse_args()
-    _console.setLevel(options.loglevel)
-
-    log.debug("Parsed command line options: %r" % options)
-    log.debug("Parsed arguments: %r" % args)
 
     _my_parser = FileParser()
     if len(args) > 0:

@@ -3,16 +3,30 @@ import sys
 from optparse import OptionParser as OptParser, OptionGroup
 import daddyvision
 
+__pgmname__ = 'common.options'
+__version__ = '$Rev$'
+
+__author__ = "@author: AJ Reynolds"
+__copyright__ = "Copyright 2011, AJ Reynolds"
+__credits__ = []
+__license__ = "GPL"
+
+__maintainer__ = "AJ Reynolds"
+__email__ = "stampedeboss@gmail.com"
+__status__ = "Development"
 
 class OptionParser(OptParser):
 
     def __init__(self, **kwargs):
         OptParser.__init__(self, **kwargs)
 
-        self.version = daddyvision.__version__
+        self.version = __version__
 
         self.add_option('-V', '--version', action='version',
-                        help='Print FlexGet version and exit.')
+                        help='Print DaddyVision version and exit.')
+
+        self.add_option('--logfile', action='store', dest='logfile', default='daddyvision.log',
+                        help='Specify a custom logfile name/location. Default is daddyvision.log in the /srv/log directory.')
 
         group = OptionGroup(self, "Logging Levels:")
         group.add_option("--loglevel", dest="loglevel",
@@ -36,15 +50,6 @@ class OptionParser(OptParser):
             help="increase logging to include program trace information")
         self.add_option_group(group)
 
-    def _debug_callback(self, option, opt, value, parser):
-        setattr(parser.values, option.dest, 1)
-        if option.dest == 'debug':
-            setattr(parser.values, 'loglevel', 'debug')
-        elif option.dest == 'debug_trace':
-            setattr(parser.values, 'debug', 1)
-            setattr(parser.values, 'loglevel', 'trace')
-
-
 class CoreOptionParser(OptionParser):
     """Contains all the options that should only be used when running without a ui"""
 
@@ -53,7 +58,7 @@ class CoreOptionParser(OptionParser):
 
         self._unit_test = unit_test
 
-
+'''
     def parse_args(self, args=None):
         result = OptParser.parse_args(self, args or self._unit_test and ['flexget', '--reset'] or None)
         options = result[0]
@@ -70,3 +75,4 @@ class CoreOptionParser(OptionParser):
             options.loglevel = 'info'
 
         return options, args
+'''

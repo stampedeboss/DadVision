@@ -5,13 +5,13 @@ Purpose:
 
 '''
 
+__pgmname__ = 'exceptions'
+__version__ = '$Rev$'
+
 __author__ = "AJ Reynolds"
 __copyright__ = "Copyright 2011, AJ Reynolds"
 __credits__ = []
 __license__ = "GPL"
-
-__pgmname__ = 'fileparser'
-__version__ = '$Rev$'
 
 __maintainer__ = "AJ Reynolds"
 __email__ = "stampedeboss@gmail.com"

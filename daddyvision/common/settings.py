@@ -31,16 +31,7 @@ ConfigDirB  = os.path.join(HomeDir, '.config')
 ConfigDir   = os.path.join(ConfigDirB, 'xbmcsupt')
 RunDir      = sys.path[0]
 
-# A level more detailed than DEBUG
-TRACE = 5
-# A level more detailed than INFO
-VERBOSE = 15
-
-logging.addLevelName(5, 'TRACE')
-logging.addLevelName(15, 'VERBOSE')
-log = logging.getLogger()
-setattr(log, 'TRACE', lambda *args: log.log(5, *args))
-setattr(log, 'VERBOSE', lambda *args: log.log(15, *args))
+log = logging.getLogger('settings')
 
 class Settings(object):
     '''

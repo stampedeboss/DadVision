@@ -6,16 +6,18 @@ Purpose:
 Program to rename and update Modification Time to Air Date
 
 """
-from daddyvision.common.exceptions import *
-from seriesinfo import SeriesInfo
-from daddyvision.common.settings import Settings
+from daddyvision.common.exceptions import InvalidFilename, RegxSelectionError, ConfigValueError
+from daddyvision.common.exceptions import DataRetrievalError, EpisodeNotFound, SeriesNotFound
+from daddyvision.common.fileparser import FileParser
+from daddyvision.common import logger
+from daddyvision.series.episodeinfo import EpisodeDetails
+from logging import INFO, WARNING, ERROR, DEBUG
 import re
 import os
 import sys
 import filecmp
 import fnmatch
 import logging
-from logging import INFO, WARNING, ERROR, DEBUG
 import datetime
 import time
 import unicodedata
@@ -32,410 +34,208 @@ __maintainer__ = "AJ Reynolds"
 __email__ = "stampedeboss@gmail.com"
 __status__ = "Development"
 
-#Level     Numeric value
-#CRITICAL    50
-#ERROR       40
-#WARNING     30
-#INFO        20
-#DEBUG       10
-#NOTSET       0
+log = logging.getLogger(__pgmname__)
 
-# A level more detailed than DEBUG
-TRACE = 5
-# A level more detailed than INFO
-VERBOSE = 15
+def useLibraryLogging(func):
 
-logging.addLevelName(5, 'TRACE')
-logging.addLevelName(15, 'VERBOSE')
-log = logging.getLogger()
-setattr(log, 'TRACE', lambda *args: log.log(5, *args))
-setattr(log, 'VERBOSE', lambda *args: log.log(15, *args))
+    def wrapper(self, *args, **kw):
+        # Set the library name in the logger
+        from daddyvision.common import logger
+        logger.set_library('series')
+        try:
+            return func(self, *args, **kw)
+        finally:
+            logger.set_library('')
+
+    return wrapper
 
 class Rename(object):
-    def __init__(self, parms, options):
-        logger.TRACE('RenameShows.__init__')
-        logger.debug(options)
+    
+    def __init__(self, config):
+        log.trace('__init__ method: Started')
 
-        self.parms = parms
-        self.options = options
-
+        self.config = config
+        
         self.regex_repack = re.compile('^.*(repack|proper).*$', re.IGNORECASE)
         self.check_suffix = re.compile('^(?P<seriesname>.+?)[ \._\-](?P<year>[0-9][0-9][0-9][0-9]|US|us|Us)$', re.VERBOSE)
 #        self.check_year = re.compile('^(?P<seriesname>.+?)[ \._\-](?P<year>[0-9][0-9][0-9][0-9])$', re.VERBOSE)
 #        self.check_US = re.compile('^(?P<seriesname>.+?)[ \._\-](?P<country>US)$', re.VERBOSE)
 
-        self.lastseries = None
-        self.showdata = {}
-        self.showinfo = SeriesInfo()
+        self.episodeinfo = EpisodeDetails()
+        self.parser = FileParser()
+
         return
+    
+    @useLibraryLogging
+    def rename(self, pathname):
+        log.trace("rename method: pathname:{}".format(pathname))
 
-    def ProcessFile(self, pathname):
+        _last_series = None
+        _tvdb_data = {}
+
         if os.path.isfile(pathname):
-            logger.debug("-----------------------------------------------")
-            logger.debug("Directory: %s" % os.path.split(pathname)[0])
-            logger.debug("Filename:  %s" % os.path.split(pathname)[1])
-            series, epdata = self.FileParser(pathname)
-            if epdata : epdata = self.GetEpisodeDetails(epdata)
-            if epdata : self.RenameFile(pathname, epdata)
+            log.debug("-----------------------------------------------")
+            log.debug("Directory: %s" % os.path.split(pathname)[0])
+            log.debug("Filename:  %s" % os.path.split(pathname)[1])
+            try:
+                _file_details = self.parser.getFileDetails(pathname)
+                if _file_details : _file_details = self.episodeinfo.getDetails(_file_details)
+                if _file_details : self._rename_file(_file_details)
+            except (InvalidFilename, RegxSelectionError, EpisodeNotFound, SeriesNotFound), msg:
+                log.error('Unable to Rename File: {}'.format(msg))
+                return
+            try:
+                cmd='xbmc-send --host=happy --action="XBMC.UpdateLibrary(video)"'
+                os.system(cmd)
+                log.trace("TV Show Rename Trigger Successful")
+            except OSError, exc:
+                log.error("TV Show Rename Trigger Failed: %s" % exc)
         elif os.path.isdir(pathname):
-            for root, dirs, files in os.walk(os.path.abspath(pathname),followlinks=False):
-                for dir in dirs[:]:
-                    if self.ignored(dir):
-                        logger.debug("Ignoring %r" % os.path.join(root, dir))
-                        dirs.remove(dir)
-                files.sort()
-                for fname in files:
-                    pathname = os.path.join(root, fname)
-                    logger.debug("-----------------------------------------------")
-                    logger.debug("Filename: %s" % pathname)
+            for _root, _dirs, _files in os.walk(os.path.abspath(pathname),followlinks=False):
+                for _dir in _dirs[:]:
+                    if self._ignored(_dir):
+                        log.debug("Ignoring %r" % os.path.join(_root, _dir))
+                        _dirs.remove(_dir)
+
+                _files.sort()
+                for _file_name in _files:
+                    _path_name = os.path.join(_root, _file_name)
+                    log.debug("-----------------------------------------------")
+                    log.debug("Filename: %s" % _path_name)
                     try:
-                        series, epdata = self.FileParser(pathname)
-                        if epdata:
-                            epdata = self.GetEpisodeDetails(epdata)
-                        if epdata:
-                            self.RenameFile(pathname, epdata)
-                    except InvalidFilename, msg:
-                        logger.warning('File Name Invalid for Automatic Handling, Requires Manual Intervention')
+                        _file_details = self.parser.getFileDetails(_path_name)
+                        if _file_details:
+                            if _file_details['Ext'] not in self.config.MediaExt:
+                                try:
+                                    os.remove(_file_details['FileName'])
+                                    self._del_dir(_file_details['FileName'])
+                                    continue
+                                except:
+                                    log.info('Unable to delete: %s - %s' % (_file_details['FileName'],sys.exc_info()[1]))
+                                continue
+                            _file_details = self.episodeinfo.getDetails(_file_details)
+                            self._rename_file(_file_details)
+                    except (InvalidFilename, RegxSelectionError, DataRetrievalError, EpisodeNotFound, SeriesNotFound), msg:
+                        log.error('Unable to Rename File: {}'.format(msg))
                         continue
-        else:
-            logger.error('Invalid Parm, Neither File or Directory: %s' % pathname)
-        try:
-            cmd='xbmc-send --host=happy --action="XBMC.UpdateLibrary(video)"'
-            os.system(cmd)
-            logger.TRACE("TV Show Rename Trigger Successful")
-        except OSError, exc:
-            logger.error("TV Show Rename Trigger Failed: %s" % exc)
-
-
-    def FileParser(self, pathname):
-        """Runs path via configured regex, extracting data from groups.
-        Returns an Dictionary instance containing extracted data.
-        """
-        path, fname    = os.path.split(pathname)
-
-        seriesname      = ''
-        seasonnumber    = ''
-        episodenumbers  = ''
-        epno            = ''
-        airdate         = ''
-
-        logger.debug("FileParser - File Name: %s" % (fname))
-
-        EPScheme = re.compile('^E[0-9][0-9].*', re.X|re.I)
-        EPParse = re.compile(            '''                                     # RegEx 1
-            ^(/.*/)*                                # Directory
-            (?P<seriesname>.*)                      # Series Name
-            (/Season)                               # Season
-            [/\._ \-]                               # Sep 1
-            (?P<seasonnumber>[0-9]+)                # Season Number (##)
-            (/)                                     # Directory Seperator
-            [E|e]                                   # Episode Number (##)
-            (?P<episodenumber>[0-9][0-9]+)          # e
-            [/\._ \-]?                              # Optional Sep 1
-            (?P<epname>.+)?                         # Optional Title
-            \.(?P<ext>....?)$                       # extension
-            ''',
-             re.X|re.I)
-        series = EPScheme.match(fname)
-        if series:
-            series = EPParse.match(pathname)
-            if not series:
-                sys.exit(1)
-        else:
-            for cmatcher in self.compiled_regexs:
-                series = cmatcher.match(fname)
-                if series:
-                    break
-
-        if series:
-            namedgroups = series.groupdict().keys()
-            namedgroups = series.groupdict().keys()
-            for key in namedgroups:
-                logger.TRACE("%s: %s" % ( key, series.group(key)))
-
-            if 'seriesname' in namedgroups and series.group('seriesname') != None:
-                seriesname = series.group('seriesname')
-                logger.debug('FileParser - SeriesName: %s' % seriesname)
-                seriesname = self.cleanRegexedSeriesName(seriesname)
-                logger.debug('FileParser - Post Clean SeriesName: %s' % seriesname)
-            else:
-                msg = 'FileParser: Missing Show Name: %s' % fname
-                raise InvalidFilename(msg)
-                logger.warning(msg)
-
-            if 'ext' in namedgroups:
-                ext = series.group('ext')
-            elif fname[-4] == '.':
-                    ext = fname[-4:]
-                    logger.TRACE['ext: %s' % ext]
-            else:
-                logger.debug('FileParser - Missing Extension - Named Groups: %s' % (namedgroups))
-                raise InvalidFilename(fname)
-
-
-            if 'episodenumber1' in namedgroups:
-                # Multiple episodes, have episodenumber1 or 2 etc
-                epnos = []
-                for cur in namedgroups:
-                    epnomatch = re.match('episodenumber(\d+)', cur)
-                    if epnomatch:
-                        epnos.append(int(series.group(cur)))
-                epnos.sort()
-                episodenumbers = epnos
-            elif 'episodenumberstart' in namedgroups:
-                # Multiple episodes, regex specifies start and end number
-                start = int(series.group('episodenumberstart'))
-                end = int(series.group('episodenumberend'))
-                if start > end:
-                    # Swap start and end
-                    start, end = end, start
-                episodenumbers = range(start, end + 1)
-            elif 'episodenumber' in namedgroups:
-                episodenumbers = [int(series.group('episodenumber')), ]
-                logger.debug('FileParser - Episode Number: %s' % episodenumbers)
-            elif 'year' in namedgroups or 'month' in namedgroups or 'day' in namedgroups:
-                if not all(['year' in namedgroups, 'month' in namedgroups, 'day' in namedgroups]):
-                    raise ConfigValueError("Date-based regex must contain groups 'year', 'month' and 'day'")
-                series.group('year')
-
-                airdate = datetime.datetime(int(series.group('year')),
-                                         int(series.group('month')),
-                                         int(series.group('day')))
-            else:
-                raise ConfigValueError(
-                    "Regex does not contain episode number group, should"
-                    "contain episodenumber, episodenumber1-9, or"
-                    "episodenumberstart and episodenumberend\n\nPattern"
-                    "was:\n" + cmatcher.pattern)
-
-            if 'seasonnumber' in namedgroups:
-                seasonnumber = int(series.group('seasonnumber'))
-                epdata = {
-                          'base_dir' : self.parms.series_dir,
-                          'seriesname': seriesname,
-                          'seasonnumber': seasonnumber,
-                          'epno': episodenumbers,
-                          'ext' : ext
-                          }
-            elif 'year' in namedgroups and 'month' in namedgroups and 'day' in namedgroups:
-                epdata = {
-                          'base_dir' : self.parms.series_dir,
-                          'seriesname': seriesname,
-                          'airdate': airdate,
-                          'ext' : ext
-                          }
-            else:
-                logger.debug('FileParser - No Season Number, Named Groups: %s' % (namedgroups))
-                raise InvalidFilename(fname)
-#                    # No season number specified, usually for Anime
-#                    epdata = NoSeasonEpisodeInfo(
-#                    seriesname = seriesname,
-#                    episodenumbers = episodenumbers,
-#                    filename = self.path)
-            return series, epdata
-        else:
-            raise InvalidFilename(fname)
-
-    def GetEpisodeDetails(self, epdata):
-        if not epdata:
-            logger.warn("No Match: %s" % epdata)
-            return None
-        seriesname = epdata['seriesname']
-        if 'episodedata' in self.showdata and self.lastseries == seriesname:
-            pass
-        else:
-            logger.debug('Last Series: %s  Current Series: %s' % (self.lastseries, seriesname))
-            self.lastseries = seriesname
-            self.showdata = {'seriesname': seriesname}
             try:
-                self.showdata  = self.showinfo.ShowDetails(self.showdata)
-            except (ShowNotFound, EpisodeNotFound), message:
-                logger.warn("%s" % (message))
-                return None
-
-        seriesname     = self.showdata['seriesname']
-        try:
-            for item in self.showdata['episodedata']:
-                if 'epno' in epdata:
-                    if item['season'] >= epdata['seasonnumber']:
-                        if item['epno'][-1] > epdata['epno'][-1]:
-                            raise GetOutOfLoop
-                    for single_epno in epdata['epno']:
-                        single_epno = [single_epno]
-                        if item['season'] == epdata['seasonnumber'] and item['epno'] == single_epno:
-                            if 'episodedata' in epdata:
-                                epdata['episodedata'].append({'seasonnumber' : item['season'],
-                                                              'epno'        : single_epno[0],
-                                                              'episodename' : item['episodename'],
-                                                              'airdate'     : item['airdate']})
-                            else:
-                                epdata['airdate'] = item['airdate']
-                                epdata['episodedata'] = [{'seasonnumber' : item['season'],
-                                                          'epno'            : single_epno[0],
-                                                          'episodename'     : item['episodename'],
-                                                          'airdate'         : item['airdate']}]
-                            logger.debug("epdata: %s" % item)
-                            if len(epdata['epno']) == 1:
-                                raise GetOutOfLoop
-                            else:
-                                break
-                else:
-                    if item['airdate'] == epdata['airdate']:
-                        if 'episodedata' in epdata:
-                            epdata['seasonnumber'] = item['season']
-                            epdata['epno'] = item['epno']
-                            epdata['episodedata'].append({'seasonnumber' : item['season'],
-                                                          'epno'        : item['epno'],
-                                                          'episodename' : item['episodename'],
-                                                          'airdate'     : item['airdate']})
-                        else:
-                            epdata['seasonnumber'] = item['season']
-                            epdata['epno'] = item['epno']
-                            epdata['episodedata'] = [{'seasonnumber' : item['season'],
-                                                      'epno'            : item['epno'],
-                                                      'episodename'     : item['episodename'],
-                                                      'airdate'         : item['airdate']}]
-                        logger.debug("epdata: %s" % item)
-                        raise GetOutOfLoop
-        except GetOutOfLoop:
-            pass
-
-        if not 'episodedata' in epdata:
-            raise EpisodeNotFound('Episode Not Found: %s' % epdata)
-        epdata['seriesname'] = seriesname
-        epdata['epname'] = self.formatEpisodeName(epdata['episodedata'], join_with = self.parms.FileNames['multiep_join_name_with'])
-        if len(epdata['epno']) == 1:
-            epdata['epno'] = self.parms.FileNames['episode_single'] % epdata['epno'][0]
+                cmd='xbmc-send --host=happy --action="XBMC.UpdateLibrary(video)"'
+                os.system(cmd)
+                log.trace("TV Show Rename Trigger Successful")
+            except OSError, exc:
+                log.error("TV Show Rename Trigger Failed: %s" % exc)
         else:
-            epdata['epno'] = self.parms.FileNames['episode_separator'].join(
-                self.parms.FileNames['episode_single'] % x for x in epdata['epno'])
-        return epdata
+            raise InvalidFilename('Invalid Request, Neither File or Directory: %s' % pathname)
 
-    def RenameFile(self, pathname, epdata):
-        if not 'episodedata' in epdata:
-            logger.info('rename_message' % (epdata['seriesname'], epdata['seasonnumber'], "TVDB Data Not Found", os.path.basename(pathname)))
-            return None
+    def _rename_file(self, file_details):
 
-        repack  = self.regex_repack.search(pathname)
-        if repack:
-            new_name = self.parms.FileNames['std_fqn'] % epdata
+        file_details['EpisodeNumFmt'] = self._format_episode_numbers(file_details)
+        file_details['EpisodeTitle'] = self._format_episode_name(file_details['EpisodeData'], join_with = self.config.ConversionsPatterns['multiep_join_name_with'])
+        file_details['DateAired'] = self._get_date_aired(file_details)
+        
+        file_details['BaseDir'] = self.config.SeriesDir
+
+        _new_name = self.config.ConversionsPatterns['std_fqn'] % file_details
+        _repack  = self.regex_repack.search(file_details['FileName'])
+        if _repack:
             try:
-                os.remove(new_name)
+                os.remove(_new_name)
             except:
-                logger.info('Unable to delete: %s' % new_name)
-            new_name = self.parms.FileNames['proper_fqn'] % epdata
+                log.info('Unable to delete: %s' % _new_name)
+            _new_name = self.config.ConversionsPatterns['proper_fqn'] % file_details
         else:
-            new_name = self.parms.FileNames['std_fqn'] % epdata
+            if os.path.exists(_new_name) and filecmp.cmp(_new_name, file_details['FileName']):
+                if os.path.split(_new_name)[0] == os.path.split(file_details['FileName'])[0]:
+                    log.info('Updating Inplace: %s ==> %s' % (file_details['FileName'], _new_name))
+                    self._update_date(file_details, _new_name)
+                else:
+                    log.info("Deleting %r, already at destination!" % (os.path.split(file_details['FileName'])[1],))
+                    os.remove(file_details['FileName'])
+                    self._del_dir(file_details['FileName'])
+                return
 
-        if os.path.exists(new_name) and filecmp.cmp(new_name, pathname):
-            if os.path.split(new_name)[0] == os.path.split(pathname)[0]:
-                logger.info('Updating Inplace: %s ==> %s' % (pathname, new_name))
-                self.UpdateDate(epdata, new_name)
-            else:
-                logger.info("Deleting %r, already at destination!" % (os.path.split(pathname)[1],))
-                os.remove(pathname)
-                self.delDir(pathname)
-            return
-
-        logger.info(self.parms.FileNames['rename_message'] % (epdata['seriesname'], epdata['seasonnumber'], os.path.basename(new_name), os.path.basename(pathname)))
+        log.info(self.config.ConversionsPatterns['rename_message'] % (file_details['SeriesName'], file_details['SeasonNum'], os.path.basename(_new_name), os.path.basename(file_details['FileName'])))
         try:
-            if not os.path.exists(os.path.split(new_name)[0]):
-                os.makedirs(os.path.split(new_name)[0])
+            if not os.path.exists(os.path.split(_new_name)[0]):
+                os.makedirs(os.path.split(_new_name)[0])
                 if os.getgid() == 0:
-                    os.chown(os.path.split(new_name)[0], 1000, 100)
-            os.rename(pathname, new_name)
-            logger.info("Successfully Renamed: %s" % new_name)
+                    os.chown(os.path.split(_new_name)[0], 1000, 100)
+            os.rename(file_details['FileName'], _new_name)
+            log.info("Successfully Renamed: %s" % _new_name)
         except OSError, exc:
-            logger.error("Skipping, Unable to Rename File: %s" % pathname)
-            logger.error("Unexpected error: %s" % exc)
+            log.error("Skipping, Unable to Rename File: %s" % file_details['FileName'])
+            log.error("Unexpected error: %s" % exc)
 
-        self.delDir(pathname)
+        self._del_dir(file_details['FileName'])
 
-        self.UpdateDate(epdata, new_name)
+        self._update_date(file_details, _new_name)
 
-    def UpdateDate(self,epdata, new_name):
-        air_date = epdata['airdate']
+    def _update_date(self, file_details, new_name):
+        if 'DateAired' not in file_details:
+            log.warn('_update_date: Unable to update the Date Aired, Missing Information')
+            return
+        
+        _date_aired = file_details['DateAired']
         cur_date = time.localtime(os.path.getmtime(new_name))
-        if air_date:
-            tt = air_date.timetuple()
-            logger.debug('Current File Date: %s  Air Date: %s' % (time.asctime(cur_date), time.asctime(tt)))
+        if _date_aired:
+            tt = _date_aired.timetuple()
+            log.debug('Current File Date: %s  Air Date: %s' % (time.asctime(cur_date), time.asctime(tt)))
             tup_cur = [cur_date[0], cur_date[1], cur_date[2], cur_date[3], cur_date[4], cur_date[5], cur_date[6], cur_date[7], -1]
             tup = [tt[0], tt[1], tt[2], 20, 0, 0, tt[6], tt[7], tt[8]]
             if tup != tup_cur:
                 time_epoc = time.mktime(tup)
                 try:
-                    logger.info("Updating First Aired: %s %s" % (new_name, air_date))
+                    log.info("Updating First Aired: %s %s" % (new_name, _date_aired))
                     os.utime(new_name, (time_epoc, time_epoc))
                 except (OSError, IOError), exc:
-                    logger.error("Skipping, Unable to update time: %s" % new_name)
-                    logger.error("Unexpected error: %s" % exc)
+                    log.error("Skipping, Unable to update time: %s" % new_name)
+                    log.error("Unexpected error: %s" % exc)
 
-    def delDir(self, pathname):
-        if len(os.listdir(os.path.split(pathname)[0])) < 1:
-            dirList = [pathname, self.parms.series_new_dir]
-            commonPrefix = os.path.commonprefix(dirList)
-            if not commonPrefix != self.parms.series_new_dir:
-                os.rmdir(os.path.split(pathname)[0])
-
-    def ignored(self, name):
+    def _del_dir(self, pathname):
+        _base_dir = os.path.join(os.path.split(self.config.SeriesDir)[0],self.config.NewDir)
+        _last_dir = os.path.split(pathname)[0]
+        while _last_dir != _base_dir:
+            if len(os.listdir(_last_dir)) == 0:
+                try:
+                    os.rmdir(os.path.split(pathname)[0])
+                    _last_dir = os.path.split(_last_dir)[0]
+                    continue
+                except:
+                    log.warn('_del_dir: Unable to Delete: %s' % (sys.exc_info()[1]))
+                    return
+            else:
+                return
+        return
+            
+    def _ignored(self, name):
         """ Check for ignored pathnames.
         """
-        return any(fnmatch.fnmatch(name.lower(), pattern) for pattern in self.parms.exclude_list)
+        return any(fnmatch.fnmatch(name.lower(), pattern) for pattern in self.config.ExcludeList)
 
-    def formatEpisodeNumbers(self, series):
+    def _get_date_aired(self, file_details):
+        if 'DateAired' in file_details:
+            return file_details['DateAired']
+
+        _dates = []
+        for _episode in file_details['EpisodeData']:
+            if 'DateAired' in _episode:
+                _dates.append(_episode['DateAired'])
+                
+        if len(_dates) > 0:
+            return _dates[0]
+        else:
+            return None
+
+    def _format_episode_numbers(self, file_details):
         """Format episode number(s) into string, using configured values
         """
-        namedgroups = series.groupdict().keys()
-        if 'episodenumber1' in namedgroups:
-            # Multiple episodes, have episodenumber1 or 2 etc
-            epno = []
-            for cur in namedgroups:
-                epnomatch = re.match('episodenumber(\d+)', cur)
-                if epnomatch:
-                    epno.append(int(series.group(cur)))
-            epno.sort()
-        elif 'episodenumberstart' in namedgroups:
-            # Multiple episodes, regex specifies start and end number
-            start = int(series.group('episodenumberstart'))
-            end = int(series.group('episodenumberend'))
-            if start > end:
-                # Swap start and end
-                start, end = end, start
-            epno = range(start, end + 1)
-        elif 'episodenumber' in namedgroups:
-            epno = [int(series.group('episodenumber')), ]
-
-        if len(epno) == 1:
-            fmt_epno = self.parms.FileNames['episode_single'] % epno[0]
+        if len(file_details['EpisodeNums']) == 1:
+            _episode_num_fmt = self.config.ConversionsPatterns['episode_single'] % file_details['EpisodeNums'][0]
         else:
-            fmt_epno = self.parms.FileNames['episode_separator'].join(
-                self.parms.FileNames['episode_single'] % x for x in epno)
+            _episode_num_fmt = self.config.ConversionsPatterns['episode_separator'].join(self.config.ConversionsPatterns['episode_single'] % x for x in file_details['EpisodeNums'])
+        return _episode_num_fmt
 
-        return fmt_epno, epno
-
-    def cleanRegexedSeriesName(self, seriesname):
-        """Cleans up series name by removing any . and _
-        characters, along with any trailing hyphens.
-
-        Is basically equivalent to replacing all _ and . with a
-        space, but handles decimal numbers in string, for example:
-
-        >>> cleanRegexedSeriesName("an.example.1.0.test")
-        'an example 1.0 test'
-        >>> cleanRegexedSeriesName("an_example_1.0_test")
-        'an example 1.0 test'
-        """
-        seriesname = re.sub("(\D)[.](\D)", "\\1 \\2", seriesname)
-        seriesname = re.sub("(\D)[.]", "\\1 ", seriesname)
-        seriesname = re.sub("[.](\D)", " \\1", seriesname)
-        seriesname = seriesname.replace("_", " ")
-        seriesname = re.sub("-$", "", seriesname)
-        suffix = self.check_suffix.match(seriesname.rstrip())
-        if suffix:
-            seriesname = '%s (%s)' % (suffix.group('seriesname'), suffix.group('year').upper())
-        return seriesname.strip()
-
-    def formatEpisodeName(self, epdata, join_with):
+    def _format_episode_name(self, EpisodeData, join_with):
         """Takes a list of episode names, formats them into a string.
         If two names are supplied, such as "Pilot (1)" and "Pilot (2)", the
         returned string will be "Pilot (1-2)"
@@ -444,203 +244,84 @@ class Rename(object):
         "Something else" it will return "The first, Something else"
         """
 
-        names = []
-        for nameentry in epdata:
-            newname = nameentry['episodename']
-            newname = unicodedata.normalize('NFKD', newname).encode('ascii','ignore')
-            newname = newname.replace("&amp;", "&").replace("/", "_")
-            names.append(newname)
+        _names = []
+        for _episode_entry in EpisodeData:
+            _new_name = _episode_entry['EpisodeTitle']
+            _new_name = unicodedata.normalize('NFKD', _new_name).encode('ascii','ignore')
+            _new_name = _new_name.replace("&amp;", "&").replace("/", "_")
+            _names.append(_new_name)
 
-        if len(names) == 0:
-            return "NOT FOUND IN TVDB"
+        if len(_names) == 0:
+            raise EpisodeNotFound('formatEpisodeName no Episode Titles Found: {!s}'.format(EpisodeData))
 
-        if len(names) == 1:
-            logger.debug("Episode Name: %s" % (names[0]))
-            return names[0]
+        if len(_names) == 1:
+            log.debug("formatEpisodeName: Only One Episode Name Found: %s" % (_names[0]))
+            return _names[0]
 
-        found_names = []
-        numbers = []
+        _found_names = []
+        _numbers = []
 
-        for cname in names:
-            number = re.match("(.*) \(([0-9]+)\)$", cname)
-            if number:
-                epname, epno = number.group(1), number.group(2)
-                if len(found_names) > 0 and epname not in found_names:
-                    logger.debug("Episode Name: %s" % (join_with.join(names)))
-                    return join_with.join(names)
-                found_names.append(epname)
-                numbers.append(int(epno))
+        for _cname in _names:
+            _number = re.match("(.*) \(([0-9]+)\)$", _cname)
+            if _number:
+                _ep_name, _ep_no = _number.group(1), _number.group(2)
+                if len(_found_names) > 0 and _ep_name not in _found_names:
+                    log.debug("formatEpisodeName: Episode Name: %s" % (join_with.join(_names)))
+                    return join_with.join(_names)
+                _found_names.append(_ep_name)
+                _numbers.append(int(_ep_no))
             else:
                 # An episode didn't match
-                logger.debug("Episode Name: %s" % (join_with.join(names)))
-                return join_with.join(names)
+                log.debug("formatEpisodeName: Episode Name: %s" % (join_with.join(_names)))
+                return join_with.join(_names)
 
-        names = []
-        start, end = min(numbers), max(numbers)
-        names.append("%s (%d-%d)" % (found_names[0], start, end))
-        logger.debug("Episode Name: %s" % (join_with.join(names)))
-        return join_with.join(names)
+        _names = []
+        _start, _end = min(_numbers), max(_numbers)
+        _names.append("%s (%d-%d)" % (_found_names[0], _start, _end))
+        log.debug("Episode Name: %s" % (join_with.join(_names)))
+        return join_with.join(_names)
 
-class GetOutOfLoop( Exception ):
+class _get_out_of_loop( Exception ):
     pass
 
-class RenameMovies(object):
-    def __init__(self, parms, pathname):
-        self.regex_repack = re.compile('^.*(repack|proper).*$', re.IGNORECASE)
-        self.regexMovie = re.compile('^(?P<moviename>.+?)[ \._\-](?P<year>[0-9][0-9][0-9][0-9]).*$', re.VERBOSE)
-        self.parms = parms
-        self.pathname = pathname
-        self.processMovie()
-
-    def processMovie(self):
-        if os.path.isfile(self.pathname):
-            logger.debug("-----------------------------------------------")
-            logger.debug("Movie Directory: %s" % os.path.split(self.pathname)[0])
-            logger.debug("Movie Filename:  %s" % os.path.split(self.pathname)[1])
-            self.RenameMovie(self.pathname)
-        elif os.path.isdir(self.pathname):
-            for root, dirs, files in os.walk(os.path.abspath(self.pathname),followlinks=False):
-                for dir in dirs[:]:
-                    if self.ignored(dir):
-                        logger.debug("Ignoring %r" % os.path.join(root, dir))
-                        dirs.remove(dir)
-                files.sort()
-                for fname in files:
-                    pathname = os.path.join(root, fname)
-                    logger.debug("-----------------------------------------------")
-                    logger.debug("Filename: %s" % pathname)
-                    self.RenameMovie(pathname)
-
-    def RenameMovie(self, pathname):
-        match  = self.regexMovie.search(os.path.split(pathname)[1])
-        if match:
-            moviename = self.cleanRegexedMovieName(match.group('moviename'))
-            year = match.group('year')
-            ext = os.path.splitext(pathname)[1]
-            NewDir = '%s (%s)' % (moviename, year)
-            NewName = '%s (%s)%s' % (moviename, year, ext)
-            fqNewName = os.path.join(os.path.split(self.parms.movies_dir)[0], os.path.join(NewDir, NewName))
-            repack  = self.regex_repack.search(pathname)
-            if os.path.exists(fqNewName):
-                if repack:
-                    os.remove(fqNewName)
-                elif filecmp.cmp(fqNewName, pathname):
-                    logger.info("Deleting %r, already at destination!" % (os.path.split(pathname)[1],))
-                    os.remove(pathname)
-                    if os.path.split(pathname)[0] != self.parms.movies_new_dir:
-                        if len(os.listdir(os.path.split(pathname)[0])) < 1:
-                            os.rmdir(os.path.split(pathname)[0])
-                    return
-
-            logger.info('Renaming Movie: %s to %s' % (os.path.basename(pathname), NewName))
-            try:
-                if not os.path.exists(os.path.split(fqNewName)[0]):
-                    os.makedirs(os.path.split(fqNewName)[0])
-                    if os.getgid() == 0:
-                        os.chown(os.path.split(fqNewName)[0], 1000, 100)
-                os.rename(pathname, fqNewName)
-                logger.info("Successfully Renamed: %s" % fqNewName)
-            except OSError, exc:
-                logger.error("Skipping, Unable to Rename File: %s" % pathname)
-                logger.error("Unexpected error: %s" % exc)
-
-            if os.path.split(pathname)[0] != self.parms.movies_new_dir:
-                if len(os.listdir(os.path.split(pathname)[0])) < 1:
-                    os.rmdir(os.path.split(pathname)[0])
-
-    def ignored(self, name):
-        """ Check for ignored pathnames.
-        """
-        return any(fnmatch.fnmatch(name.lower(), pattern) for pattern in self.parms.exclude_list)
-
-    def cleanRegexedMovieName(self, moviename):
-        """Cleans up name by removing any . and _
-        characters, along with any trailing hyphens.
-        """
-        moviename = re.sub("(\D)[.](\D)", "\\1 \\2", moviename)
-        moviename = re.sub("(\D)[.]", "\\1 ", moviename)
-        moviename = re.sub("[.](\D)", " \\1", moviename)
-        moviename = moviename.replace("_", " ")
-        moviename = re.sub("-$", "", moviename)
-        return moviename.strip()
 
 if __name__ == "__main__":
-    import logging.handlers
-    from optparse import OptionParser, OptionGroup
 
-    PgmDir        = os.path.dirname(__file__)
-    HomeDir     = os.path.expanduser('~')
-    ConfigDir    = os.path.join(HomeDir, '.config')
-    LogDir        = os.path.join(HomeDir, 'log')
-    DataDir     = os.path.join(HomeDir, __pgmname__)
+    from daddyvision.common.settings import Settings
+    from daddyvision.common.options import OptionParser, CoreOptionParser
 
-    # Set up a specific logger with our desired output level
-    formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s - %(message)s")
-    logger.setLevel(0)
-    _console = logging.StreamHandler()
-    _console.setLevel(INFO)
-    _console.setFormatter(formatter)
-    logger.addHandler(_console)
-    _main_log = logging.handlers.TimedRotatingFileHandler(os.path.join(LogDir, '%s.log' % __pgmname__), when='midnight', backupCount=7)
-    _main_log.setLevel(VERBOSE)
-    _main_log.setFormatter(formatter)
-    logger.addHandler(_main_log)
+    logger.initialize()
 
-    parms = GetConfig()
-
-    parser = OptionParser(
-        "%prog [options] [<pathname>]",
-        version="%prog " + __version__)
-
-    group = OptionGroup(parser, "Logging Levels:")
-    group.add_option("--loglevel", dest="loglevel",
-        action="store", type="choice", default="INFO",
-        choices=['CRITICAL' ,'ERROR', 'WARNING', 'INFO', 'VERBOSE', 'DEBUG', 'TRACE'],
-        help="Specify by name the Level of logging desired, [CRITICAL|ERROR|WARNING|INFO|VERBOSE|DEBUG|TRACE]")
-    group.add_option("-e", "--errors", dest="loglevel",
-        action="store_const", const="ERROR",
-        help="Limit logging to only include Errors and Critical information")
-    group.add_option("-q", "--quiet", dest="loglevel",
-        action="store_const", const="WARNING",
-        help="Increase logging to add Warning and above information")
-    group.add_option("-v", "--verbose", dest="loglevel",
-        action="store_const", const="VERBOSE",
-        help="Increase logging to add above informational information")
-    group.add_option("--debug", dest="loglevel",
-        action="store_const", const="DEBUG",
-        help="Increase logging to include debug information")
-    group.add_option("--trace", dest="loglevel",
-        action="store_const", const="TRACE",
-        help="Increase logging to include program trace information")
-    parser.add_option_group(group)
-
+    parser = CoreOptionParser()
     options, args = parser.parse_args()
-    _console.setLevel(options.loglevel)
-    logger.debug("Parsed command line options: %r" % options)
-    logger.debug("Parsed arguments: %r" % args)
 
-    reqname = ''
+    log_level = logging.getLevelName(options.loglevel.upper())
+    log_file = os.path.expanduser(options.logfile)
+
+    # If an absolute path is not specified, use the default directory.
+    if not os.path.isabs(log_file):
+        log_file = os.path.join(logger.LogDir, log_file)
+
+    logger.start(log_file, log_level)
+
+    log.debug("Parsed command line options: {!s}".format(options))
+    log.debug("Parsed arguments: %r" % args)
+
+    _config_settings = Settings()
+
+    _path_name = ''
     for i in range(len(args)):
-        reqname = '%s %s'% (reqname, args[i])
-    reqname = reqname.lstrip().rstrip()
-    if len(reqname) == 0:
-        logger.info('Missing Scan Starting Point (Input Directory), Using Default: %s' % parms.series_new_dir)
-        reqname = parms.series_new_dir
+        _path_name = '%s %s'% (_path_name, args[i])
+    _path_name = _path_name.lstrip().rstrip()
+    if len(_path_name) == 0:
+        _new_series_dir = os.path.join ( os.path.split(_config_settings.SeriesDir)[0], _config_settings.NewDir ) 
+        msg = 'Missing Scan Starting Point (Input Directory), Using Default: {}'.format(_new_series_dir)
+        log.info(msg)
+        _path_name = _new_series_dir
 
-    if not os.path.exists(reqname):
-        logger.error('Invalid arguments file or path name not found: %s' % reqname)
+    if not os.path.exists(_path_name):
+        log.error('Invalid arguments file or path name not found: %s' % _path_name)
         sys.exit(1)
 
-    renameshows = RenameShows(parms, options)
-    renameshows.ProcessFile(reqname)
-
-#    dirs = os.listdir(reqname)
-#    logger.debug(dirs)
-#    for dir in dirs:
-#        try:
-#            renameshows.ProcessFile(os.path.join(reqname, dir))
-#        except (InvalidFilename, EpisodeNotFound), msg:
-#            logger.warning(msg)
-#        pass
-
-#    RenameMovies(parms, reqname)
+    rename = Rename(_config_settings)
+    _new_fq_name = rename.rename(_path_name)
