@@ -7,50 +7,35 @@ Purpose:
 
 """
 
+from daddyvision.common import logger
+from daddyvision.common.exceptions import ConfigValueError
+from daddyvision.common.options import OptionParser, CoreOptionParser
+from daddyvision.common.settings import Settings
+import logging
 import os
-import re
+import psutil
+import subprocess
 import sys
 import time
-import psutil
-import logging
-import datetime
-import subprocess
-import logging.handlers
-from configobj import ConfigObj
-from seriesExceptions import ConfigValueError
-from optparse import OptionParser, OptionGroup
 
+__pgmname__ = 'chkrun'
 __version__ = '$Rev$'
-__pgmname__ = 'ChkDaemons'
 
-PgmDir      = os.path.dirname(__file__)
-HomeDir     = os.path.expanduser('~')
-ConfigDirB  = os.path.join(HomeDir, '.config')
-ConfigDir   = os.path.join(ConfigDirB, 'xbmcsupt')
-LogDir      = os.path.join(HomeDir, 'log')
+__author__ = "AJ Reynolds"
+__copyright__ = "Copyright 2011, AJ Reynolds"
+__credits__ = []
+__license__ = "GPL"
 
-if not os.path.exists(LogDir):
-    try:
-        os.makedirs(LogDir)
-    except:
-        raise ConfigValueError("Cannot Create Log Directory: %s" % LogDir)
+__maintainer__ = "AJ Reynolds"
+__email__ = "stampedeboss@gmail.com"
+__status__ = "Development"
 
-# Set up a specific logger with our desired output level
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-ml = logging.handlers.TimedRotatingFileHandler(os.path.join(LogDir, '%s.log' % __pgmname__), when='midnight', backupCount=7)
-dl = logging.handlers.TimedRotatingFileHandler(os.path.join(LogDir, '%s_debug.log' % __pgmname__), when='midnight', backupCount=7)
-ch = logging.StreamHandler()
-ml.setLevel(logging.INFO)
-dl.setLevel(logging.DEBUG)
-ch.setLevel(logging.INFO)
-formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s - %(message)s")
-ml.setFormatter(formatter)
-dl.setFormatter(formatter)
-ch.setFormatter(formatter)
-logger.addHandler(ml)
-logger.addHandler(dl)
-logger.addHandler(ch)
+TRACE = 5
+VERBOSE = 15
+
+log = logging.getLogger(__pgmname__)
+
+logger.initialize()
 
 class chkStatus(object):
     def __init__(self):
@@ -62,10 +47,10 @@ class chkStatus(object):
                 nameList = ['rsync', 'python2.7', 'python']
                 if p.name in nameList:
                     if p.name == "python2.7" and len(cmdline) > 2:
-                        logger.debug('%s %s' % (p.name,cmdline))
-                        logger.info('%s %s' % (cmdline[1], cmdline[2]))
+                        log.debug('%s %s' % (p.name,cmdline))
+                        log.info('%s %s' % (cmdline[1], cmdline[2]))
                     elif p.name == 'rsync':
-                        logger.info('%s %s' % (p.name,cmdline[-1]))
+                        log.info('%s %s' % (p.name,cmdline[-1]))
 #                    logger ('Running: %s  Directory: %s  Host: %s')
 #                    logger.info()
 #                    if os.path.split(cmdline[-2].rstrip(os.sep))[0] == directory.rstrip(os.sep):
@@ -73,55 +58,24 @@ class chkStatus(object):
 
 if __name__ == '__main__':
 
-    parser = OptionParser(
-        "%prog [options]",
-        version="%prog " + __version__)
-
-    group = OptionGroup(parser, "Logging Levels")
-    group.add_option("-e", "--errors", dest="error",
-        action="store_true", default=False,
-        help="omit all but error logging")
-    group.add_option("-q", "--quiet", dest="quiet",
-        action="store_true", default=False,
-        help="omit informational logging")
-    group.add_option("-v", "--verbose", dest="verbose",
-        action="store_true", default=False,
-        help="increase informational logging")
-    group.add_option("-d", "--debug", dest="debug",
-        action="store_true", default=False,
-        help="increase informational logging to include debug")
-    parser.add_option_group(group)
-
+    parser = CoreOptionParser()
     options, args = parser.parse_args()
 
-    opt_sel = 0
-    if options.debug:
-        logger.setLevel(logging.DEBUG)
-        ml.setLevel(logging.DEBUG)
-        ch.setLevel(logging.DEBUG)
-        opt_sel = opt_sel + 1
-    if options.error:
-        logger.setLevel(logging.ERROR)
-        ml.setLevel(logging.ERROR)
-        ch.setLevel(logging.ERROR)
-        opt_sel = opt_sel + 1
-    if options.quiet:
-        logger.setLevel(logging.WARNING)
-        ml.setLevel(logging.WARNING)
-        ch.setLevel(logging.WARNING)
-        opt_sel = opt_sel + 1
-    if options.verbose:
-        logger.setLevel(logging.DEBUG)
-        ml.setLevel(logging.DEBUG)
-        ch.setLevel(logging.DEBUG)
-        opt_sel = opt_sel + 1
+    log_level = logging.getLevelName(options.loglevel.upper())
 
-    logger.debug("Parsed command line options: %r" % options)
-    logger.debug("Parsed arguments: %r" % args)
+    if options.logfile == 'daddyvision.log':
+        log_file = '{}.log'.format(__pgmname__)
+    else:
+        log_file = os.path.expanduser(options.logfile)
 
-    if opt_sel > 1:
-        logger.error('Conflicting options selected, Reconsider Parameters.')
-        sys.exit(1)
+    # If an absolute path is not specified, use the default directory.
+    if not os.path.isabs(log_file):
+        log_file = os.path.join(logger.LogDir, log_file)
+
+    logger.start(log_file, log_level, timed=True)
+
+    log.debug("Parsed command line options: {!s}".format(options))
+    log.debug("Parsed arguments: %r" % args)
 
     chkStatus()
     sys.exit(0)

@@ -139,7 +139,7 @@ def initialize(unit_test=False, level=TRACE):
         log.setLevel(logging.INFO)
 
 
-def start(filename='daddyvision.log', level=logging.INFO):
+def start(filename='daddyvision.log', level=logging.INFO, timed=False):
     """After initialization, start file logging.
     """
     global _logging_started
@@ -148,8 +148,11 @@ def start(filename='daddyvision.log', level=logging.INFO):
     if _logging_started:
         return
 
-    handler = logging.handlers.RotatingFileHandler(filename, maxBytes=1000 * 1024, backupCount=9)
-    handler.doRollover()
+    if timed:
+        handler = logging.handlers.TimedRotatingFileHandler(filename, when='midnight', backupCount=7)
+    else:
+        handler = logging.handlers.RotatingFileHandler(filename, maxBytes=1000 * 1024, backupCount=9)
+        handler.doRollover()
 
     handler.setFormatter(_mem_handler.formatter)
 

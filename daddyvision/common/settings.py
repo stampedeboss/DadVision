@@ -6,12 +6,13 @@ Purpose:
 """
 
 from configobj import ConfigObj
+from daddyvision.common import logger
 import os
 import re
 import sys
 import time
 import logging
-from exceptions import ConfigValueError, UserAbort
+from daddyvision.common.exceptions import ConfigValueError, UserAbort
 
 __author__ = "AJ Reynolds"
 __copyright__ = "Copyright 2011, AJ Reynolds"
@@ -78,14 +79,31 @@ class Settings(object):
                 log.error("Invalid Config Entries, Ending")
                 raise ConfigValueError("Path Not Found: %s" % self.NonVideoDir)
 
+            if not os.path.exists(self.WatchDir):
+                log.error("Path Not Found: %s" % self.WatchDir)
+                log.error("Invalid Config Entries, Ending")
+                raise ConfigValueError("Path Not Found: %s" % self.WatchDir)
+
             Common = self.config['Common']
             self.MediaExt = Common['MediaExt']
             self.MovieGlob = Common['MovieGlob']
             self.IgnoreGlob = Common['IgnoreGlob']
             self.Predicates = Common['Predicates']
 
+            self.TvdbIdList = {}
             self.TvdbIdFile = os.path.expanduser(Common['TvdbIdFile'])
-            self.ShowAliasFile = os.path.expanduser(Common['ShowAliasFile'])
+            self.ReloadTVDBList()
+
+            self.SeriesAliasList = {}
+            self.SeriesAliasFile = os.path.expanduser(Common['SeriesAliasFile'])
+            if os.path.exists(self.SeriesAliasFile):
+                with open(self.SeriesAliasFile, "r") as _alias_file_obj:
+                    for _line in _alias_file_obj.readlines():
+                        _series_alias_entry = _line.rstrip("\n").split("\t")
+                        if len(_series_alias_entry) == 2:
+                            self.SeriesAliasList[_series_alias_entry[0]] = _series_alias_entry[1]
+                    log.debug('Series Alias: LOADED')
+                _alias_file_obj.close()
 
             self.SpecialHandlingList = []
             spl_hand_file = os.path.expanduser(Common['SplHandFile'])
@@ -94,6 +112,22 @@ class Settings(object):
                     for show_name in splhand_file_obj.readlines():
                         self.SpecialHandlingList.append(show_name.rstrip("\n"))
                     log.debug('Special Handling for: %s' % self.SpecialHandlingList)
+
+            self.EpisodeAdjList = []
+            _episode_adj_file = os.path.expanduser(Common['EpisodeAdjList'])
+            if os.path.exists(_episode_adj_file):
+                with open(_episode_adj_file, "r") as _episode_adj_file_obj:
+                    for _line in _episode_adj_file_obj.readlines():
+                        _adjustment = _line.rstrip("\n").split("\t")
+                        if len(_adjustment) == 6 and _adjustment[:0] != '#':
+                            _adjustment_entry = {'SeriesName' : _adjustment[0],
+                                                 'SeasonNum' : int(_adjustment[1]),
+                                                 'Begin' : int(_adjustment[2]),
+                                                 'End' : int(_adjustment[3]),
+                                                 'AdjSeason' : int(_adjustment[4]),
+                                                 'AdjEpisode' : int(_adjustment[5])}
+                            self.EpisodeAdjList.append(_adjustment_entry)
+                    log.debug('Episode Adjustment for: %s' % self.EpisodeAdjList)
 
             self.ExcludeList = []
             exclude_file = os.path.expanduser(Common['ExcludeFile'])
@@ -118,6 +152,18 @@ class Settings(object):
 
         return
 
+    def ReloadTVDBList(self):
+        if os.path.exists(self.TvdbIdFile):
+            with open(self.TvdbIdFile, "r") as TvdbIdFile_obj:
+                for _line in TvdbIdFile_obj.readlines():
+                    _tvdb_id_details = _line.rstrip("\n").split("\t")
+                    if len(_tvdb_id_details) == 2 and _tvdb_id_details[:0] != '#':
+                        self.TvdbIdList[_tvdb_id_details[0]] = _tvdb_id_details[1]
+            TvdbIdFile_obj.close()
+            log.debug('TVDB IDs: LOADED')
+        else:
+            log.warn("TVDB Series IDs File Missing: " % self.TvdbIdFile)
+        return 0
 
     def GetSubscribers(self, subscriber=None):
         SubscriptionDetails = {}
@@ -196,7 +242,7 @@ class Settings(object):
         alias_file = raw_input("Enter File Name Show Aliases (%s): " % 'series_aliases').lstrip(os.sep)
         if not alias_file:
             alias_file = 'series_aliases'
-        config['RunTime-Common']['ShowAliasFile'] = '%s/%s' % (ConfigDir, alias_file)
+        config['RunTime-Common']['SeriesAliasFile'] = '%s/%s' % (ConfigDir, alias_file)
         touch(os.path.join(os.path.expanduser(ConfigDir), alias_file))
 
         config['RunTime-Common']['SplHandFile']   = '%s/special_handling' % ConfigDir
@@ -284,6 +330,8 @@ def touch(self, path):
 
 if __name__ == '__main__':
 
+    logger.initialize()
+
     update_existing = False
     if len(sys.argv) > 1:
         if sys.argv[1] == 'update':
@@ -291,4 +339,16 @@ if __name__ == '__main__':
 
     parms = Settings()
 
-    print parms.SeriesDir
+    log.info('SeriesDir: {}'.format(parms.SeriesDir))
+    log.info('MoviesDir: {}'.format(parms.MoviesDir))
+    log.info('NonVideoDir: {}'.format(parms.NonVideoDir))
+    log.info('SubscriptionDir: {}'.format(parms.SubscriptionDir))
+    log.info('NewDir: {}'.format(parms.NewDir))
+    log.info('WatchDir: {}'.format(parms.WatchDir))
+    log.info('TvdbIdList: {}'.format(parms.TvdbIdList))
+    log.info('EpisodeAdjList: {}'.format(parms.EpisodeAdjList))
+    log.info('MediaExt: {}'.format(parms.MediaExt))
+    log.info('MovieGlob: {}'.format(parms.MovieGlob))
+    log.info('IgnoreGlob: {}'.format(parms.IgnoreGlob))
+    log.info('Predicates: {}'.format(parms.Predicates))
+

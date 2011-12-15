@@ -154,7 +154,12 @@ class Rename(object):
                     self._del_dir(file_details['FileName'])
                 return
 
-        log.info(self.config.ConversionsPatterns['rename_message'] % (file_details['SeriesName'], file_details['SeasonNum'], os.path.basename(_new_name), os.path.basename(file_details['FileName'])))
+        log.info(self.config.ConversionsPatterns['rename_message'] % (file_details['SeriesName'], 
+                                                                      file_details['SeasonNum'], 
+                                                                      os.path.basename(_new_name), 
+                                                                      os.path.basename(file_details['FileName'])
+                                                                     )
+                )
         try:
             if not os.path.exists(os.path.split(_new_name)[0]):
                 os.makedirs(os.path.split(_new_name)[0])

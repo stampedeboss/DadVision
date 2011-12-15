@@ -4,28 +4,21 @@ Purpose:
     Program to distribute the files from a source to a target library. If needed,
     the files will be unzipped and renamed to meet the library standard.
 """
-from daddyvision.common.exceptions import InvalidFilename, RegxSelectionError, ConfigValueError
-from daddyvision.common.exceptions import DataRetrievalError, EpisodeNotFound, SeriesNotFound
-from daddyvision.common.exceptions import BaseDaddyVisionException
-from daddyvision.common.fileparser import FileParser
-from daddyvision.common.settings import Settings
 from daddyvision.common import logger
-from daddyvision.series.episodeinfo import EpisodeDetails
-from daddyvision.series.rename import Rename as RenameSeries
+from daddyvision.common.exceptions import (BaseDaddyVisionException,
+    DataRetrievalError, EpisodeNotFound, SeriesNotFound, InvalidFilename,
+    RegxSelectionError, ConfigValueError)
 from daddyvision.movies.rename import Rename as RenameMovie
-from subprocess import Popen, call as Call, PIPE
-from logging import INFO, WARNING, ERROR, DEBUG
-import re
-import os
-import shutil
-import subprocess
-import sys
+from daddyvision.series.rename import Rename as RenameSeries
+from subprocess import Popen, PIPE
 import filecmp
 import fnmatch
 import logging
-import datetime
-import time
-import unicodedata
+import os
+import re
+import shutil
+import subprocess
+import sys
 
 __author__ = "@author: AJ Reynolds"
 __copyright__ = "Copyright 2011, AJ Reynolds"
@@ -45,7 +38,6 @@ def useLibraryLogging(func):
 
     def wrapper(self, *args, **kw):
         # Set the library name in the logger
-        from daddyvision.common import logger
         logger.set_library(self.type)
         try:
             return func(self, *args, **kw)
@@ -56,10 +48,10 @@ def useLibraryLogging(func):
 
 class Distribute(object):
 
-    def __init__(self):
+    def __init__(self, config):
         log.trace('__init__')
 
-        self.config = Settings()
+        self.config = config
         self.type = None
 
         self.RegEx = []
@@ -73,7 +65,7 @@ class Distribute(object):
             raise ConfigValueError("Distribute.__init__: Invalid Series RegEx: %s" % (errormsg))
 
         self.RAR_RE = re.compile(r"\.([rR][aA][rR]|[rR]\d{2,3})$")
-        self.RAR_PART_RE  = re.compile(r"\.part\d{2,3}\.rar$")
+        self.RAR_PART_RE = re.compile(r"\.part\d{2,3}\.rar$")
 
         self.rename_series = RenameSeries(self.config)
         self.rename_movies = RenameMovie(self.config)
@@ -94,12 +86,13 @@ class Distribute(object):
         if _fmt == 'file':
             _tgt_rename = pathname
         else:
-           _tgt_rename = _dest_dir  
+            _tgt_rename = _dest_dir
 
         if self.type == "Series":
             try:
                 self.rename_series.rename(_tgt_rename)
-            except (EpisodeNotFound, SeriesNotFound), msg:
+            except (DataRetrievalError, EpisodeNotFound, SeriesNotFound, InvalidFilename,
+                    RegxSelectionError, ConfigValueError), msg:
                 log.error(msg)
         elif self.type == "Movie":
             try:
@@ -117,7 +110,7 @@ class Distribute(object):
         _fmt = None
 
         for cRegEx in self.RegEx:
-            _series  = cRegEx.search(_file_name)
+            _series = cRegEx.search(_file_name)
             if _series:
                 _series_name = _series.group(1)
                 log.debug("Series: %s" % _series_name)
@@ -278,7 +271,7 @@ class Distribute(object):
                         _nice_name, ext = os.path.splitext(_file)
                         _nice_name = _nice_name[len(_prefix):]
                         for i, ch in enumerate(reversed(_nice_name.lower())):
-                            if _src_name.lower()[-i-1] == ch:
+                            if _src_name.lower()[-i - 1] == ch:
                                 _nice_name = _nice_name[:-1]
                             else:
                                 break
@@ -329,7 +322,8 @@ class Distribute(object):
 
 if __name__ == '__main__':
 
-    from daddyvision.common.options import OptionParser, CoreOptionParser
+    from daddyvision.common.options import CoreOptionParser
+    from daddyvision.common.settings import Settings
 
     logger.initialize()
 
@@ -348,9 +342,11 @@ if __name__ == '__main__':
     log.debug("Parsed command line options: {!s}".format(options))
     log.debug("Parsed arguments: %r" % args)
 
+    config = Settings ()
+
     reqname = ''
     for i in range(len(args)):
-        reqname = '%s %s'% (reqname, args[i])
+        reqname = '%s %s' % (reqname, args[i])
 
     reqname = reqname.lstrip().rstrip()
 
@@ -358,5 +354,5 @@ if __name__ == '__main__':
         log.error('Invalid arguments file or path name not found: %s' % reqname)
         sys.exit(1)
 
-    distribute = Distribute()
+    distribute = Distribute(config)
     distribute.ProcessPathName(reqname)

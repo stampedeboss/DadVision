@@ -56,7 +56,10 @@ class EpisodeDetails(object):
 
         self._show_list = {}
         self._alias_list = {}
-
+        
+        self.SpecialHandlingList = []
+        self._adjustment_list = [] 
+        
         self._show_file = self._config_settings.TvdbIdFile
         if os.path.exists(self._show_file):
             with open(self._show_file, "r") as _show_file_obj:
@@ -69,7 +72,7 @@ class EpisodeDetails(object):
             log.warn("TVDB ShowIDs File Missing: " % self._show_file)
             log.warn("TVDB ShowIDs File to be Created: " % self._show_file)
 
-        _alias_file = self._config_settings.ShowAliasFile
+        _alias_file = self._config_settings.SeriesAliasFile
         if os.path.exists(_alias_file):
             with open(_alias_file, "r") as _alias_file_obj:
                 for _line in _alias_file_obj.readlines():
@@ -98,9 +101,20 @@ class EpisodeDetails(object):
             log.trace(error_msg)
             raise InvalidArgumentType(error_msg)
 
+        SeriesDetails = self._adj_episode(SeriesDetails)        
         SeriesDetails = self._retrieve_tvdb_info(SeriesDetails)
 
         log.debug('getDetailsAll: Series Data Returned: {!s}'.format(SeriesDetails))
+        return SeriesDetails
+
+    def _adj_episode(self, SeriesDetails):
+        for _entry in self._config_settings.EpisodeAdjList:
+            if _entry['SeriesName'] == SeriesDetails['SeriesName']:
+                if _entry['SeasonNum'] == SeriesDetails['SeasonNum']:
+                    if _entry['Begin'] < SeriesDetails['EpisodeNums'][0] and _entry['End'] > SeriesDetails['EpisodeNums'][0]:
+                        SeriesDetails['SeasonNum'] = SeriesDetails['SeasonNum'] + _entry['AdjSeason']
+                        SeriesDetails['EpisodeNums'][0] = SeriesDetails['EpisodeNums'][0] + _entry['AdjEpisode']
+                        return SeriesDetails
         return SeriesDetails
 
     def _retrieve_tvdb_info(self, SeriesDetails):
@@ -219,6 +233,7 @@ class EpisodeDetails(object):
             log.debug("_episode_details: No Episode Data Found - %s, ID: %s" % (SeriesDetails['SeriesName'], SeriesDetails['TVDBShowID']))
             raise EpisodeNotFound("_episode_details: No Data Episode Found - %s, ID: %s" % (SeriesDetails['SeriesName'], SeriesDetails['TVDBShowID']))
 
+
 if __name__ == "__main__":
 
     logger.initialize()
@@ -240,8 +255,9 @@ if __name__ == "__main__":
 
 
     if len(args) > 0:
+        _series_details = {args[0] : args[1], args[2] : int(args[3]), args[4] : [int(args[5])]}
         _my_episode_info = EpisodeDetails()
-        _episode_details =  _my_episode_info.getDetailsAll({'SeriesName' : args[0]})
+        _episode_details =  _my_episode_info.getDetails(_series_details)
         log.debug('Episode Details: %s' % _episode_details)
     else:
         log.error('Series Name Not Found in Command Line Argument')
