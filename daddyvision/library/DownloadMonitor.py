@@ -58,7 +58,7 @@ class MyDaemon(Daemon):
             log.debug('Notifier Created')
             watchDir1 = watchManager.add_watch(config.WatchDir, mask, rec=True)
             log.info('Watching Directory: %s' % config.WatchDir)
-            if options.loglevel not in [DEBUG, TRACE]:
+            if options.loglevel not in ['DEBUG', 'TRACE']:
                 try:
                     notifier.loop()
                 except:
@@ -119,7 +119,7 @@ if __name__ == "__main__":
         if len(args) != 1 or (args[0].lower() != 'start' and args[0].lower() != 'stop' and args[0].lower() != 'restart'):
             parser.error('Invalid or missing arguments')
 
-    daemon = MyDaemon('/tmp/daemon-example.pid')
+    daemon = MyDaemon('/tmp/daemon-DownloadMonitor.pid')
 
     if options.loglevel == 'DEBUG' or options.loglevel == 'TRACE':
         log.info('******* DEBUG Selected, Not using Daemon ********')

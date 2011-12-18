@@ -21,6 +21,73 @@ import logging
 import datetime
 import time
 import unicodedata
+import tmdb
+
+'''
+import tmdb
+    tmdb.configure(write_your_apikey) # new configuration function. thanks @georgedorn :)
+    movie = tmdb.search("Fight Club")
+    #movie[0].keys()
+    movie[0]["rating"]
+    or
+    movie = tmdb.tmdb("Fight Club")
+    rating = movie.getRating()
+    language = movie.getLanguage()
+    
+    imdb lookup:
+    import tmdb
+    imdb_movie = tmdb.imdb(title="Fight Club") # title = "Fight Club" or id=tt30330 ->imdb_idb
+    rating = imdb_movie.getRating()
+    runtime = imdb_movie.getRuntime()
+
+tmdb.tmdb methods:
+    > getRating()
+    > getVotes()
+    > getName()
+    > getLanguage()
+    > getCertification()
+    > getUrl()
+    > getOverview()
+    > getPopularity()
+    > getOriginalName()
+    > getLastModified()
+    > getImdbId()
+    > getReleased()
+    > getScore()
+    > getAdult()
+    > getVersion()
+    > getTranslated()
+    > getType()
+    > getId()
+    > getAlternativeName()
+    > getPoster()
+    > getBackdrop()
+
+tmdb.imdb methods
+    > getRuntime()
+    > getCategories()
+    > getRating()
+    > getVotes()
+    > getName()
+    > getLanguage()
+    > getCertification()
+    > getUrl()
+    > getOverview()
+    > getPopularity()
+    > getOriginalName()
+    > getLastModified()
+    > getImdbId()
+    > getReleased()
+    > getAdult()
+    > getVersion()
+    > getTranslated()
+    > getType()
+    > getId()
+    > getAlternativeName()
+    > getPoster()
+    > getBackdrop()
+'''
+
 
 __author__ = "AJ Reynolds"
 __copyright__ = "Copyright 2011, AJ Reynolds"
@@ -87,6 +154,9 @@ class Rename(object):
         match  = self.regex_Movie.search(os.path.split(pathname)[1])
         if match:
             moviename = self.cleanRegexedMovieName(match.group('moviename'))
+#            movie = tmdb.tmdb(moviename)
+            movie = tmdb.search("Fight Club")
+            print movie            
             year = match.group('year')
             ext = os.path.splitext(pathname)[1]
             NewDir = '%s (%s)' % (moviename, year)

@@ -6,19 +6,20 @@ Purpose:
 Program to rename and update Modification Time to Air Date
 
 """
-from daddyvision.common.exceptions import InvalidFilename, RegxSelectionError, ConfigValueError
-from daddyvision.common.exceptions import DataRetrievalError, EpisodeNotFound, SeriesNotFound
-from daddyvision.common.fileparser import FileParser
 from daddyvision.common import logger
+from daddyvision.common.exceptions import (DataRetrievalError, EpisodeNotFound,
+    SeriesNotFound, DuplicateFilesFound, InvalidFilename, RegxSelectionError,
+    ConfigValueError)
+from daddyvision.common.fileparser import FileParser
 from daddyvision.series.episodeinfo import EpisodeDetails
 from logging import INFO, WARNING, ERROR, DEBUG
-import re
-import os
-import sys
+import datetime
 import filecmp
 import fnmatch
 import logging
-import datetime
+import os
+import re
+import sys
 import time
 import unicodedata
 
@@ -50,12 +51,13 @@ def useLibraryLogging(func):
     return wrapper
 
 class Rename(object):
-    
+
     def __init__(self, config):
         log.trace('__init__ method: Started')
 
         self.config = config
-        
+        self.update_required = False
+
         self.regex_repack = re.compile('^.*(repack|proper).*$', re.IGNORECASE)
         self.check_suffix = re.compile('^(?P<seriesname>.+?)[ \._\-](?P<year>[0-9][0-9][0-9][0-9]|US|us|Us)$', re.VERBOSE)
 #        self.check_year = re.compile('^(?P<seriesname>.+?)[ \._\-](?P<year>[0-9][0-9][0-9][0-9])$', re.VERBOSE)
@@ -65,7 +67,7 @@ class Rename(object):
         self.parser = FileParser()
 
         return
-    
+
     @useLibraryLogging
     def rename(self, pathname):
         log.trace("rename method: pathname:{}".format(pathname))
@@ -81,15 +83,17 @@ class Rename(object):
                 _file_details = self.parser.getFileDetails(pathname)
                 if _file_details : _file_details = self.episodeinfo.getDetails(_file_details)
                 if _file_details : self._rename_file(_file_details)
-            except (InvalidFilename, RegxSelectionError, EpisodeNotFound, SeriesNotFound), msg:
+                self.update_required = False
+            except (InvalidFilename, DuplicateFilesFound, RegxSelectionError, EpisodeNotFound, SeriesNotFound), msg:
                 log.error('Unable to Rename File: {}'.format(msg))
                 return
-            try:
-                cmd='xbmc-send --host=happy --action="XBMC.UpdateLibrary(video)"'
-                os.system(cmd)
-                log.trace("TV Show Rename Trigger Successful")
-            except OSError, exc:
-                log.error("TV Show Rename Trigger Failed: %s" % exc)
+            if self.update_required:
+                try:
+                    cmd='xbmc-send --host=happy --action="XBMC.UpdateLibrary(video)"'
+                    os.system(cmd)
+                    log.trace("TV Show Rename Trigger Successful")
+                except OSError, exc:
+                    log.error("TV Show Rename Trigger Failed: %s" % exc)
         elif os.path.isdir(pathname):
             for _root, _dirs, _files in os.walk(os.path.abspath(pathname),followlinks=False):
                 for _dir in _dirs[:]:
@@ -115,15 +119,16 @@ class Rename(object):
                                 continue
                             _file_details = self.episodeinfo.getDetails(_file_details)
                             self._rename_file(_file_details)
-                    except (InvalidFilename, RegxSelectionError, DataRetrievalError, EpisodeNotFound, SeriesNotFound), msg:
+                    except (InvalidFilename, DuplicateFilesFound, RegxSelectionError, DataRetrievalError, EpisodeNotFound, SeriesNotFound), msg:
                         log.error('Unable to Rename File: {}'.format(msg))
                         continue
-            try:
-                cmd='xbmc-send --host=happy --action="XBMC.UpdateLibrary(video)"'
-                os.system(cmd)
-                log.trace("TV Show Rename Trigger Successful")
-            except OSError, exc:
-                log.error("TV Show Rename Trigger Failed: %s" % exc)
+            if self.update_required:
+                try:
+                    cmd='xbmc-send --host=happy --action="XBMC.UpdateLibrary(video)"'
+                    os.system(cmd)
+                    log.trace("TV Show Rename Trigger Successful")
+                except OSError, exc:
+                    log.error("TV Show Rename Trigger Failed: %s" % exc)
         else:
             raise InvalidFilename('Invalid Request, Neither File or Directory: %s' % pathname)
 
@@ -132,7 +137,7 @@ class Rename(object):
         file_details['EpisodeNumFmt'] = self._format_episode_numbers(file_details)
         file_details['EpisodeTitle'] = self._format_episode_name(file_details['EpisodeData'], join_with = self.config.ConversionsPatterns['multiep_join_name_with'])
         file_details['DateAired'] = self._get_date_aired(file_details)
-        
+
         file_details['BaseDir'] = self.config.SeriesDir
 
         _new_name = self.config.ConversionsPatterns['std_fqn'] % file_details
@@ -153,10 +158,10 @@ class Rename(object):
                     os.remove(file_details['FileName'])
                     self._del_dir(file_details['FileName'])
                 return
-
-        log.info(self.config.ConversionsPatterns['rename_message'] % (file_details['SeriesName'], 
-                                                                      file_details['SeasonNum'], 
-                                                                      os.path.basename(_new_name), 
+ 
+        log.info(self.config.ConversionsPatterns['rename_message'] % (file_details['SeriesName'],
+                                                                      file_details['SeasonNum'],
+                                                                      os.path.basename(_new_name),
                                                                       os.path.basename(file_details['FileName'])
                                                                      )
                 )
@@ -167,6 +172,7 @@ class Rename(object):
                     os.chown(os.path.split(_new_name)[0], 1000, 100)
             os.rename(file_details['FileName'], _new_name)
             log.info("Successfully Renamed: %s" % _new_name)
+            self.update_required = True
         except OSError, exc:
             log.error("Skipping, Unable to Rename File: %s" % file_details['FileName'])
             log.error("Unexpected error: %s" % exc)
@@ -179,7 +185,7 @@ class Rename(object):
         if 'DateAired' not in file_details:
             log.warn('_update_date: Unable to update the Date Aired, Missing Information')
             return
-        
+
         _date_aired = file_details['DateAired']
         cur_date = time.localtime(os.path.getmtime(new_name))
         if _date_aired:
@@ -211,7 +217,7 @@ class Rename(object):
             else:
                 return
         return
-            
+
     def _ignored(self, name):
         """ Check for ignored pathnames.
         """
@@ -225,7 +231,7 @@ class Rename(object):
         for _episode in file_details['EpisodeData']:
             if 'DateAired' in _episode:
                 _dates.append(_episode['DateAired'])
-                
+
         if len(_dates) > 0:
             return _dates[0]
         else:
@@ -252,7 +258,8 @@ class Rename(object):
         _names = []
         for _episode_entry in EpisodeData:
             _new_name = _episode_entry['EpisodeTitle']
-            _new_name = unicodedata.normalize('NFKD', _new_name).encode('ascii','ignore')
+            if type(_new_name) == unicode:
+                _new_name = unicodedata.normalize('NFKD', _new_name).encode('ascii','ignore')
             _new_name = _new_name.replace("&amp;", "&").replace("/", "_")
             _names.append(_new_name)
 
@@ -319,7 +326,7 @@ if __name__ == "__main__":
         _path_name = '%s %s'% (_path_name, args[i])
     _path_name = _path_name.lstrip().rstrip()
     if len(_path_name) == 0:
-        _new_series_dir = os.path.join ( os.path.split(_config_settings.SeriesDir)[0], _config_settings.NewDir ) 
+        _new_series_dir = os.path.join ( os.path.split(_config_settings.SeriesDir)[0], _config_settings.NewDir )
         msg = 'Missing Scan Starting Point (Input Directory), Using Default: {}'.format(_new_series_dir)
         log.info(msg)
         _path_name = _new_series_dir

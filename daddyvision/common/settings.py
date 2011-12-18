@@ -7,30 +7,28 @@ Purpose:
 
 from configobj import ConfigObj
 from daddyvision.common import logger
+from daddyvision.common.exceptions import (ConfigValueError, UserAbort,
+    UnexpectedErrorOccured, InvalidArgumentType)
+import logging
 import os
 import re
 import sys
 import time
-import logging
-from daddyvision.common.exceptions import ConfigValueError, UserAbort
+
+__pgmname__ = 'settings'
+__version__ = '$Rev$'
 
 __author__ = "AJ Reynolds"
 __copyright__ = "Copyright 2011, AJ Reynolds"
 __credits__ = []
 __license__ = "GPL"
 
-__pgmname__ = 'settings'
-__version__ = '$Rev$'
-
 __maintainer__ = "AJ Reynolds"
 __email__ = "stampedeboss@gmail.com"
 __status__ = "Development"
 
-PgmDir      = os.path.dirname(__file__)
-HomeDir     = os.path.expanduser('~')
-ConfigDirB  = os.path.join(HomeDir, '.config')
-ConfigDir   = os.path.join(ConfigDirB, 'xbmcsupt')
-RunDir      = sys.path[0]
+ConfigDir   = os.path.join(os.path.expanduser('~'),".config", "xbmcsupt")
+ConfigFile  = os.path.join(ConfigDir, '{}.cfg'.format(__pgmname__))
 
 log = logging.getLogger('settings')
 
@@ -45,110 +43,107 @@ class Settings(object):
     update_existing: Indicator to request updating an existing config.
     '''
 
-    def __init__(self, subject=['common'], update=False, pgmname=__pgmname__):
+    def __init__(self, subject=['common'], update=False):
 
-        _config_file = os.path.expanduser(os.path.join(ConfigDir, '%s.cfg' % pgmname))
-        if update or not os.path.exists(_config_file):
-            self.BuildConfig(update)
+        if update or not os.path.exists(ConfigFile):
+            self.BuildConfig()
 
-        self.config = ConfigObj(_config_file, unrepr=True, interpolation=False)
+        self.config = ConfigObj(ConfigFile, unrepr=True, interpolation=False)
 
-        if "common" in subject:
-            Library = self.config['Library']
-            self.SeriesDir = Library['SeriesDir']
-            self.MoviesDir = Library['MoviesDir']
-            self.NonVideoDir = Library['NonVideoDir']
-            self.SubscriptionDir = Library['SubscriptionDir']
-            self.NewDir = Library['NewDir']
+        Library = self.config['Library']
+        self.SeriesDir = Library['SeriesDir']
+        self.MoviesDir = Library['MoviesDir']
+        self.NonVideoDir = Library['NonVideoDir']
+        self.SubscriptionDir = Library['SubscriptionDir']
+        self.NewDir = Library['NewDir']
 
-            RunTime    = self.config['DownloadMonitor']
-            self.WatchDir = os.path.expanduser(RunTime['WatchDir'])
+        if not os.path.exists(self.SeriesDir):
+            log.error("Path Not Found: %s" % self.SeriesDir)
+            log.error("Invalid Config Entries, Ending")
+            raise ConfigValueError("Path Not Found: %s" % self.SeriesDir)
 
-            if not os.path.exists(self.SeriesDir):
-                log.error("Path Not Found: %s" % self.SeriesDir)
-                log.error("Invalid Config Entries, Ending")
-                raise ConfigValueError("Path Not Found: %s" % self.SeriesDir)
+        if not os.path.exists(self.MoviesDir):
+            log.error("Path Not Found: %s" % self.MoviesDir)
+            log.error("Invalid Config Entries, Ending")
+            raise ConfigValueError("Path Not Found: %s" % self.MoviesDir)
 
-            if not os.path.exists(self.MoviesDir):
-                log.error("Path Not Found: %s" % self.MoviesDir)
-                log.error("Invalid Config Entries, Ending")
-                raise ConfigValueError("Path Not Found: %s" % self.MoviesDir)
+        if not os.path.exists(self.NonVideoDir):
+            log.error("Path Not Found: %s" % self.NonVIdeoDir)
+            log.error("Invalid Config Entries, Ending")
+            raise ConfigValueError("Path Not Found: %s" % self.NonVideoDir)
 
-            if not os.path.exists(self.NonVideoDir):
-                log.error("Path Not Found: %s" % self.NonVIdeoDir)
-                log.error("Invalid Config Entries, Ending")
-                raise ConfigValueError("Path Not Found: %s" % self.NonVideoDir)
+        RunTime = self.config['DownloadMonitor']
+        self.WatchDir = os.path.expanduser(RunTime['WatchDir'])
 
-            if not os.path.exists(self.WatchDir):
-                log.error("Path Not Found: %s" % self.WatchDir)
-                log.error("Invalid Config Entries, Ending")
-                raise ConfigValueError("Path Not Found: %s" % self.WatchDir)
+        if not os.path.exists(self.WatchDir):
+            log.error("Path Not Found: %s" % self.WatchDir)
+            log.error("Invalid Config Entries, Ending")
+            raise ConfigValueError("Path Not Found: %s" % self.WatchDir)
 
-            Common = self.config['Common']
-            self.MediaExt = Common['MediaExt']
-            self.MovieGlob = Common['MovieGlob']
-            self.IgnoreGlob = Common['IgnoreGlob']
-            self.Predicates = Common['Predicates']
+        Common = self.config['Common']
+        self.MediaExt = Common['MediaExt']
+        self.MovieGlob = Common['MovieGlob']
+        self.IgnoreGlob = Common['IgnoreGlob']
+        self.Predicates = Common['Predicates']
 
-            self.TvdbIdList = {}
-            self.TvdbIdFile = os.path.expanduser(Common['TvdbIdFile'])
-            self.ReloadTVDBList()
+        self.TvdbIdList = {}
+        self.TvdbIdFile = os.path.expanduser(Common['TvdbIdFile'])
+        self.ReloadTVDBList()
 
-            self.SeriesAliasList = {}
-            self.SeriesAliasFile = os.path.expanduser(Common['SeriesAliasFile'])
-            if os.path.exists(self.SeriesAliasFile):
-                with open(self.SeriesAliasFile, "r") as _alias_file_obj:
-                    for _line in _alias_file_obj.readlines():
-                        _series_alias_entry = _line.rstrip("\n").split("\t")
-                        if len(_series_alias_entry) == 2:
-                            self.SeriesAliasList[_series_alias_entry[0]] = _series_alias_entry[1]
-                    log.debug('Series Alias: LOADED')
-                _alias_file_obj.close()
+        self.SeriesAliasList = {}
+        self.SeriesAliasFile = os.path.expanduser(Common['SeriesAliasFile'])
+        if os.path.exists(self.SeriesAliasFile):
+            with open(self.SeriesAliasFile, "r") as _alias_file_obj:
+                for _line in _alias_file_obj.readlines():
+                    _series_alias_entry = _line.rstrip("\n").split("\t")
+                    if len(_series_alias_entry) == 2:
+                        self.SeriesAliasList[_series_alias_entry[0]] = _series_alias_entry[1]
+                log.debug('Series Alias: LOADED')
+            _alias_file_obj.close()
 
-            self.SpecialHandlingList = []
-            spl_hand_file = os.path.expanduser(Common['SplHandFile'])
-            if os.path.exists(spl_hand_file):
-                with open(spl_hand_file, "r") as splhand_file_obj:
-                    for show_name in splhand_file_obj.readlines():
-                        self.SpecialHandlingList.append(show_name.rstrip("\n"))
-                    log.debug('Special Handling for: %s' % self.SpecialHandlingList)
+        self.ExcludeList = []
+        exclude_file = os.path.expanduser(Common['ExcludeFile'])
+        if os.path.exists(exclude_file):
+            with open(exclude_file, "r") as exclude_file_obj:
+                for line in exclude_file_obj.readlines():
+                    self.ExcludeList.append(line.rstrip("\n"))
 
-            self.EpisodeAdjList = []
-            _episode_adj_file = os.path.expanduser(Common['EpisodeAdjList'])
-            if os.path.exists(_episode_adj_file):
-                with open(_episode_adj_file, "r") as _episode_adj_file_obj:
-                    for _line in _episode_adj_file_obj.readlines():
-                        _adjustment = _line.rstrip("\n").split("\t")
-                        if len(_adjustment) == 6 and _adjustment[:0] != '#':
-                            _adjustment_entry = {'SeriesName' : _adjustment[0],
-                                                 'SeasonNum' : int(_adjustment[1]),
-                                                 'Begin' : int(_adjustment[2]),
-                                                 'End' : int(_adjustment[3]),
-                                                 'AdjSeason' : int(_adjustment[4]),
-                                                 'AdjEpisode' : int(_adjustment[5])}
-                            self.EpisodeAdjList.append(_adjustment_entry)
-                    log.debug('Episode Adjustment for: %s' % self.EpisodeAdjList)
+        exclude_extras = os.path.expanduser(Common['ExcludeExtrasFile'])
+        if os.path.exists(exclude_extras):
+            with open(exclude_extras, "r") as exclude_file_obj:
+                for line in exclude_file_obj.readlines():
+                    self.ExcludeList.append(line.rstrip("\n"))
 
-            self.ExcludeList = []
-            exclude_file = os.path.expanduser(Common['ExcludeFile'])
-            if os.path.exists(exclude_file):
-                with open(exclude_file, "r") as exclude_file_obj:
-                    for line in exclude_file_obj.readlines():
-                        self.ExcludeList.append(line.rstrip("\n"))
+        log.debug('Exclude List: LOADED')
 
-            exclude_extras = os.path.expanduser(Common['ExcludeExtrasFile'])
-            if os.path.exists(exclude_extras):
-                with open(exclude_extras, "r") as exclude_file_obj:
-                    for line in exclude_file_obj.readlines():
-                        self.ExcludeList.append(line.rstrip("\n"))
+        self.SpecialHandlingList = []
+        spl_hand_file = os.path.expanduser(Common['SplHandFile'])
+        if os.path.exists(spl_hand_file):
+            with open(spl_hand_file, "r") as splhand_file_obj:
+                for show_name in splhand_file_obj.readlines():
+                    self.SpecialHandlingList.append(show_name.rstrip("\n"))
+                log.debug('Special Handling: LOADED')
 
-            log.debug('Exclude List: %s' % self.ExcludeList)
+        self.EpisodeAdjList = []
+        _episode_adj_file = os.path.expanduser(Common['EpisodeAdjFile'])
+        if os.path.exists(_episode_adj_file):
+            with open(_episode_adj_file, "r") as _episode_adj_file_obj:
+                for _line in _episode_adj_file_obj.readlines():
+                    _adjustment = _line.rstrip("\n").split("\t")
+                    if len(_adjustment) == 6 and _adjustment[:0] != '#':
+                        _adjustment_entry = {'SeriesName' : _adjustment[0],
+                                             'SeasonNum' : int(_adjustment[1]),
+                                             'Begin' : int(_adjustment[2]),
+                                             'End' : int(_adjustment[3]),
+                                             'AdjSeason' : int(_adjustment[4]),
+                                             'AdjEpisode' : int(_adjustment[5])}
+                        self.EpisodeAdjList.append(_adjustment_entry)
+                log.debug('Episode Adjustment: LOADED')
 
-            self.ConversionsPatterns = self.config['Conversions']
+        self.ConversionsPatterns = self.config['Conversions']
 
-        if "DownloadMonitor" in subject:
-            RunTime    = self.config['DownloadMonitor']
-            self.WatchDir = os.path.expanduser(RunTime['WatchDir'])
+        users = self.config['Users']
+        self.Users = users['Users']
 
         return
 
@@ -165,39 +160,77 @@ class Settings(object):
             log.warn("TVDB Series IDs File Missing: " % self.TvdbIdFile)
         return 0
 
-    def GetSubscribers(self, subscriber=None):
-        SubscriptionDetails = {}
-        if subscriber == 'all' or len(subscriber > 1):
-            _subscriber_list = self.config['SubscriberList']
-            Subscribers = _subscriber_list['All']
-            for _entry in Subscribers:
-                _subscription_info = self.config[_entry]
-                _host_name = _subscription_info['HostName']
-                _user_id = _subscription_info['UserId']
-                _movie_dir = _subscription_info['MovieDir']
-                _series_dir = _subscription_info['SeriesDir']
-                _links_dir = _subscription_info['LinksDir']
+    def GetSubscribers(self, req_profile=None):
+        log.trace("Retrieving User Information: {}".format(req_profile))
 
-                SubscriptionDetails.append({_entry : {'HostName' : _host_name,
-                                                    'UserId' : _user_id,
-                                                    'MovieDir' : _movie_dir,
-                                                    'SeriesDir' : _series_dir,
-                                                    'LinksDir' : _links_dir
-                                                    }})
-        elif subscriber != None:
-            _subscription_info = self.config[subscriber]
-            _host_name = _subscription_info['HostName']
-            _user_id = _subscription_info['UserId']
-            _movie_dir = _subscription_info['MovieDir']
-            _series_dir = _subscription_info['SeriesDir']
-            _links_dir = _subscription_info['LinksDir']
-            SubscriptionDetails.append({_entry: {'HostName' : _host_name,
-                                                'UserId' : _user_id,
-                                                'MovieDir' : _movie_dir,
-                                                'SeriesDir' : _series_dir,
-                                                'LinksDir' : _links_dir
-                                                }})
-        return SubscriptionDetails
+        _user_profiles = {}
+
+        if req_profile != None:
+            if type(req_profile) != list:
+                if req_profile.lower() != 'all':
+                    raise InvalidArgumentType('Invalid Request Must be LIST with list of user names to be returned')
+
+        if req_profile == 'all' or req_profile == None:
+            req_profile = self.Users
+
+        for _entry in req_profile:
+
+            try:
+                _user_profile = self.config[_entry]
+            except KeyError:
+                continue
+
+            if _user_profile:
+                _user_dict = {}
+                _user_dict['Name'] = _entry
+                _user_dict['HostName'] = _user_profile['HostName']
+                _user_dict['UserId'] = _user_profile['UserId']
+                _user_dict['MovieDir'] = _user_profile['MovieDir']
+                _user_dict['SeriesDir'] = _user_profile['SeriesDir']
+                _user_dict['Identifier'] = _user_profile['Identifier']
+
+                _user_profiles[_entry] = _user_dict
+
+#                _user_profiles.append(_user_dict)
+
+        return _user_profiles
+
+    def AddSubscriber(self, req_profile=None):
+        log.trace("Adding/Updating User Information: {}".format(req_profile))
+
+        if type(req_profile) != dict:
+            raise InvalidArgumentType('Invalid Request Must be DICT with profile information to be added')
+
+        self.config[req_profile['Name']] = {}
+        self.config[req_profile['Name']]['HostName'] = req_profile['HostName']
+        self.config[req_profile['Name']]['UserId'] = req_profile['UserId']
+        self.config[req_profile['Name']]['MovieDir'] = req_profile['MovieDir']
+        self.config[req_profile['Name']]['SeriesDir'] = req_profile['SeriesDir']
+        self.config[req_profile['Name']]['Identifier'] = req_profile['Identifier']
+
+        if req_profile['Name'] not in self.Users:
+            self.Users.append(req_profile['Name'])
+            users = self.config['Users']
+            users['Users'] = self.Users
+
+        with open(ConfigFile, "w") as _cf:
+            self.config.write(_cf)
+
+        self.config.reload()
+
+        _user_dict = self.GetSubscribers([req_profile['Name']])
+        if _user_dict[req_profile['Name']] != req_profile:
+            raise UnexpectedErrorOccured("The profile does not match with what was just added, programming error")
+#        _user_dict = {}
+#        _user = self.config[req_profile['Name']]
+#        _user_dict['Name'] = req_profile['Name']
+#        _user_dict['HostName'] = _user['HostName']
+#        _user_dict['UserId'] = _user['UserId']
+#        _user_dict['MovieDir'] = _user['MovieDir']
+#        _user_dict['SeriesDir'] = _user['SeriesDir']
+#        _user_dict['Identifier'] = _user['Identifier']
+
+        return _user_dict
 
     def BuildConfig(self):
         if not os.path.exists(ConfigDir):
@@ -208,88 +241,85 @@ class Settings(object):
                 raise ConfigValueError("Cannot Create Config Directory: %s" % ConfigDir)
 
         config = ConfigObj(unrepr = True, interpolation = False)
-        config.filename = self._config_file
-        config['Library'] = {}
+        config.filename = ConfigFile
 
         _base_dir = get_dir('/mnt', "Base Directory for Libraries")
 
-        config['Library']['SeriesDir'] = get_dir(os.path.join(_base_dir, "Series"), "Series")
-        config['Library']['MoviesDir'] = get_dir(os.path.join(_base_dir, "Movies"), "Movies")
-        config['Library']['NonVideoDir'] = get_dir(os.path.join(_base_dir, "Non Video Files"), "Downloads")
+        config['Library'] = {}
+        config['Library']['SeriesDir'] = get_dir(os.path.join(_base_dir, "TV/Series"), "Series")
+        config['Library']['MoviesDir'] = get_dir(os.path.join(_base_dir, "Movies/Films"), "Movies")
+        config['Library']['NonVideoDir'] = get_dir(os.path.join(_base_dir, "Downloads/Unpacked"), "Downloads")
         config['Library']['SubscriptionDir'] = get_dir(os.path.join(_base_dir, "Links"), "Subscription Files")
-        config['Library']['NewDir'] = get_dir(os.path.join(_base_dir, "New"), "Subdirectory for New Files")
+        dir_name = raw_input("Enter Subdirectory for New Files (%s): " % 'New').lstrip(os.sep)
+        if not dir_name:
+            dir_name = 'New'
+        config['Library']['NewDir'] = dir_name
 
-        config['RunTime-Common']['MediaExt'] = ['avi', 'mkv', 'mp4', 'mpeg']
-        config['RunTime-Common']['MovieGlob'] = ["720", "1080", "bluray", "bdrip", "brrip", "pal",
+
+        config['Common'] = {}
+        config['Common']['MediaExt'] = ['avi', 'mkv', 'mp4', 'mpeg']
+        config['Common']['MovieGlob'] = ["720", "1080", "bluray", "bdrip", "brrip", "pal",
                                                  "ntsc", "dvd-r", "fulldvd", "multi", "dts",
                                                  "hdtv", "pdtv", "webrip", "dvdrip", "2lions"
                                                 ]
-        config['RunTime-Common']['IgnoreGlob'] = ["*sample*", "samples", "sample.avi", "sample-*.avi",
-                                                  "*.sfv", ".srt", ".*", "*~", "*.swp", "*.tmp", "*.bak",
-                                                  "*.nfo","*.txt", "thumbs.db", "desktop.ini",
-                                                  "ehthumbs_vista.db", "*.url", "*.doc", "*.docx", "*.jpg",
-                                                  "*.srt", "*.png",    "sample*", "*.com", "*.mds"
+        config['Common']['IgnoreGlob'] = ['*subs*', '*subpack*', '*sample*', '*.sfv', '*.srt',
+                                                  '*.idx', '*.swp', '*.tmp', '*.bak', '*.nfo', '*.txt',
+                                                  '*.doc', '*.docx', '*.jpg', '*.png', '*.com', '*.mds',
+                                                  'thumbs.db', 'desktop.ini', 'ehthumbs_vista.db', '*.url',
+                                                  '.*', '*~*'
                                                   ]
+        config['Common']['Predicates'] = ['The', 'A', 'An']
 
-        predicates = ['The', 'A', 'An']
+        config['Common']['TvdbIdFile'] = os.path.join(ConfigDir, 'Series_TvdbId')
+        touch(os.path.join(ConfigDir, 'Series_TvdbId'))
 
-        show_file = raw_input("Enter File Name TVDB Show IDs (%s): " % 'series_tvdb_ids').lstrip(os.sep)
-        if not show_file:
-            show_file = 'series_tvdb_ids'
-        config['RunTime-Common']['TvdbIdFile'] = '%s/%s' % (ConfigDir, show_file)
-        touch(os.path.join(os.path.expanduser(ConfigDir), show_file))
+        config['Common']['SeriesAliasFile'] = os.path.join(ConfigDir, 'Series_Aliases')
+        touch(os.path.join(os.path.join(ConfigDir), 'Series_Aliases'))
 
-        alias_file = raw_input("Enter File Name Show Aliases (%s): " % 'series_aliases').lstrip(os.sep)
-        if not alias_file:
-            alias_file = 'series_aliases'
-        config['RunTime-Common']['SeriesAliasFile'] = '%s/%s' % (ConfigDir, alias_file)
-        touch(os.path.join(os.path.expanduser(ConfigDir), alias_file))
+        config['Common']['SplHandFile']   = os.path.join(ConfigDir, 'Series_Special_Handling')
+        touch(os.path.join(ConfigDir, 'Series_Special_Handling'))
 
-        config['RunTime-Common']['SplHandFile']   = '%s/special_handling' % ConfigDir
-        config['RunTime-Common']['ExcludeExtras'] = '%s/exclude_extras' % ConfigDir
-        config['RunTime-Common']['ExcludeFile']   = '%s/exclude_rename' % ConfigDir
+        config['Common']['ExcludeExtrasFile'] = os.path.join(ConfigDir, 'Series_Exclude_Extras')
+        touch(os.path.join(ConfigDir, 'Series_Exclude_Extras'))
 
-        config['RunTime-DownloadMonitor']['WatchDir'] = get_dir(os.path.join('/mnt', 'Downloads/Bittorrent'), "DownloadMonitor Watch Folder")
+        config['Common']['ExcludeFile']   = os.path.join(ConfigDir, 'Series_Exclude_Rename')
+        touch(os.path.join(ConfigDir, 'Series_Exclude_Rename'))
 
-        config['FileNames'] = {}
+        config['Common']['EpisodeAdjFile']   = os.path.join(ConfigDir, 'Series_Episode_Adjustments')
+        touch(os.path.join(ConfigDir, 'Series_Episode_Adjustments'))
+
+        config['DownloadMonitor'] = {}
+        config['DownloadMonitor']['WatchDir'] = get_dir(os.path.join('/mnt', 'Downloads/Bittorrent'), "DownloadMonitor Watch Folder")
+
+        config['Conversions'] = {}
         # Formats for renaming files
-        config['FileNames']['std_fqn']  = '%(base_dir)s/%(seriesname)s/Season %(seasonnumber)s/%(epno)s %(epname)s.%(ext)s'
-        config['FileNames']['proper_fqn']  = '%(base_dir)s/%(seriesname)s/Season %(seasonnumber)s/%(epno)s %(epname)s (PROPER).%(ext)s'
-        config['FileNames']['fullname'] = '%(seriesname)s/Season %(seasonnumber)/[%(seriesname)s S0%(seasonnumber)%(epno)s] %(episodename)s%(ext)s'
-        config['FileNames']['std_show'] = '%(seriesname)s/Season %(seasonnumber)s/%(epno)s %(epname)s.%(ext)s'
-        config['FileNames']['hdtv_fqn'] = '%(seriesname)s/Season %(seasonnumber) hdtv/[%(epno)s] %(episodename)s%(ext)s'
-        config['FileNames']['std_epname']= '%(epno)s %(epname)s.%(ext)s'
+        config['Conversions']['std_fqn']  = '%(BaseDir)s/%(SeriesName)s/Season %(SeasonNum)s/%(EpisodeNumFmt)s %(EpisodeTitle)s.%(Ext)s'
+        config['Conversions']['proper_fqn']  = '%(BaseDir)s/%(SeriesName)s/Season %(SeasonNum)s/%(EpisodeNumFmt)s %(EpisodeTitle)s (PROPER).%(Ext)s'
+        config['Conversions']['fullname'] = '%(SeriesName)s/Season %(SeasonNum)/[%(SeriesName)s S0%(SeasonNum)%(EpisodeNumFmt)s] %(EpisodeTitle)s%(Ext)s'
+        config['Conversions']['std_show'] = '%(SeriesName)s/Season %(SeasonNumber)s/%(EpisodeNumFmt)s %(EpisodeTitle)s.%(Ext)s'
+        config['Conversions']['hdtv_fqn'] = '%(SeriesName)s/Season %(SeasonNum) hdtv/[%(EpisodeNumFmt)s] %(EpisodeTitle)s%(Ext)s'
+        config['Conversions']['std_epname']= '%(EpisodeNumFmt)s %(EpisodeTitle)s.%(Ext)s'
 
         # Used to join multiple episode names together
-        config['FileNames']['multiep_join_name_with'] = ', '
+        config['Conversions']['multiep_join_name_with'] = ', '
 
         # Format for numbers (python string format), %02d does 2-digit
         # padding, %d will cause no padding
-        config['FileNames']['episode_single'] = 'E%02d'
+        config['Conversions']['episode_single'] = 'E%02d'
 
         # String to join multiple number
-        config['FileNames']['episode_separator'] = '-'
+        config['Conversions']['episode_separator'] = '-'
 
-        config['FileNames']['rename_message'] = '%-15.15s Season %2.2s NEW NAME: %-40.40s CUR NAME: %s'
+        config['Conversions']['rename_message'] = '%-15.15s Season %2.2s NEW NAME: %-40.40s CUR NAME: %s'
 
-        '''
-        Series.py uses the following:
-        [RegEx]
-        Std = ['\n\t(/.*/)?\n\t(?P<seriesname>.*)\n\t[/\\._ \\-]\n\t(s|season)[/\\._ \\-]?(?P<season>[0-9]+)\n\t[/\\._ \\-]\n\t[e](?P<episodenumberstart>[0-9]+)\n\t[\\-]\n\t[Ee]?(?P<episodenumberend>[0-9]+)\n\t[\\.\\- ]\n\t(?P<epname>.*)\n\t\\.\n\t(?P<ext>....?)\n\t$\n\t', '\n\t(/.*/)?\n\t(?P<seriesname>.*)\n\t[/\\._ \\-]\n\t(s|Season)[/\\._ \\-]?(?P<season>[0-9]+)\n\t[/\\._ \\-]?\n\t[e|E](?P<episodenumber>[0-9]+)\n\t[/\\._ \\-]?\n\t(?P<epname>.+)?\n\t\\.\n\t(?P<ext>....?)\n\t$\n\t', '\n\t(/.*/)?\n\t(?P<seriesname>.*)\n\t[/\\._ \\-]\n\t(s|Season)[/\\._ \\-]?(?P<season>[0-9]+)\n\t[/\\._ \\-]?\n\t(hdtv)?\n\t[/\\._ \\-]?\n\t[e|E](?P<episodenumber>[0-9]+)\n\t[/\\._ \\-]?\n\t(?P<epname>.+)?\n\t\\.\n\t(?P<ext>....?)\n\t$\n\t']
-        [Check]
-        age = '30'
-
-        rename:
-        rename_message = '%-15.15s Season %2.2s NEW NAME: %-40.40s CUR NAME: %s'
-
-        '''
-
+        config['Users'] = {}
+        config['Users']['Users'] = []
 
         config.write()
-        log.info('New Config File Created: %s' % self._config_file)
+        log.info('New Config File Created: %s' % ConfigFile)
         return
 
-def get_dir(self, dir_name_d, message):
+def get_dir(dir_name_d, message):
     while True:
         log.debug("ROUTINE: get_dir %s %s" % (message, dir_name_d))
         dir_name = raw_input("Enter %s Directory (%s): " % (message, dir_name_d)).rstrip(os.sep)
@@ -314,10 +344,10 @@ def get_dir(self, dir_name_d, message):
                     log.error("Unable to Create Directory: %s, %s: " % (dir_name, exc))
                     continue
             elif action[0] == 'r':
-                dir_name = self.get_dir(dir_name_d, message)
+                dir_name = get_dir(dir_name_d, message)
                 return dir_name
 
-def touch(self, path):
+def touch(path):
     now = time.time()
     try:
         # assume it's there
@@ -351,4 +381,5 @@ if __name__ == '__main__':
     log.info('MovieGlob: {}'.format(parms.MovieGlob))
     log.info('IgnoreGlob: {}'.format(parms.IgnoreGlob))
     log.info('Predicates: {}'.format(parms.Predicates))
+    log.info('Users: {}'.format(parms.Users))
 

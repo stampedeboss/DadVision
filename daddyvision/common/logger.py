@@ -149,7 +149,7 @@ def start(filename='daddyvision.log', level=logging.INFO, timed=False):
         return
 
     if timed:
-        handler = logging.handlers.TimedRotatingFileHandler(filename, when='midnight', backupCount=7)
+        handler = logging.handlers.TimedRotatingFileHandler(filename, when='midnight', backupCount=9)
     else:
         handler = logging.handlers.RotatingFileHandler(filename, maxBytes=1000 * 1024, backupCount=9)
         handler.doRollover()

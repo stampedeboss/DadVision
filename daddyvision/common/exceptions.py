@@ -38,8 +38,18 @@ class NoValidFilesFound(BaseDaddyVisionException):
     """
     pass
 
+class DuplicateFilesFound(BaseDaddyVisionException):
+    """Raised when Duplicate files are found that are not due to PROPERs.
+    """
+    pass
+
 class UserAbort(BaseDaddyVisionException):
-    """Base exception for config errors
+    """User too an action to abort the process
+    """
+    pass
+
+class UnexpectedErrorOccured(BaseDaddyVisionException):
+    """Something unexpected occured.  Should not happen, if it does program error.
     """
     pass
 

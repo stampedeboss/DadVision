@@ -53,8 +53,6 @@ class FileParser(dict):
     def getFileDetails(self, fq_name):
         log.trace("GetFileDetails: File: %s" % (fq_name))
 
-        #tODO: Implement logging mod to track module reporting error
-
         _path, _file_name = os.path.split(fq_name)
 
         self.RegExNumber = 0
@@ -244,6 +242,24 @@ class FileParser(dict):
             \.(?P<Ext>....?)$                       # extension
             ''',
              re.X|re.I))
+
+#----------------------------------------------------------------------------------------
+        # DATE AIRED
+        self.RegxParse.append(re.compile(
+            '''                                    # RegEx 17
+            ^(/.*/)?                               # Optional Directory
+            (?P<SeriesName>.+?)                    # Series name
+            [/\._ \-]                              # Sep 1
+            (?P<year>\d{4})                        # year (####)
+            [ \._\-]                               # Separator .|1
+            (?P<month>\d{2})                       # Month (##)
+            [ \._\-]                               # separator .|-
+            (?P<day>\d{2})                         # Day (##)
+            [/\._ \-]?                             # Optional Sep 1
+            (?P<EpisodeName>.*)                    # Optional Title
+            \.(?P<Ext>....?)$                      # Extension
+            ''',
+            re.X|re.I))
 
 #----------------------------------------------------------------------------------------
         # Multiepisode
@@ -555,23 +571,6 @@ class FileParser(dict):
 #            re.X|re.I))
 #
 #----------------------------------------------------------------------------------------
-        # DATE AIRED
-        self.RegxParse.append(re.compile(
-            '''                                    # RegEx 17
-            ^(/.*/)?                               # Optional Directory
-            (?P<SeriesName>.+?)                    # Series name
-            [/\._ \-]                              # Sep 1
-            (?P<year>\d{4})                        # year (####)
-            [ \._\-]                               # Separator .|1
-            (?P<month>\d{2})                       # Month (##)
-            [ \._\-]                               # separator .|-
-            (?P<day>\d{2})                         # Day (##)
-            [/\._ \-]?                             # Optional Sep 1
-            (?P<EpisodeName>.*)                    # Optional Title
-            \.(?P<Ext>....?)$                      # Extension
-            ''',
-            re.X|re.I))
-
 #------------------------------------------------------------------------------------------
 #        # Special Cases
 #        self.RegxParse.append(re.compile(
@@ -655,9 +654,9 @@ if __name__ == '__main__':
 
     _my_parser = FileParser()
     if len(args) > 0:
-        _answer = _my_parser.GetFileDetails(args[0])
+        _answer = _my_parser.getFileDetails(args[0])
     else:
-        _answer = _my_parser.GetFileDetails(args[0])
+        _answer = _my_parser.getFileDetails(args[0])
 
     print
     print _answer
