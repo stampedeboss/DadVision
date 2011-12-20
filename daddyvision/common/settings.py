@@ -54,10 +54,14 @@ class Settings(object):
         Library = self.config['Library']
         self.SeriesDir = Library['SeriesDir']
         self.MoviesDir = Library['MoviesDir']
+        self.DownloadDir = Library['DownloadDir']
         self.NonVideoDir = Library['NonVideoDir']
         self.SubscriptionDir = Library['SubscriptionDir']
         self.NewDir = Library['NewDir']
-
+        
+        self.NewMoviesDir = os.path.join(os.path.split(self.MoviesDir)[0], self.NewDir)
+        self.NewSeriesDir = os.path.join(os.path.split(self.SeriesDir)[0], self.NewDir)
+ 
         if not os.path.exists(self.SeriesDir):
             log.error("Path Not Found: %s" % self.SeriesDir)
             log.error("Invalid Config Entries, Ending")
@@ -250,8 +254,10 @@ class Settings(object):
         config['Library'] = {}
         config['Library']['SeriesDir'] = get_dir(os.path.join(_base_dir, "TV/Series"), "Series")
         config['Library']['MoviesDir'] = get_dir(os.path.join(_base_dir, "Movies/Films"), "Movies")
-        config['Library']['NonVideoDir'] = get_dir(os.path.join(_base_dir, "Downloads/Unpacked"), "Downloads")
+        config['Library']['NonVideoDir'] = get_dir(os.path.join(_base_dir, "Downloads/Unpacked"), "Unknown Unpack")
+        config['Library']['DownloadDir'] = get_dir(os.path.join(_base_dir, "Downloads/Bittorrent"), "Downloads")
         config['Library']['SubscriptionDir'] = get_dir(os.path.join(_base_dir, "Links"), "Subscription Files")
+
         dir_name = raw_input("Enter Subdirectory for New Files (%s): " % 'New').lstrip(os.sep)
         if not dir_name:
             dir_name = 'New'

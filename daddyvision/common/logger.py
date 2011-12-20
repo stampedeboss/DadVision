@@ -40,8 +40,8 @@ class DaddyVisionLogger(logging.Logger):
 
 class DaddyVisionFormatter(logging.Formatter):
     """Custom formatter that can handle both regular log records and those created by DaddyVisionLogger"""
-    plain_fmt = '%(asctime)-15s %(levelname)-8s %(name)-19s %(message)s'
-    daddyvision_fmt = '%(asctime)-15s %(levelname)-8s %(name)-12s %(library)-6s %(message)s'
+    plain_fmt = '%(asctime)-15s %(levelname)-8s %(name)-22s %(message)s'
+    daddyvision_fmt = '%(asctime)-15s %(levelname)-8s %(name)-12s %(library)-9s %(message)s'
 
     def __init__(self):
         logging.Formatter.__init__(self, self.plain_fmt, '%Y-%m-%d %H:%M')

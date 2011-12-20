@@ -116,8 +116,7 @@ class Distribute(object):
                 _series_name = _series.group(1)
                 log.debug("Series: %s" % _series_name)
                 _type = "Series"
-                _new_series_dir = os.path.join(os.path.split(self.config.SeriesDir)[0], self.config.NewDir)
-                _dest_dir = os.path.join(_new_series_dir, os.path.basename(pathname.rstrip(os.sep)))    # Adds the last directory to target name
+                _dest_dir = os.path.join(self.config.NewSeriesDir, os.path.basename(pathname.rstrip(os.sep)))    # Adds the last directory to target name
 
                 if os.path.isfile(pathname):
                     _fmt = 'file'
@@ -129,10 +128,9 @@ class Distribute(object):
 
         if any(pathname.lower().count(key) > 0 for key in self.config.MovieGlob):
             _type = "Movie"
-            _new_movies_dir = os.path.join(os.path.split(self.config.MoviesDir)[0], self.config.NewDir)
-            _dest_dir = os.path.join(_new_movies_dir, os.path.basename(pathname.rstrip(os.sep)))         # Adds the last directory to target name
+            _dest_dir = os.path.join(self.config.NewMoviesDir, os.path.basename(pathname.rstrip(os.sep)))         # Adds the last directory to target name
         else:
-            _type = "Neither TV Show or Movie"
+            _type = "NonVideo"
             _dest_dir = os.path.join(self.config.NonVideoDir, os.path.basename(pathname.rstrip(os.sep)))  # Adds the last directory to target name
 
         if os.path.isfile(pathname):                    # a file
@@ -154,7 +152,7 @@ class Distribute(object):
 
         destfile = os.path.join(destdir, os.path.basename(srcfile))
         if os.path.exists(destfile) and filecmp.cmp(destfile, srcfile):
-            log.info("Skipped %r, already at destination!" % (srcfile,))
+            log.info("Skipped: Already at Destination - %s" % (os.path.basename(srcfile)))
             return destfile
 
         indicator = "<+<"
@@ -222,7 +220,8 @@ class Distribute(object):
             # handle normal files
             for _file in _file_list:
                 _file = os.path.join(_root, _file)
-                self._distribute_file(_file, os.path.join(dest_dir, _root[len(src_dir):]))
+                self._distribute_file(_file, dest_dir)
+#                self._distribute_file(_file, os.path.join(dest_dir, _root[len(src_dir):]))
 
             # handle RARed files
             for _file in _rar_list:

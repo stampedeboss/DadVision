@@ -30,7 +30,7 @@ __copyright__ = "Copyright 2011, AJ Reynolds"
 __credits__ = []
 __license__ = "GPL"
 
-__pgmname__ = 'fileparser'
+__pgmname__ = 'series.fileparser'
 __version__ = '$Rev$'
 
 __maintainer__ = "AJ Reynolds"
