@@ -245,6 +245,7 @@ class Distribute(object):
     def _clean_names(self, dest_dir):
         # map ugly scene short names to original directory name
         # get common prefix of unpacked media files
+        log.trace('_clean_names:%s' % (dest_dir))
 
         for _root, _dir_names, _file_names in os.walk(dest_dir):
             _src_name = os.path.basename(_root.rstrip(os.sep))

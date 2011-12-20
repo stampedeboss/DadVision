@@ -308,7 +308,7 @@ class Rename(object):
         log.trace("_del_dir: pathname:{!s}".format(pathname))
 
         if file:
-            _cur_dir = os.path.split(pathname)
+            _cur_dir = os.path.split(pathname)[0]
         else:
             _cur_dir = pathname
 
