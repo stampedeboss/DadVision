@@ -174,19 +174,29 @@ if __name__ == "__main__":
 
     daemon = MyDaemon('/tmp/daemon-UpdateXBMC.pid')
 
+    try:
+        from subprocess import Popen, PIPE
+        _p = Popen(["svnversion", "."], stdout=PIPE)
+        REVISION= _p.communicate()[0]
+        REVISION='Revision: {}'.format(REVISION.strip('\n').strip())
+        _p = None # otherwise we get a wild exception when Django auto-reloads
+    except Exception, e:
+        print "Could not get revision number: ", e
+        REVISION='Version: {}'.format(__version__)
+
     if options.loglevel == 'DEBUG' or options.loglevel == 'TRACE':
         log.info('******* DEBUG Selected, Not using Daemon ********')
-        log.info("**************    %s     ***************" % __version__)
+        log.info("**************  %s    ***************" % REVISION)
         daemon.run()
     elif 'start' == args[0]:
         log.info("*************** STARTING DAEMON ****************" )
-        log.info("**************    %s     ***************" % __version__)
+        log.info("**************  %s    ***************" % REVISION)
         daemon.start()
     elif 'stop' == args[0]:
         log.info("*************** STOPING DAEMON *****************" )
-        log.info("**************    %s     ***************" % __version__)
+        log.info("**************  %s    ***************" % REVISION)
         daemon.stop()
     elif 'restart' == args[0]:
         log.info("************** RESTARTING DAEMON ***************" )
-        log.info("**************    %s     ***************" % __version__)
+        log.info("**************  %s    ***************" % REVISION)
         daemon.restart()
