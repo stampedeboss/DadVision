@@ -1,5 +1,6 @@
-#!/usr/bin/env python
-
+# -*- coding: UTF-8 -*-
+'''
+'''
 import sys, os, time, atexit
 from signal import SIGTERM 
 

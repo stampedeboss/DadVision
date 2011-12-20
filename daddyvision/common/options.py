@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
+"""
+"""
 import os
 import sys
 from optparse import OptionParser as OptParser, OptionGroup
@@ -18,6 +22,7 @@ __status__ = "Development"
 class OptionParser(OptParser):
 
     def __init__(self, **kwargs):
+
         OptParser.__init__(self, **kwargs)
 
         self.version = __version__
@@ -58,8 +63,37 @@ class CoreOptionParser(OptionParser):
 
         self._unit_test = unit_test
 
-'''
+        '''
+        group = OptionGroup(self, "Logging Levels:")
+        parser.add_option("-i", "--input-directory",
+            dest="requested_dir",
+            default="None",
+            help="directory to be scanned")
+
+        group.add_option("--no-gui", dest="nogui",
+            action="store_true", default=False,
+            help="command line only, no window")
+
+        parser.add_option("-x", "--no-excludes", dest="no_excludes",
+            action="store_true", default=False,
+            help="Ignore Exclude File")
+        parser.add_option("-s", "--specials", dest="show_specials",
+            action="store_true", default=False,
+            help="Include Specials")
+
+        parser.add_option("-r", "--remove", dest="remove",
+            action="store_true", default=False,
+            help="remove files (keep MKV over AVI, delete non-video files)")
+
+        parser.add_option("-d", "--days", dest="age_limit",
+            action="store", type=int, default=30,
+            help="check back x number of days")
+        parser.add_option("-f", "--no-age-limit-requested", dest="age_limit_requested",
+            action="store_false", default=True,
+            help="Full Check, Do not limit check to # days back")
+
     def parse_args(self, args=None):
+
         result = OptParser.parse_args(self, args or self._unit_test and ['flexget', '--reset'] or None)
         options = result[0]
 
@@ -75,4 +109,4 @@ class CoreOptionParser(OptionParser):
             options.loglevel = 'info'
 
         return options, args
-'''
+    '''

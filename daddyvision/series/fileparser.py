@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: UTF-8 -*-
 '''
 Purpose:
     Runs path via configured regex, extracting data from groups.
@@ -72,9 +73,9 @@ class FileParser(dict):
         self.LogHeader = 'RegEx {}'.format(self.RegExNumber)
         log.verbose('{}: RegEx Matched'.format(self.LogHeader))
 
-        with open('/home/aj/log/fileparse_regx.log', 'a') as tracker:
-            tracker.write('RegEx: {} - {}: \n'.format(self.RegExNumber, fq_name))
-        tracker.close()
+#        with open(os.path.join(logger.LogDir, 'fileparse_regx.log'), 'a') as tracker:
+#            tracker.write('RegEx: {} - {}: \n'.format(self.RegExNumber, fq_name))
+#        tracker.close()
 
         _parsed_keys = _parse_details.groupdict().keys()
 
@@ -644,13 +645,6 @@ if __name__ == '__main__':
 
     log.debug("Parsed command line options: {!s}".format(options))
     log.debug("Parsed arguments: %r" % args)
-
-    PgmDir = os.path.dirname(__file__)
-    HomeDir = os.path.expanduser('~')
-    ConfigDirB = os.path.join(HomeDir, '.config')
-    ConfigDir = os.path.join(ConfigDirB, 'xbmcsupt')
-    TEMP_LOC = os.path.join(HomeDir, __pgmname__)
-    RunDir      = sys.path[0]
 
     _my_parser = FileParser()
     if len(args) > 0:

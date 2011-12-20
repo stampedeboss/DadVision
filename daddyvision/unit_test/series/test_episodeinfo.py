@@ -1,4 +1,4 @@
-from daddyvision.series.seriesinfo import SeriesInfo
+from daddyvision.series.episodeinfo import EpisodeDetails
 from daddyvision.common.exceptions import InvalidArgumentType, DictKeyError, DataRetrievalError
 from daddyvision.common.exceptions import SeriesNotFound, EpisodeNotFound, EpisodeNameNotFound
 from logging import INFO, WARNING, ERROR, DEBUG
@@ -12,7 +12,7 @@ class KnownValues(unittest.TestCase):
     SeriesData = {'SeriesName' : 'Suits'}
     Suits_Data = {}
     
-class SeriesInfoExceptions(unittest.TestCase):
+class EpisodeDetailsExceptions(unittest.TestCase):
 
     def setUp(self):
         __version__ = '$Rev$'
@@ -41,25 +41,25 @@ class SeriesInfoExceptions(unittest.TestCase):
         _console.setFormatter(_formatter)
         log.addHandler(_console)
 
-        self.mymodule = SeriesInfo()
+        self.mymodule = EpisodeDetails()
         
  
     @unittest.expectedFailure
-    def test_seriesinfo_exception_case_000(self):
-        self.assertEqual(self.mymodule.GetDetails({'SeriesName' : "Suits"}), KnownValues.Suits_Data)
+    def test_EpisodeDetails_exception_case_000(self):
+        self.assertEqual(self.mymodule.getDetails({'SeriesName' : "Suits"}), KnownValues.Suits_Data)
 
-    def test_seriesinfo_exception_case_001(self):
-        self.assertRaises(InvalidArgumentType, self.mymodule.GetDetails, 'string')
+    def test_EpisodeDetails_exception_case_001(self):
+        self.assertRaises(InvalidArgumentType, self.mymodule.getDetails, 'string')
 
-    def test_seriesinfo_exception_case_002(self):
+    def test_EpisodeDetails_exception_case_002(self):
         KnownValues.SeriesData = {'NotSeriesName' : "Suits"}
-        self.assertRaises(DictKeyError, self.mymodule.GetDetails, KnownValues.SeriesData)
+        self.assertRaises(DictKeyError, self.mymodule.getDetails, KnownValues.SeriesData)
 
-    def test_seriesinfo_exception_case_003(self):
+    def test_EpisodeDetails_exception_case_003(self):
         KnownValues.SeriesData = {'SeriesName' : "Not a Real SeriesName"}
-        self.assertRaises(SeriesNotFound, self.mymodule.GetDetails, KnownValues.SeriesData)
+        self.assertRaises(SeriesNotFound, self.mymodule.getDetails, KnownValues.SeriesData)
 
-suite = unittest.TestLoader().loadTestsFromTestCase(SeriesInfoExceptions)
+suite = unittest.TestLoader().loadTestsFromTestCase(EpisodeDetailsExceptions)
 unittest.TextTestRunner(verbosity=2).run(suite)
 
 #if __name__ == '__main__':

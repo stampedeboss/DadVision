@@ -1,4 +1,4 @@
-from daddyvision.common.fileparser import FileParser
+from daddyvision.series.fileparser import FileParser
 from daddyvision.common import exceptions
 from daddyvision.common import logger
 from logging import INFO, WARNING, ERROR, DEBUG

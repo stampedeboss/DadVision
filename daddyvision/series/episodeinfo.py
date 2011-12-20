@@ -1,7 +1,8 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
 """
 Purpose:
         Configuration and Run-time settings for the XBMC Support Programs
-
 """
 
 from daddyvision.common.settings import Settings

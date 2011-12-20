@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: UTF-8 -*-
 """
 Author: AJ Reynolds
 Date: 12-11-2010
@@ -10,7 +11,7 @@ from daddyvision.common import logger
 from daddyvision.common.exceptions import (DataRetrievalError, EpisodeNotFound,
     SeriesNotFound, DuplicateFilesFound, InvalidFilename, RegxSelectionError,
     ConfigValueError)
-from daddyvision.common.fileparser import FileParser
+from daddyvision.series.fileparser import FileParser
 from daddyvision.series.episodeinfo import EpisodeDetails
 from logging import INFO, WARNING, ERROR, DEBUG
 import datetime
@@ -102,6 +103,7 @@ class Rename(object):
                         _dirs.remove(_dir)
 
                 _files.sort()
+
                 for _file_name in _files:
                     _path_name = os.path.join(_root, _file_name)
                     log.debug("-----------------------------------------------")
@@ -158,7 +160,7 @@ class Rename(object):
                     os.remove(file_details['FileName'])
                     self._del_dir(file_details['FileName'])
                 return
- 
+
         log.info(self.config.ConversionsPatterns['rename_message'] % (file_details['SeriesName'],
                                                                       file_details['SeasonNum'],
                                                                       os.path.basename(_new_name),

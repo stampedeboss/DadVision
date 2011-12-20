@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
 __pgmname__ = 'series.__init__'
 __version__ = '$Rev$'
 

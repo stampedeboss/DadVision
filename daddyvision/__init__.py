@@ -1,4 +1,5 @@
-#!/usr/bin/python /home/aj/workspace/VideoLibrary/daddyvision
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
 '''
     Initialization Routine for DaddyVision
 

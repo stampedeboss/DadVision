@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: UTF-8 -*-
 '''
 Purpose:
      Solict input for the user to add a user to the DaddyVision Environment

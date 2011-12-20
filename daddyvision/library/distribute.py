@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: UTF-8 -*-
 """
 Purpose:
     Program to distribute the files from a source to a target library. If needed,

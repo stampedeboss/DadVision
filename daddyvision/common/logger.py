@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
+"""
+"""
 import logging
 import logging.handlers
 from logging import INFO, DEBUG, WARNING, ERROR, CRITICAL

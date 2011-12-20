@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: UTF-8 -*-
 """
 Purpose:
     Program to watch for changes in the download folders and invoke the

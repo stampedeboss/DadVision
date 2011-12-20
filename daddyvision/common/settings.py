@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: UTF-8 -*-
 """
 Purpose:
         Configuration and Run-time settings for the XBMC Support Programs
@@ -46,7 +47,7 @@ class Settings(object):
     def __init__(self, subject=['common'], update=False):
 
         if update or not os.path.exists(ConfigFile):
-            self.BuildConfig()
+            self.BuildConfig(update)
 
         self.config = ConfigObj(ConfigFile, unrepr=True, interpolation=False)
 
@@ -232,7 +233,8 @@ class Settings(object):
 
         return _user_dict
 
-    def BuildConfig(self):
+    def BuildConfig(self, update=False):
+        
         if not os.path.exists(ConfigDir):
             try:
                 os.makedirs(ConfigDir)
@@ -257,7 +259,7 @@ class Settings(object):
 
 
         config['Common'] = {}
-        config['Common']['MediaExt'] = ['avi', 'mkv', 'mp4', 'mpeg']
+        config['Common']['MediaExt'] = ['avi', 'mkv', 'mp4', 'mpeg', 'm2ts']
         config['Common']['MovieGlob'] = ["720", "1080", "bluray", "bdrip", "brrip", "pal",
                                                  "ntsc", "dvd-r", "fulldvd", "multi", "dts",
                                                  "hdtv", "pdtv", "webrip", "dvdrip", "2lions"
@@ -367,7 +369,7 @@ if __name__ == '__main__':
         if sys.argv[1] == 'update':
             update_existing = True
 
-    parms = Settings()
+    parms = Settings(update=update_existing)
 
     log.info('SeriesDir: {}'.format(parms.SeriesDir))
     log.info('MoviesDir: {}'.format(parms.MoviesDir))
