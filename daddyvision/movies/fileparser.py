@@ -16,7 +16,6 @@ import re
 import sys
 import tempfile
 import time
-import sqlite3
 
 __pgmname__ = 'movies.fileparser'
 __version__ = '$Rev$'

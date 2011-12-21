@@ -10,7 +10,7 @@ Program to rename and update Modification Time to Air Date
 from daddyvision.common import logger
 from daddyvision.common.exceptions import (DataRetrievalError, EpisodeNotFound,
     SeriesNotFound, DuplicateFilesFound, InvalidFilename, RegxSelectionError,
-    ConfigValueError)
+    ConfigValueError, UnexpectedErrorOccured, DuplicateRecord)
 from daddyvision.series.fileparser import FileParser
 from daddyvision.series.episodeinfo import EpisodeDetails
 from logging import INFO, WARNING, ERROR, DEBUG
@@ -23,6 +23,7 @@ import re
 import sys
 import time
 import unicodedata
+import sqlite3
 
 __author__ = "AJ Reynolds"
 __copyright__ = "Copyright 2011, AJ Reynolds"
@@ -58,6 +59,9 @@ class Rename(object):
 
         self.config = config
         self.update_required = False
+
+        self.db = sqlite3.connect(self.config.DBFile)
+        self.cursor = self.db.cursor()
 
         self.regex_repack = re.compile('^.*(repack|proper).*$', re.IGNORECASE)
         self.check_suffix = re.compile('^(?P<seriesname>.+?)[ \._\-](?P<year>[0-9][0-9][0-9][0-9]|US|us|Us)$', re.VERBOSE)
@@ -173,6 +177,23 @@ class Rename(object):
                 if os.getgid() == 0:
                     os.chown(os.path.split(_new_name)[0], 1000, 100)
             os.rename(file_details['FileName'], _new_name)
+            
+            try:            
+                self.cursor.execute('INSERT INTO Files(SeriesName, SeasonNum, EpisodeNum, Filename) \
+                         VALUES ("{}", {}, {}, "{}")'.format(file_details['SeriesName'],
+                                                             file_details['SeasonNum'],
+                                                             file_details['EpisodeNums'][0],
+                                                             file_details['FileName']
+                                                             )
+                               )
+#                file_id = int(self.cursor.lastrowid)
+                self.db.commit()
+            except  sqlite3.IntegrityError, e:
+                raise DuplicateRecord
+            except sqlite3.Error, e:
+                raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, file_details))
+            
+            
             log.info("Successfully Renamed: %s" % _new_name)
             self.update_required = True
         except OSError, exc:

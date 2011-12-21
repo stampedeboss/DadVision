@@ -58,10 +58,10 @@ class Settings(object):
         self.NonVideoDir = Library['NonVideoDir']
         self.SubscriptionDir = Library['SubscriptionDir']
         self.NewDir = Library['NewDir']
-        
+
         self.NewMoviesDir = os.path.join(os.path.split(self.MoviesDir)[0], self.NewDir)
         self.NewSeriesDir = os.path.join(os.path.split(self.SeriesDir)[0], self.NewDir)
- 
+
         if not os.path.exists(self.SeriesDir):
             log.error("Path Not Found: %s" % self.SeriesDir)
             log.error("Invalid Config Entries, Ending")
@@ -146,6 +146,9 @@ class Settings(object):
                 log.debug('Episode Adjustment: LOADED')
 
         self.ConversionsPatterns = self.config['Conversions']
+
+        dbfile = self.config['DBFile']
+        self.DBFile = dbfile['DBFile']
 
         users = self.config['Users']
         self.Users = users['Users']
@@ -238,7 +241,7 @@ class Settings(object):
         return _user_dict
 
     def BuildConfig(self, update=False):
-        
+
         if not os.path.exists(ConfigDir):
             try:
                 os.makedirs(ConfigDir)
@@ -265,7 +268,7 @@ class Settings(object):
 
 
         config['Common'] = {}
-        config['Common']['MediaExt'] = ['avi', 'mkv', 'mp4', 'mpeg', 'm2ts']
+        config['Common']['MediaExt'] = ['avi', 'mkv', 'mp4', 'mpeg', 'm2ts', 'divx', 'mpg', "m4v"]
         config['Common']['MovieGlob'] = ["720", "1080", "bluray", "bdrip", "brrip", "pal",
                                                  "ntsc", "dvd-r", "fulldvd", "multi", "dts",
                                                  "hdtv", "pdtv", "webrip", "dvdrip", "2lions"
@@ -319,6 +322,12 @@ class Settings(object):
         config['Conversions']['episode_separator'] = '-'
 
         config['Conversions']['rename_message'] = '%-15.15s Season %2.2s NEW NAME: %-40.40s CUR NAME: %s'
+
+        file_name = raw_input("Enter File Name for DaddyVision Tracking Database (%s): " % 'daddyvision.db3').lstrip(os.sep)
+        if not file_name:
+            file_name = 'daddyvision.db3'
+        config['DBFile'] = {}
+        config['DBFile']['DBFile'] = os.path.join(ConfigDir, file_name)
 
         config['Users'] = {}
         config['Users']['Users'] = []
@@ -389,5 +398,6 @@ if __name__ == '__main__':
     log.info('MovieGlob: {}'.format(parms.MovieGlob))
     log.info('IgnoreGlob: {}'.format(parms.IgnoreGlob))
     log.info('Predicates: {}'.format(parms.Predicates))
+    log.info('DBFile: {}'.format(parms.DBFile))
     log.info('Users: {}'.format(parms.Users))
 

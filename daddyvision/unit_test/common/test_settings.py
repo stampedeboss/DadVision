@@ -17,6 +17,7 @@ class KnownValues(unittest.TestCase):
     NewDir = 'New'
     WatchDir = '/mnt/Downloads/Bittorrent'
 
+    DBFile = '/home/aj/.config/xbmcsupt/daddyvision.db3'
     TvdbIdFile = '/home/aj/.config/xbmcsupt/series_tvdb_ids'
     SeriesAliasFile = '/home/aj/.config/xbmcsupt/series_aliases'
 
@@ -36,15 +37,15 @@ class KnownValues(unittest.TestCase):
     episode_separator = '-'
     rename_message = '%-15.15s Season %2.2s NEW NAME: %-40.40s CUR NAME: %s'
 
-    EpisodeAdjList =  [{'SeasonNum': 4, 'Begin': 0, 'AdjEpisode': 59, 'SeriesName': 'Pawn Stars', 'AdjSeason': -2, 'End': 9999}] 
-    
+    EpisodeAdjList =  [{'SeasonNum': 4, 'Begin': 0, 'AdjEpisode': 59, 'SeriesName': 'Pawn Stars', 'AdjSeason': -2, 'End': 9999}]
+
     File_Details = {'BaseDir' : '/mnt/TV/Series',
-                    'SeriesName' : "Sample", 
-                    'SeasonNum' : 1, 
-                    'EpisodeNums' : [1,2], 
-                    'EpisodeNumFmt' : 'E01-E02', 
-                    'EpisodeTitle' : 'Dummy Title', 
-                    'Ext' : 'avi', 
+                    'SeriesName' : "Sample",
+                    'SeasonNum' : 1,
+                    'EpisodeNums' : [1,2],
+                    'EpisodeNumFmt' : 'E01-E02',
+                    'EpisodeTitle' : 'Dummy Title',
+                    'Ext' : 'avi',
                     'FileName' : '/mnt/Downloads/Bittorrent/Sample S01E01-02 Not now sucker.avi'
                     }
 
@@ -55,12 +56,12 @@ class KnownValues(unittest.TestCase):
     Rename_Messsage = 'Sample          Season  1 NEW NAME: E01-E02 Dummy Title.avi                  CUR NAME: Sample S01E01-02 Not now sucker.avi'
 
 class Test000(unittest.TestCase):
-    
+
     def setUp(self):
         logger.initialize(unit_test=True, level=ERROR)
-                
+
         self.settings = Settings()
-        
+
     def test_settings_case_010(self):
         self.assertEqual(self.settings.SeriesDir, KnownValues.SeriesDir)
     def test_settings_case_011(self):
@@ -73,10 +74,12 @@ class Test000(unittest.TestCase):
         self.assertEqual(self.settings.NewDir, KnownValues.NewDir)
     def test_settings_case_015(self):
         self.assertEqual(self.settings.WatchDir, KnownValues.WatchDir)
+    def test_settings_case_016(self):
+        self.assertEqual(self.settings.WatchDir, KnownValues.WatchDir)
 
     def test_settings_case_020(self):
         self.assertEqual(self.settings.SeriesAliasFile, KnownValues.SeriesAliasFile)
-    
+
     def test_settings_case_030(self):
         self.assertEqual(self.settings.MediaExt, KnownValues.MediaExt)
     def test_settings_case_031(self):
@@ -106,18 +109,18 @@ class Test000(unittest.TestCase):
         self.assertEqual(self.settings.ConversionsPatterns['episode_single'], KnownValues.episode_single)
     def test_settings_case_049(self):
         self.assertEqual(self.settings.ConversionsPatterns['episode_separator'], KnownValues.episode_separator)
-        
+
     def test_settings_case_050(self):
-        self.assertEqual(self.settings.ConversionsPatterns['std_fqn'] % KnownValues.File_Details, KnownValues.SeriesDir + 
+        self.assertEqual(self.settings.ConversionsPatterns['std_fqn'] % KnownValues.File_Details, KnownValues.SeriesDir +
                                                                                                   KnownValues.Series_Season +
                                                                                                   KnownValues.New_Name)
     def test_settings_case_051(self):
-        self.assertEqual(self.settings.ConversionsPatterns['proper_fqn'] % KnownValues.File_Details, KnownValues.SeriesDir + 
+        self.assertEqual(self.settings.ConversionsPatterns['proper_fqn'] % KnownValues.File_Details, KnownValues.SeriesDir +
                                                                                                   KnownValues.Series_Season +
                                                                                                   KnownValues.New_NameP)
     def test_settings_case_052(self):
-        self.assertEqual(self.settings.ConversionsPatterns['rename_message'] % (KnownValues.File_Details['SeriesName'], 
-                                                                                KnownValues.File_Details['SeasonNum'], 
+        self.assertEqual(self.settings.ConversionsPatterns['rename_message'] % (KnownValues.File_Details['SeriesName'],
+                                                                                KnownValues.File_Details['SeasonNum'],
                                                                                 KnownValues.New_Name,
                                                                                 os.path.basename(KnownValues.File_Details['FileName'])
                                                                                ),
@@ -133,7 +136,7 @@ class Test000(unittest.TestCase):
         self.assertEqual(self.settings.TvdbIdList['Firefly'], '78874')
     def test_settings_case_064(self):
         self.assertEqual(self.settings.TvdbIdList['V (2009)'], '94971')
- 
+
     def test_settings_case_100a(self):
         self.assertTrue('Leverage' in self.settings.SpecialHandlingList)
     def test_settings_case_100b(self):
@@ -153,19 +156,19 @@ class Test000(unittest.TestCase):
         self.assertTrue('*subs*' in self.settings.IgnoreGlob)
     def test_settings_case_105c(self):
         self.assertTrue('The' in self.settings.Predicates)
-    
+
     @unittest.expectedFailure
     def test_settings_case_110a(self):
          self.assertTrue(any(fnmatch('anyfile bluray.mkv'.lower(), pattern) for pattern in self.settings.MovieGlob))
 #        self.assertTrue(any(fnmatch.fnmatch('anyfile.mkv', pattern) for pattern in self.settings.MediaExt))
 
- 
+
  #   def test_settings_case_900(self):
  #       self.assertRaises(exceptions.InvalidFilename, self.parser.getFileDetails, KnownValues.File_SxxExx['FileName'])
-        
+
     def theSuite(self):
         suite = unittest.TestLoader().loadTestsFromTestCase(self)
-        return suite        
+        return suite
 
 if __name__ == '__main__':
 #    suite = unittest.TestLoader().loadTestsFromTestCase(FileParserExceptions)

@@ -23,7 +23,6 @@ import re
 import sys
 import tempfile
 import time
-import sqlite3
 
 __author__ = "AJ Reynolds"
 __copyright__ = "Copyright 2011, AJ Reynolds"
@@ -97,7 +96,7 @@ class FileParser(dict):
             raise RegxSelectionError('FileParser: {errmsg} Filename: {fq_name}'.format(errmsg, fq_name))
 
         if 'Ext' in _parsed_keys:
-            _ext = _parse_details.group('Ext')
+            _ext = _parse_details.group('Ext').lower()
         elif _file_name[-4] == '.':
             _ext = _file_name[-4:]
             log.debug('{}: Parse Failed to Locate Extension Using: {}'.format(self.LogHeader, _ext))

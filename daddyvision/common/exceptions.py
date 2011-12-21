@@ -113,3 +113,15 @@ class EpisodeNameNotFound(DataRetrievalError):
     """Raised when the name of the episode cannot be found
     """
     pass
+
+# SQLite3 Exceptions
+class DatabaseError(BaseDaddyVisionException):
+    """Base exception for Database errors
+    """
+    pass
+
+class DuplicateRecord(DatabaseError):
+    """Raised if the record already exists on an Insert
+    """
+    pass
+
