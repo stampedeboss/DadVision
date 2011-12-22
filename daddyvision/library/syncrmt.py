@@ -85,7 +85,6 @@ class DaddyvisionNetwork(object):
         log_file = os.path.join(logger.LogDir, 'syncrmt_{}.log'.format(self.options.HostName))
         cmd = ['rsync', '-rptuvhogL{}'.format(self.options.CmdLineDryRun),
                '--progress',
-               '--fake-super',
                '--partial-dir=.rsync-partial',
                '--exclude=lost+found',
                self.options.SeriesDeleteExclusions,
