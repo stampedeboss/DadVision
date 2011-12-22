@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 '''
 Purpose:
-     Load current file information into Download Table for a user
+     Load current file information into Download Table for all users
 
 '''
 from __future__ import division
@@ -18,6 +18,7 @@ import sqlite3 as MySQLdb
 import sys
 import tempfile
 import time
+import datetime
 
 __pgmname__ = 'dbload_download'
 __version__ = '$Rev$'
@@ -47,14 +48,18 @@ fileparser = FileParser()
 db = sqlite3.connect(config.DBFile)
 cursor = db.cursor()
 
-def load_entry(file_name):
+def load_entry(user, file_name):
+
+    t = os.path.getmtime(file_name)
+    timestamp = datetime.datetime.fromtimestamp(t)
 
     try:
         file_details = fileparser.getFileDetails(file_name)
         # SQL #
-        cursor.execute('INSERT INTO Downloads(Name, SeriesName, Filename) VALUES ("{}", "{}", "{}")'.format('aly', file_details['SeriesName'], file_name))
-        file_id = int(cursor.lastrowid)
-        db.commit()
+        cursor.execute('INSERT INTO Downloads(Name, SeriesName, Filename, DownloadTimeStamp) VALUES ("{}", "{}", "{}", "{}")'.format(user,
+                                                                                                                                     file_details['SeriesName'],
+                                                                                                                                     file_name,
+                                                                                                                                     timestamp))
     except  sqlite3.IntegrityError, e:
         raise DuplicateRecord
     except sqlite3.Error, e:
@@ -64,65 +69,75 @@ class DownloadDatabase(object):
     def __init__(self):
         pass
 
-    def ScanSeriesLibrary(self):
+    def ScanSeriesLibrary(self, type_scan):
         log.trace('ScanSeriesLibrary: Start')
 
-        Files_Loaded = 0
-        Files_Processed = 0
+        user_profiles = config.GetSubscribers()
+        for user in config.Users:
+            user_profile = user_profiles[user]
 
-        target_dir = os.path.join(config.SeriesDir, 'Two and a Half Men')
+            Files_Loaded = 0
+            Files_Processed = 0
 
-        if not os.path.isdir(target_dir):
-            raise UnexpectedErrorOccured('Series Library referenced in setting NOT FOUND: {}'.format(target_dir))
-            sys.exit(1)
+            source_directory = os.path.join(config.SubscriptionDir, user, type_scan)
 
-        File_Count = self._count_total_files(target_dir)
-        log.info('Number of File to be Checked: %s' % File_Count)
+            File_Count = self._count_total_files(source_directory)
+            log.info('{:5s} - Number of File to be Checked: {}'.format(user, File_Count))
 
-        for _root, _dirs, _files in os.walk(target_dir):
-            if _dirs != None:
-                _dirs.sort()
-                for _exclude_dir in config.ExcludeList:
-                    try:
-                        _index = _dirs.index(_exclude_dir)
-                        _dirs.pop(_index)
-                        logger.TRACE('Removing Dir: %s' % _exclude_dir)
-                    except:
-                        continue
+            for _symlink_dir in os.listdir(source_directory):
+                target_dir = os.path.join(config.SeriesDir, _symlink_dir)
 
-            for _file_name in _files:
+                if not os.path.isdir(target_dir):
+                    raise UnexpectedErrorOccured('Series Library referenced in setting NOT FOUND: {}'.format(target_dir))
+                    sys.exit(1)
 
-                Files_Processed += 1
-                _fq_name = os.path.join(_root, _file_name)
-                log.trace('Processing File: %s' % _fq_name)
+                for _root, _dirs, _files in os.walk(target_dir):
+                    if _dirs != None:
+                        _dirs.sort()
+                        for _exclude_dir in config.ExcludeList:
+                            try:
+                                _index = _dirs.index(_exclude_dir)
+                                _dirs.pop(_index)
+                                logger.TRACE('Removing Dir: %s' % _exclude_dir)
+                            except:
+                                continue
 
-                try:
-                    _file_ext = os.path.splitext(_fq_name)[1][1:4]
-                    if _file_ext in config.MediaExt:
-                        load_entry(_fq_name)
-                        Files_Loaded += 1
-                    else:
-                        log.info('Skipping Non-VIdeo File: {}'.format(_fq_name))
-#                        Files_Processed += 1
-                except DuplicateRecord:
-                    Files_Loaded += 1
+                    for _file_name in _files:
 
-                quotient, remainder = divmod(Files_Processed, 250)
-                if remainder == 0:
-                    log.info('Files Checked: %2.2f%% - %5s of %5s   Number of Errors: %s' % (Files_Processed/ File_Count,
-                                                                                             Files_Processed,
-                                                                                             File_Count,
-                                                                                             Files_Processed - Files_Loaded
-                                                                                             )
-                         )
-        log.info('Complete: Files Checked: %5s   Number of Errors: %s' % (Files_Processed,
-                                                                          Files_Processed - Files_Loaded
-                                                                          )
-                             )
+                        Files_Processed += 1
+                        _fq_name = os.path.join(_root, _file_name)
+                        log.trace('Processing File: %s' % _fq_name)
+
+                        try:
+                            _file_ext = os.path.splitext(_fq_name)[1][1:].lower()
+                            if _file_ext in config.MediaExt:
+                                load_entry(user, _fq_name)
+                                Files_Loaded += 1
+                            else:
+                                log.info('Skipping Non-VIdeo File: {}'.format(_fq_name))
+                        except DuplicateRecord:
+                            Files_Loaded += 1
+
+                        quotient, remainder = divmod(Files_Processed, 250)
+                        if remainder == 0:
+                            db.commit()
+                            log.info('%-5s - Files Checked: %2.2f%%   %5s of %5s   Number of Errors: %s' % (user, 
+                                                                                                           Files_Processed/ File_Count,
+                                                                                                           Files_Processed,
+                                                                                                           File_Count,
+                                                                                                           Files_Processed - Files_Loaded
+                                                                                                           )
+                                 )
+            db.commit()
+            log.info('{:5s} - Complete: Files Checked: {:5n}   Number of Errors: {}'.format(user, 
+                                                                                        Files_Processed,
+                                                                                        Files_Processed - Files_Loaded
+                                                                                        )
+                )
 
     def _count_total_files(self, valid_path):
         File_Count = 0
-        for _root, _dirs, _files in os.walk(valid_path):
+        for _root, _dirs, _files in os.walk(valid_path, followlinks=True):
             _dirs.sort()
             for _exclude_dir in config.ExcludeList:
                 try:
@@ -158,4 +173,10 @@ if __name__ == '__main__':
     log.debug("Parsed arguments: %r" % args)
 
     library = DownloadDatabase()
-    library.ScanSeriesLibrary()
+    if len(args) > 0:
+        if args[0].lower()[0:4] == 'incr':
+            library.ScanSeriesLibrary('Incrementals')
+    else:
+        library.ScanSeriesLibrary('Series')
+    
+            

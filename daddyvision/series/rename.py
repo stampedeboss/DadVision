@@ -190,7 +190,6 @@ class Rename(object):
                 self.db.close()
             except  sqlite3.IntegrityError, e:
                 self.db.close()
-                raise DuplicateRecord
             except sqlite3.Error, e:
                 self.db.close()
                 raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, file_details))
