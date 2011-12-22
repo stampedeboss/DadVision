@@ -39,7 +39,6 @@ class FileParser(dict):
     Returns an Dictionary instance containing extracted data.
     """
     def __init__(self):
-        log.trace("Entering: __init__")
 
         self.FileDetails = {}
         self.RegxParse = self.GetRegx()
@@ -199,9 +198,7 @@ class FileParser(dict):
             raise RegxSelectionError('FileParser: {}: No Season / Episode Numbers or Date Aired in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
 
     def GetRegx(self):
-        log.trace("FileParse: GetRegx")
 
-#----------------------------------------------------------------------------------------
         # My Library Standard
         self.RegxParse = []
         self.RegxParse.append(re.compile(

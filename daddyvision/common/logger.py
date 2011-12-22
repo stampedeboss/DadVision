@@ -173,7 +173,6 @@ def start(filename='daddyvision.log', level=logging.INFO, timed=False):
     _mem_handler.flush()
     _logging_started = True
 
-
 def flush_logging_to_console():
     """Flushes memory logger to console"""
     console = logging.StreamHandler()
