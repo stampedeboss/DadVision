@@ -6,20 +6,20 @@ Purpose:
 
 '''
 from daddyvision.common import logger
-from daddyvision.common.exceptions import ConfigValueError, SQLError, UserAbort
-from daddyvision.common.options import OptionParser, OptionGroup, SUPPRESS_HELP
+from daddyvision.common.exceptions import ConfigValueError, SQLError, UnexpectedErrorOccured
+from daddyvision.common.options import OptionParser, OptionGroup
 from daddyvision.common.settings import Settings
 from daddyvision.series.fileparser import FileParser
-from subprocess import Popen, PIPE, STDOUT, CalledProcessError
-import subprocess
+from subprocess import Popen, CalledProcessError
 import logging
 import os
 import sqlite3
 import sys
 import time
 import psutil
-import sqlite3
 import tempfile
+import unicodedata
+
 
 
 __pgmname__ = 'syncrmt'
@@ -59,64 +59,120 @@ class DaddyvisionNetwork(object):
     def SyncRMT(self):
 
         if not self.options.dryrun:
-            rc = self.chkStatus(self.options.SymLinks)
+            self.chkStatus(self.options.SymLinks)
             time.sleep(0.2)
-            rc = self.chkStatus(self.options.SymLinks)
+            self.chkStatus(self.options.SymLinks)
 
         if os.path.exists(os.path.join(self.options.SymLinks, 'Incrementals')):
             self.SyncIncrementals(os.path.join(self.options.SymLinks, 'Incrementals'))
+
+        if 'Series' in self.options.content:
+            self.SyncSeries()
         
+        if 'Movies' in self.options.content:
+            self.SyncMovies
+
         if not self.options.dryrun:
-            cmd = 'xbmc-send --host=%s --action="XBMC.UpdateLibrary(video)"' % (req_host)
-            log.info(cmd)
-            os.system(cmd)
+            cmd = ['xbmc-send', '--host={}'.format(self.options.HostName), '--action="XBMC.UpdateLibrary(video)"']
+            try:
+                process = Popen(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=self.options.SeriesDir)
+                process.wait()
+            except CalledProcessError, exc:
+                log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
 
     def SyncSeries(self):
-        cmd = 'sudo rsync -rptuvhogL%s --progress %s "--partial-dir=.rsync-partial" --log-file=/home/aj/log/syncrmt_%s.log --exclude="*hdtv/" --exclude="lost+found" %s %sSeries/ %s:%s' % (n, delete, req_host, exclude, symlinks, req_host, rmt_series)
-        log.info(cmd)
-        os.system(cmd)
-        cmd = 'sudo rsync -rptuvhogL%s --progress %s "--partial-dir=.rsync-partial" --log-file=/home/aj/log/syncrmt_%s.log --exclude="lost+found" %s %s%s/ %s:%s' % (n, delete, req_host, exclude, symlinks, req_content, req_host, req_dir)
-        log.info(cmd)
-        os.system(cmd)
-    
-    def SyncMovies(self):
-        cmd = 'sudo rsync -rptuvhogL%s --progress %s "--partial-dir=.rsync-partial" --log-file=/home/aj/log/syncrmt_%s.log --exclude="lost+found" %s %sMovies/ %s:%s' % (n, delete, req_host, exclude, symlinks, req_host, rmt_movies)
-        log.info(cmd)
-        os.system(cmd)
-    
-    def SyncIncrementals(self, directory):
-        printfmt = '"%P\n"'
-        _possible_files = []
-        _temp = tempfile.NamedTemporaryFile()
-
-        cmd = ['find', '-L','-type f', '-printf ()'.format(printfmt)] 
-        log.trace("Calling %s" % cmd)
+        log_file = os.path.join(logger.LogDir, 'syncrmt_{}.log'.format(self.options.HostName))
+        cmd = ['rsync', '-rptuvhogLR'.format(self.options.CmdLineDryRun), 
+               '--progress',
+              '{}'.format(self.options.CmdLineArgs), 
+               '--partial-dir=.rsync-partial', 
+               '--log-file={}'.format(log_file),
+               ' --exclude="lost+found"',
+               '{}/Series/'.format(self.options.SymLinks), 
+               '{}@{}:{}/'.format(self.options.user, self.options.HostName, self.options.SeriesRmt)]
         try:
-            process = Popen(cmd, shell=False, stdin=None, stdout=STDOUT, stderr=_temp, cwd=directory)
+            process = Popen(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Series'))
             process.wait()
-
-            with open(_temp.name, "r") as _tf:
-                for _line in _tf.readlines():
-                    _possible_files = _possible_files.append(_line.strip('\n'))
-            _temp.close()
-
-                
-            cursor.execute('SELECT d.FileName FROM Downloads d \
-                            WHERE d.Name = "{}" \
-                             and  d.FileName in {}'.format(self.options.user,
-                                                           _possible_files)
-                       )
-            for row in cursor:
-                print row
         except CalledProcessError, exc:
             log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
+            sys.exit(1)
+    
+    def SyncMovies(self):
+        log_file = os.path.join(logger.LogDir, 'syncrmt_{}.log'.format(self.options.HostName))
+        cmd = ['rsync', '-rptuvhogLR'.format(self.options.CmdLineDryRun), 
+               '--progress {}'.format(self.options.CmdLineArgs), 
+               '--partial-dir=.rsync-partial', 
+               '--log-file={}'.format(log_file),
+               ' --exclude="lost+found"',
+               '{dir}/{user}/Movies/'.format(dir=self.options.SymLinks, user=self.options.user), 
+               '{}@{}:{}/'.format(self.options.user, self.options.HostName, self.options.MoviesRmt)]
+        try:
+            process = Popen(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Movies'))
+            process.wait()
+        except CalledProcessError, exc:
+            log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
+            sys.exit(1)
+    
+    def SyncIncrementals(self, directory):
         
+        printfmt = '%P\n'
+        _downloaded_files = []
+        _downloads_needed = []
+
+        try:
+            cursor.execute('SELECT FileName FROM Downloads  WHERE Name = "{}"'.format(self.options.user))
+            for row in cursor:
+                _downloaded_files.append(unicodedata.normalize('NFKD', row[0]).encode('ascii','ignore'))
+        except:
+            raise
+
+        _available_files_temp = tempfile.NamedTemporaryFile()
+        cmd = ['find', '-L','-type', 'f', '-printf', '{}'.format(printfmt)] 
+        log.trace("Calling %s" % cmd)
+        try:
+            process = Popen(cmd, shell=False, stdin=None, stdout=_available_files_temp, stderr=_available_files_temp, cwd=directory)
+            process.wait()
+        except CalledProcessError, exc:
+            log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
+
+        _files_to_download_temp = tempfile.NamedTemporaryFile(mode='w')
+        with open(_available_files_temp.name, "r") as _available_files_obj:
+            for _line in _available_files_obj.readlines():
+                episode = os.path.join(config.SeriesDir, _line.strip('\n'))
+                if episode not in _downloaded_files:
+                    _files_to_download_temp.write(_line)
+                    _downloads_needed.append(episode)
+            _available_files_obj.close()
         
-#        cmd = 'sudo rsync -rptuvhogLR%s --progress --partial-dir=.rsync-partial --log-file=/home/aj/log/syncrmt_%s.log --files-from=../filelist ./ %s:%s' % (n, req_host, req_host, rmt_series)
-#        os.system(cmd)
-#        cmd = 'find . -type l -printf %s > ../incrementallist' % (printfmt)
-#        os.system(cmd)
-#        exclude = '%s --exclude-from=../incrementallist' % exclude
+        log_file = os.path.join(logger.LogDir, 'syncrmt_{}.log'.format(self.options.HostName))
+        cmd = ['rsync', '-rptuvhogLR'.format(self.options.CmdLineDryRun), '--progress', '--partial-dir=.rsync-partial', 
+               '--log-file={}'.format(log_file), 
+               '--files-from={}'.format(_files_to_download_temp.name),
+               './', 
+               '{}@{}:{}/'.format(self.options.user, self.options.HostName, self.options.SeriesRmt)]
+        try:
+            process = Popen(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=directory)
+            process.wait()
+        except CalledProcessError, exc:
+            log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
+            sys.exit(1)
+
+        if not self.options.dryrun:
+            for episode in _downloads_needed:
+                self.record_download(episode)
+
+        _incremental_files = '/tmp/{}_incrementals_list'.format(self.options.HostName)
+        _incremental_file_obj = open(_incremental_files, 'w')
+        cmd = ['find', '.', '-type', 'l', '-printf', printfmt]
+        try:
+            process = Popen(cmd, shell=False, stdin=None, stdout=_incremental_file_obj, stderr=None, cwd=directory)
+            process.wait()
+        except CalledProcessError, exc:
+            log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
+            sys.exit(1)
+
+        self.options.CmdLineArgs = self.options.CmdLineArgs + ' --exclude-from="{}"'.format(_incremental_files) 
+        return
     
     def _add_runtime_options(self):
         if self.options.user:
@@ -130,17 +186,38 @@ class DaddyvisionNetwork(object):
         else:
             parser.error('Missing User Command Line Parameter, Use "syncrmt --help" for details')
             sys.exit(1)
+
+        if not self.options.content:
+            parser.error('Missing Media Type Command Line Parameter, Use "syncrmt --help" for details')
+            sys.exit(1)
     
         if self.options.dryrun:
-            self.options.CmdLineArgs = self.options.CmdLineArgs + ' -n'
+            self.options.CmdLineDryRun = 'n'
+        else:
+            self.options.CmdLineDryRun = ''
+        
+        self.options.CmdLineArgs = ''
         
         if self.options.delete:
             self.options.CmdLineArgs = self.options.CmdLineArgs + ' --delete-before'
 
         if self.options.xclude:
-            self.options.CmdLineArgs = self.options.CmdLineArgs + ' --exclude="*hdtv/" --exclude="*%s*"' % options.xclude
+            self.options.CmdLineArgs = self.options.CmdLineArgs + ' --exclude="*%s*"' % options.xclude
         
         return
+    
+    def record_download(self, file_name):
+        try:
+            file_details = self.fileparser.getFileDetails(file_name)
+            cursor.execute('INSERT INTO Downloads(Name, SeriesName, Filename) VALUES ("{}", "{}", "{}")'.format(self.options.user, 
+                                                                                                                file_details['SeriesName'], 
+                                                                                                                file_name))
+            db.commit()
+        except  sqlite3.IntegrityError, e:
+            pass
+        except sqlite3.Error, e:
+            raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, file_name))
+
     
     def chkStatus(self, directory, recurse=False):
         time.sleep(0.2)
@@ -190,7 +267,7 @@ class localOptions(OptionParser):
         self.add_option_group(group)
     
         group = OptionGroup(self, "Media Type")
-        group.add_option("-s", "--series", dest="content",
+        group.add_option("-s", "--series", dest="content", default=[],
             action="store_const", const=["Series"],
             help="process TV Series")
         group.add_option("-m", "--movies", dest="content",

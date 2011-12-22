@@ -119,27 +119,3 @@ if __name__ == '__main__':
     library = CleanDatabase()
     library.ScanDeadEntries()
 
-'''
-try:
-    # SQL #
-    cursor.execute('SELECT f.FileName, patient_id, p.patient_initials, p.patient_diagnosis, p.patient_allergies FROM patient p')
-    if cursor.rowcount != 1:
-        raise PatientNotFound ('Patient: %s Not Found' % patient_id)
-    for row in cursor:
-        self.patient_list.append(fetchoneDict(cursor))
-
-    # SQL #
-    cursor.execute('INSERT INTO patient(patient_initials, patient_diagnosis, patient_allergies) \
-             VALUES (%s, %s, %s)' % (sym,sym,sym), (patient_initials, patient_diagnosis, patient_allergies))
-    patient_id = int(cursor.lastrowid)
-#    if cursor.warning_count() > 0:
-#    raise PatientSaveError("Insert - %s %s" % (db.info(), cursor.messages))
-    db.commit()
-
-except  sqlite3.Error, e:
-    log.error("METHOD: Patient - List")
-    raise PatientListError (e)
-return self.patient_list
-'''
-
-
