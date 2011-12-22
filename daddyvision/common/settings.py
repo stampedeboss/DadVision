@@ -103,7 +103,7 @@ class Settings(object):
                     _series_alias_entry = _line.rstrip("\n").split("\t")
                     if len(_series_alias_entry) == 2:
                         self.SeriesAliasList[_series_alias_entry[0]] = _series_alias_entry[1]
-                log.debug('Series Alias: LOADED')
+#                log.debug('Series Alias: LOADED')
             _alias_file_obj.close()
 
         self.ExcludeList = []
@@ -119,7 +119,7 @@ class Settings(object):
                 for line in exclude_file_obj.readlines():
                     self.ExcludeList.append(line.rstrip("\n"))
 
-        log.debug('Exclude List: LOADED')
+#        log.debug('Exclude List: LOADED')
 
         self.SpecialHandlingList = []
         spl_hand_file = os.path.expanduser(Common['SplHandFile'])
@@ -127,7 +127,7 @@ class Settings(object):
             with open(spl_hand_file, "r") as splhand_file_obj:
                 for show_name in splhand_file_obj.readlines():
                     self.SpecialHandlingList.append(show_name.rstrip("\n"))
-                log.debug('Special Handling: LOADED')
+#                log.debug('Special Handling: LOADED')
 
         self.EpisodeAdjList = []
         _episode_adj_file = os.path.expanduser(Common['EpisodeAdjFile'])
@@ -143,7 +143,7 @@ class Settings(object):
                                              'AdjSeason' : int(_adjustment[4]),
                                              'AdjEpisode' : int(_adjustment[5])}
                         self.EpisodeAdjList.append(_adjustment_entry)
-                log.debug('Episode Adjustment: LOADED')
+#                log.debug('Episode Adjustment: LOADED')
 
         self.ConversionsPatterns = self.config['Conversions']
 

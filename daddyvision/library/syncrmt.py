@@ -54,7 +54,7 @@ class DaddyvisionNetwork(object):
         self.options = options
         self._add_runtime_options()
         self.fileparser = FileParser()
-        return 
+        return
 
     def SyncRMT(self):
 
@@ -68,7 +68,7 @@ class DaddyvisionNetwork(object):
 
         if 'Series' in self.options.content:
             self.SyncSeries()
-        
+
         if 'Movies' in self.options.content:
             self.SyncMovies
 
@@ -82,29 +82,29 @@ class DaddyvisionNetwork(object):
 
     def SyncSeries(self):
         log_file = os.path.join(logger.LogDir, 'syncrmt_{}.log'.format(self.options.HostName))
-        cmd = ['rsync', '-rptuvhogLR'.format(self.options.CmdLineDryRun), 
+        cmd = ['rsync', '-rptuvhogL{}'.format(self.options.CmdLineDryRun),
                '--progress',
-              '{}'.format(self.options.CmdLineArgs), 
-               '--partial-dir=.rsync-partial', 
+              '{}'.format(self.options.CmdLineArgs),
+               '--partial-dir=.rsync-partial',
                '--log-file={}'.format(log_file),
                ' --exclude="lost+found"',
-               '{}/Series/'.format(self.options.SymLinks), 
+               '{}/Series/'.format(self.options.SymLinks),
                '{}@{}:{}/'.format(self.options.user, self.options.HostName, self.options.SeriesRmt)]
         try:
-            process = Popen(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Series'))
+            process = Popen(cmd, shell=False, stdin=None, stdout=None, stderr=None)
             process.wait()
         except CalledProcessError, exc:
             log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
             sys.exit(1)
-    
+
     def SyncMovies(self):
         log_file = os.path.join(logger.LogDir, 'syncrmt_{}.log'.format(self.options.HostName))
-        cmd = ['rsync', '-rptuvhogLR'.format(self.options.CmdLineDryRun), 
-               '--progress {}'.format(self.options.CmdLineArgs), 
-               '--partial-dir=.rsync-partial', 
+        cmd = ['rsync', '-rptuvhogL'.format(self.options.CmdLineDryRun),
+               '--progress {}'.format(self.options.CmdLineArgs),
+               '--partial-dir=.rsync-partial',
                '--log-file={}'.format(log_file),
                ' --exclude="lost+found"',
-               '{dir}/{user}/Movies/'.format(dir=self.options.SymLinks, user=self.options.user), 
+               '{dir}/{user}/Movies/'.format(dir=self.options.SymLinks, user=self.options.user),
                '{}@{}:{}/'.format(self.options.user, self.options.HostName, self.options.MoviesRmt)]
         try:
             process = Popen(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Movies'))
@@ -112,9 +112,9 @@ class DaddyvisionNetwork(object):
         except CalledProcessError, exc:
             log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
             sys.exit(1)
-    
+
     def SyncIncrementals(self, directory):
-        
+
         printfmt = '%P\n'
         _downloaded_files = []
         _downloads_needed = []
@@ -127,7 +127,7 @@ class DaddyvisionNetwork(object):
             raise
 
         _available_files_temp = tempfile.NamedTemporaryFile()
-        cmd = ['find', '-L','-type', 'f', '-printf', '{}'.format(printfmt)] 
+        cmd = ['find', '-L','-type', 'f', '-printf', '{}'.format(printfmt)]
         log.trace("Calling %s" % cmd)
         try:
             process = Popen(cmd, shell=False, stdin=None, stdout=_available_files_temp, stderr=_available_files_temp, cwd=directory)
@@ -143,12 +143,12 @@ class DaddyvisionNetwork(object):
                     _files_to_download_temp.write(_line)
                     _downloads_needed.append(episode)
             _available_files_obj.close()
-        
+
         log_file = os.path.join(logger.LogDir, 'syncrmt_{}.log'.format(self.options.HostName))
-        cmd = ['rsync', '-rptuvhogLR'.format(self.options.CmdLineDryRun), '--progress', '--partial-dir=.rsync-partial', 
-               '--log-file={}'.format(log_file), 
+        cmd = ['rsync', '-rptuvhogLR'.format(self.options.CmdLineDryRun), '--progress', '--partial-dir=.rsync-partial',
+               '--log-file={}'.format(log_file),
                '--files-from={}'.format(_files_to_download_temp.name),
-               './', 
+               './',
                '{}@{}:{}/'.format(self.options.user, self.options.HostName, self.options.SeriesRmt)]
         try:
             process = Popen(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=directory)
@@ -171,13 +171,13 @@ class DaddyvisionNetwork(object):
             log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
             sys.exit(1)
 
-        self.options.CmdLineArgs = self.options.CmdLineArgs + ' --exclude-from="{}"'.format(_incremental_files) 
+        self.options.CmdLineArgs = self.options.CmdLineArgs + ' --exclude-from="{}"'.format(_incremental_files)
         return
-    
+
     def _add_runtime_options(self):
         if self.options.user:
             self.options.SymLinks = os.path.join(config.SubscriptionDir, self.options.user)
-            
+
             profile = config.GetSubscribers(req_profile=[self.options.user])
             self.options.SeriesRmt = profile[self.options.user]['SeriesDir']
             self.options.MoviesRmt = profile[self.options.user]['MovieDir']
@@ -190,27 +190,27 @@ class DaddyvisionNetwork(object):
         if not self.options.content:
             parser.error('Missing Media Type Command Line Parameter, Use "syncrmt --help" for details')
             sys.exit(1)
-    
+
         if self.options.dryrun:
             self.options.CmdLineDryRun = 'n'
         else:
             self.options.CmdLineDryRun = ''
-        
+
         self.options.CmdLineArgs = ''
-        
+
         if self.options.delete:
             self.options.CmdLineArgs = self.options.CmdLineArgs + ' --delete-before'
 
         if self.options.xclude:
             self.options.CmdLineArgs = self.options.CmdLineArgs + ' --exclude="*%s*"' % options.xclude
-        
+
         return
-    
+
     def record_download(self, file_name):
         try:
             file_details = self.fileparser.getFileDetails(file_name)
-            cursor.execute('INSERT INTO Downloads(Name, SeriesName, Filename) VALUES ("{}", "{}", "{}")'.format(self.options.user, 
-                                                                                                                file_details['SeriesName'], 
+            cursor.execute('INSERT INTO Downloads(Name, SeriesName, Filename) VALUES ("{}", "{}", "{}")'.format(self.options.user,
+                                                                                                                file_details['SeriesName'],
                                                                                                                 file_name))
             db.commit()
         except  sqlite3.IntegrityError, e:
@@ -218,7 +218,7 @@ class DaddyvisionNetwork(object):
         except sqlite3.Error, e:
             raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, file_name))
 
-    
+
     def chkStatus(self, directory, recurse=False):
         time.sleep(0.2)
         pidList = psutil.process_iter()
@@ -255,7 +255,7 @@ class localOptions(OptionParser):
         OptionParser.__init__(self, **kwargs)
 
         group = OptionGroup(self, "Users")
-        group.add_option("-a", "--aly", dest="user", default='', 
+        group.add_option("-a", "--aly", dest="user", default='',
             action="store_const", const="aly",
             help="Sync Tigger for Aly")
         group.add_option("-k", "--kim", dest="user",
@@ -265,7 +265,7 @@ class localOptions(OptionParser):
             action="store_const", const="ben",
             help="Sync Tigger for Ben and Mac")
         self.add_option_group(group)
-    
+
         group = OptionGroup(self, "Media Type")
         group.add_option("-s", "--series", dest="content", default=[],
             action="store_const", const=["Series"],
@@ -277,7 +277,7 @@ class localOptions(OptionParser):
             action="store_const", const=["Series", "Movies"],
             help="process both TV Series and Movies")
         self.add_option_group(group)
-    
+
         group = OptionGroup(self, "Modifers")
         group.add_option("-n", "--dry-run", dest="dryrun",
             action="store_true", default=False,
@@ -289,7 +289,7 @@ class localOptions(OptionParser):
             action="store", type="string", default="",
             help="Exclude files/directories")
         self.add_option_group(group)
-    
+
         group = OptionGroup(self, "SyncRMT Already Running")
         group.add_option("-c", "--cancel", dest="runaction",
             action="store_const", const='cancel', default='ask',
@@ -298,7 +298,7 @@ class localOptions(OptionParser):
             action="store_const", const='restart',
             help="Stop existing and Restart with this request")
         self.add_option_group(group)
-    
+
 
 if __name__ == '__main__':
 
@@ -320,6 +320,6 @@ if __name__ == '__main__':
 
     log.debug("Parsed command line options: {!s}".format(options))
     log.debug("Parsed arguments: %r" % args)
-    
+
     syncrmt = DaddyvisionNetwork(options)
     syncrmt = syncrmt.SyncRMT()
