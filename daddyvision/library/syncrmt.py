@@ -10,7 +10,7 @@ from daddyvision.common.exceptions import ConfigValueError, SQLError, Unexpected
 from daddyvision.common.options import OptionParser, OptionGroup
 from daddyvision.common.settings import Settings
 from daddyvision.series.fileparser import FileParser
-from subprocess import Popen, call as Call,  CalledProcessError
+from subprocess import Popen, call as Call,  check_call, CalledProcessError
 import logging
 import os
 import sqlite3
@@ -73,48 +73,53 @@ class DaddyvisionNetwork(object):
             self.SyncMovies
 
         if not self.options.dryrun:
-            cmd = ['xbmc-send', '--host={}'.format(self.options.HostName), '--action="XBMC.UpdateLibrary(video)"']
+            cmd = ['xbmc-send', '--host={}'.format(self.options.HostName), '--action=XBMC.UpdateLibrary(video)']
             try:
-                process = Popen(cmd, shell=True, stdin=None, stdout=None, stderr=None, cwd=self.options.SeriesDir)
-                process.wait()
+                process = Call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=config.SeriesDir)
             except CalledProcessError, exc:
                 log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
 
     def SyncSeries(self):
+        log.info('Syncing - Series')
+
+        log_file = os.path.join(logger.LogDir, 'syncrmt_{}.log'.format(self.options.HostName))
         cmd = ['rsync', '-rptuvhogL{}'.format(self.options.CmdLineDryRun),
-               '--progress', 
+               '--progress',
                self.options.SeriesDeleteExclusions,
                '--partial-dir=.rsync-partial',
                '--exclude=lost+found',
                '{}'.format(self.options.CmdLineArgs),
-               '--log-file=/srv/log/syncrmt_{}.log'.format(self.options.HostName),
+               '--log-file={}'.format(log_file),
                '{}/Series/'.format(self.options.SymLinks),
                '{}@{}:{}/'.format(self.options.user, self.options.HostName, self.options.SeriesRmt)]
-        
+
         try:
-            process = Call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Series'))
+            process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Series'))
         except CalledProcessError, exc:
             log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
             sys.exit(1)
 
     def SyncMovies(self):
+        log.info('Syncing - Movies')
+
         log_file = os.path.join(logger.LogDir, 'syncrmt_{}.log'.format(self.options.HostName))
         cmd = ['rsync', '-rptuvhogL{}'.format(self.options.CmdLineDryRun),
-               '--progress', 
+               '--progress',
                self.options.SeriesDeleteExclusions,
                '--partial-dir=.rsync-partial',
                '--exclude=lost+found',
                '{}'.format(self.options.CmdLineArgs),
-               '--log-file=/srv/log/syncrmt_{}.log'.format(self.options.HostName),
+               '--log-file={}'.format(log_file),
                '{}/Movies/'.format(self.options.SymLinks),
                '{}@{}:{}/'.format(self.options.user, self.options.HostName, self.options.MoviesRmt)]
         try:
-            process = Call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Movies'))
+            process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Movies'))
         except CalledProcessError, exc:
             log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
             sys.exit(1)
 
     def SyncIncrementals(self, directory):
+        log.info('Syncing - Incremental Series')
 
         printfmt = '%P\n'
         _downloaded_files = []
@@ -131,10 +136,10 @@ class DaddyvisionNetwork(object):
         cmd = ['find', '-L','-type', 'f', '-printf', '{}'.format(printfmt)]
         log.trace("Calling %s" % cmd)
         try:
-            process = Popen(cmd, shell=False, stdin=None, stdout=_available_files_temp, stderr=_available_files_temp, cwd=directory)
-            process.wait()
+            process = check_call(cmd, shell=False, stdin=None, stdout=_available_files_temp, stderr=_available_files_temp, cwd=directory)
         except CalledProcessError, exc:
-            log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
+            log.error("Initial Find Command returned with RC=%d, Ending" % (exc.returncode))
+            sys.exit(1)
 
         _files_to_download_temp = tempfile.NamedTemporaryFile(mode='w')
         with open(_available_files_temp.name, "r") as _available_files_obj:
@@ -152,10 +157,9 @@ class DaddyvisionNetwork(object):
                './',
                '{}@{}:{}/'.format(self.options.user, self.options.HostName, self.options.SeriesRmt)]
         try:
-            process = Popen(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=directory)
-            process.wait()
+            process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=directory)
         except CalledProcessError, exc:
-            log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
+            log.error("Incremental rsync Command returned with RC=%d, Ending" % (exc.returncode))
             sys.exit(1)
 
         if not self.options.dryrun:
@@ -166,10 +170,9 @@ class DaddyvisionNetwork(object):
         _incremental_file_obj = open(_series_delete_exclusions, 'w')
         cmd = ['find', '.', '-type', 'l', '-printf', printfmt]
         try:
-            process = Popen(cmd, shell=False, stdin=None, stdout=_incremental_file_obj, stderr=None, cwd=directory)
-            process.wait()
+            process = check_call(cmd, shell=False, stdin=None, stdout=_incremental_file_obj, stderr=None, cwd=directory)
         except CalledProcessError, exc:
-            log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
+            log.error("Find Command for Series Exclusions returned with RC=%d" % (exc.returncode))
             sys.exit(1)
 
         self.options.SeriesDeleteExclusions = '--exclude-from={}'.format(_series_delete_exclusions)
