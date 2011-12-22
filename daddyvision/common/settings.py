@@ -163,7 +163,7 @@ class Settings(object):
                     if len(_tvdb_id_details) == 2 and _tvdb_id_details[:0] != '#':
                         self.TvdbIdList[_tvdb_id_details[0]] = _tvdb_id_details[1]
             TvdbIdFile_obj.close()
-            log.debug('TVDB IDs: LOADED')
+#            log.debug('TVDB IDs: LOADED')
         else:
             log.warn("TVDB Series IDs File Missing: " % self.TvdbIdFile)
         return 0
