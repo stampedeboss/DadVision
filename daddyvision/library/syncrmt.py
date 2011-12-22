@@ -63,14 +63,14 @@ class DaddyvisionNetwork(object):
             time.sleep(0.2)
             self.chkStatus(self.options.SymLinks)
 
-        if os.path.exists(os.path.join(self.options.SymLinks, 'Incrementals')):
-            self.SyncIncrementals(os.path.join(self.options.SymLinks, 'Incrementals'))
 
         if 'Series' in self.options.content:
+            if os.path.exists(os.path.join(self.options.SymLinks, 'Incrementals')):
+                self.SyncIncrementals(os.path.join(self.options.SymLinks, 'Incrementals'))
             self.SyncSeries()
 
         if 'Movies' in self.options.content:
-            self.SyncMovies
+            self.SyncMovies()
 
         if not self.options.dryrun:
             cmd = ['xbmc-send', '--host={}'.format(self.options.HostName), '--action=XBMC.UpdateLibrary(video)']
@@ -85,9 +85,10 @@ class DaddyvisionNetwork(object):
         log_file = os.path.join(logger.LogDir, 'syncrmt_{}.log'.format(self.options.HostName))
         cmd = ['rsync', '-rptuvhogL{}'.format(self.options.CmdLineDryRun),
                '--progress',
-               self.options.SeriesDeleteExclusions,
+               '--fake-super',
                '--partial-dir=.rsync-partial',
                '--exclude=lost+found',
+               self.options.SeriesDeleteExclusions,
                '{}'.format(self.options.CmdLineArgs),
                '--log-file={}'.format(log_file),
                '{}/Series/'.format(self.options.SymLinks),
@@ -105,7 +106,6 @@ class DaddyvisionNetwork(object):
         log_file = os.path.join(logger.LogDir, 'syncrmt_{}.log'.format(self.options.HostName))
         cmd = ['rsync', '-rptuvhogL{}'.format(self.options.CmdLineDryRun),
                '--progress',
-               self.options.SeriesDeleteExclusions,
                '--partial-dir=.rsync-partial',
                '--exclude=lost+found',
                '{}'.format(self.options.CmdLineArgs),
