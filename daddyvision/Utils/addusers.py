@@ -6,12 +6,12 @@ Purpose:
 
 '''
 from daddyvision.common import logger
+from daddyvision.common.exceptions import SQLError, UserAbort
 from daddyvision.common.options import OptionParser, CoreOptionParser
-from daddyvision.common.settings import Settings
-from daddyvision.common.exceptions import UserAbort
 from daddyvision.common.settings import Settings
 import logging
 import os
+import sqlite3
 import sys
 
 __pgmname__ = 'addusers'
@@ -33,6 +33,9 @@ log = logging.getLogger(__pgmname__)
 
 logger.initialize()
 config = Settings()
+
+db = sqlite3.connect(config.DBFile)
+cursor = db.cursor()
 
 TRACE = 5
 VERBOSE = 15
@@ -95,6 +98,34 @@ if __name__ == '__main__':
             _user_dict['MovieDir'] = get_value('MovieDir', old_profile)
             _user_dict['Identifier'] = get_value('Identifier', old_profile)
             _new_dict = config.AddSubscriber(_user_dict)
+            try:
+                cursor.execute('INSERT INTO Subscribers(Name, Identifier, UserId, HostName, SeriesDir, MovieDir) \
+                         VALUES ("{}", "{}", "{}", "{}", "{}", "{}")'.format(name,
+                                                                             _user_dict['Identifier'],
+                                                                             _user_dict['UserId'],
+                                                                             _user_dict['HostName'],
+                                                                             _user_dict['SeriesDir'],
+                                                                             _user_dict['MovieDir']
+                                                             )
+                               )
+                if cursor.rowcount == 1:
+                    db.commit()
+            except  sqlite3.IntegrityError, e:
+                try:
+                    cursor.execute('UPDATE Subscribers SET Identifier="{}", UserId="{}", HostName="{}", SeriesDir="{}", MovieDir="{}" \
+                                         WHERE Name="{}" '.format(_user_dict['Identifier'],
+                                                                _user_dict['UserId'],
+                                                                _user_dict['HostName'],
+                                                                _user_dict['SeriesDir'],
+                                                                _user_dict['MovieDir'],
+                                                                _user_dict['Name']))
+                    db.commit()
+                except sqlite3.Error, e:
+                    raise SQLError("File Information Insert: {} {}".format(e, _user_dict))
+            except sqlite3.Error, e:
+                raise SQLError("File Information Insert: {} {}".format(e, _user_dict))
+
+
 
         except UserAbort:
             sys.exit(0)

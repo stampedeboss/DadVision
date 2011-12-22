@@ -11,18 +11,13 @@ Created on Dec 4, 2011
 '''
 
 from __future__ import division
-from subprocess import Popen, call as Call, PIPE
-from logging import INFO, WARNING, ERROR, DEBUG
 from daddyvision.common.exceptions import InvalidFilename, RegxSelectionError
-from daddyvision.common.options import OptionParser, CoreOptionParser
+from daddyvision.common.options import CoreOptionParser
 from daddyvision.common import logger
 import datetime
 import logging
 import os
 import re
-import sys
-import tempfile
-import time
 
 __author__ = "AJ Reynolds"
 __copyright__ = "Copyright 2011, AJ Reynolds"

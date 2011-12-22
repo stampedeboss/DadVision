@@ -6,16 +6,12 @@ Purpose:
 
 '''
 from __future__ import division
-from logging import INFO, WARNING, ERROR, DEBUG
 from daddyvision.common.exceptions import InvalidFilename, RegxSelectionError
 from daddyvision.common import logger
-import datetime
 import logging
 import os
 import re
 import sys
-import tempfile
-import time
 
 __pgmname__ = 'movies.fileparser'
 __version__ = '$Rev$'

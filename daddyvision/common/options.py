@@ -4,7 +4,7 @@
 """
 import os
 import sys
-from optparse import OptionParser as OptParser, OptionGroup
+from optparse import OptionParser as OptParser, OptionGroup, SUPPRESS_HELP
 import daddyvision
 
 __pgmname__ = 'common.options'

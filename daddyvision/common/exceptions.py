@@ -125,3 +125,9 @@ class DuplicateRecord(DatabaseError):
     """
     pass
 
+class SQLError(DatabaseError):
+    """Raised if the record already exists on an Insert
+    """
+    pass
+
+
