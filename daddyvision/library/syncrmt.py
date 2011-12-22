@@ -42,9 +42,6 @@ log = logging.getLogger(__pgmname__)
 logger.initialize()
 config = Settings()
 
-db = sqlite3.connect(config.DBFile)
-cursor = db.cursor()
-
 TRACE = 5
 VERBOSE = 15
 
@@ -125,10 +122,14 @@ class DaddyvisionNetwork(object):
         _downloads_needed = []
 
         try:
+            db = sqlite3.connect(config.DBFile)
+            cursor = db.cursor()
             cursor.execute('SELECT FileName FROM Downloads  WHERE Name = "{}"'.format(self.options.user))
             for row in cursor:
                 _downloaded_files.append(unicodedata.normalize('NFKD', row[0]).encode('ascii','ignore'))
+            db.close()
         except:
+            db.close()
             raise
 
         _available_files_temp = tempfile.NamedTemporaryFile()
@@ -212,13 +213,17 @@ class DaddyvisionNetwork(object):
     def record_download(self, file_name):
         try:
             file_details = self.fileparser.getFileDetails(file_name)
+            db = sqlite3.connect(config.DBFile)
+            cursor = db.cursor()
             cursor.execute('INSERT INTO Downloads(Name, SeriesName, Filename) VALUES ("{}", "{}", "{}")'.format(self.options.user,
                                                                                                                 file_details['SeriesName'],
                                                                                                                 file_name))
             db.commit()
+            db.close()
         except  sqlite3.IntegrityError, e:
-            pass
+            db.close()
         except sqlite3.Error, e:
+            db.close()
             raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, file_name))
 
 
