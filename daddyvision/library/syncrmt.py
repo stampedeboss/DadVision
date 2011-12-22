@@ -75,7 +75,7 @@ class DaddyvisionNetwork(object):
         if not self.options.dryrun:
             cmd = ['xbmc-send', '--host={}'.format(self.options.HostName), '--action=XBMC.UpdateLibrary(video)']
             try:
-                process = Call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=config.SeriesDir)
+                process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=config.SeriesDir)
             except CalledProcessError, exc:
                 log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
 
