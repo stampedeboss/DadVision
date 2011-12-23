@@ -13,6 +13,7 @@ from daddyvision.common.countfiles import countFiles
 import logging
 import os
 import tempfile
+import re
 
 __pgmname__ = 'ScanVideo'
 __version__ = '$Rev$'
@@ -64,41 +65,57 @@ def checkVideoDir(pathname, clearlist=True):
 
     return FilesWithIssues
 
-def checkVideoFile(pathname):
+def checkVideoFile(pathname, deep=False):
     log.trace('Checking File: %s' % pathname)
     
     ext = os.path.splitext(pathname)[1][1:]
     if ext == 'avi':
-        cmd = ['avinfo', '-q', pathname, '--list']
-        process = Popen(cmd, shell=False, stdin=None, stdout=PIPE, stderr=PIPE, cwd=None)
-        output = process.stdout.read()
-        log.debug('AVINFO: %s' % output)
-        if output == '':
-            rc = 1
+        if deep:
+            rc = checkAVId(pathname)
         else:
-            rc = 0
+            rc = checkAVI(pathname)
     elif ext == 'mkv':
-        NULLF = open('/dev/null', 'w')
-        cmd = ['mkvinfo', pathname]
-        process = Popen(cmd, shell=False, stdin=None, stdout=NULLF, stderr=NULLF, cwd=None)
-        rc = process.returncode
+        rc = checkMKV(pathname)
     else:
         rc = -1
-        
     return rc
 
-def printBadFileNames():
-    log.trace('Printing Filelist')
-    global FilesWithIssues
-    
-    if FilesWithIssues <> []:
-        for _entry in sorted(FilesWithIssues):
-            print _entry
-        print 'Number Files Identified: %s' % len(FilesWithIssues)
+def checkAVId(pathname):
+    regex_bracket = re.compile('.*\].*$', re.IGNORECASE)
+    regex_text = re.compile('((frame)|(Press)|(PAR))', re.IGNORECASE)
+    error_msgs = []
+    rc = 0    
+    _ffmpeg_out =  tempfile.NamedTemporaryFile()
+    cmd = ['ffmpeg', '-v', '5', '-i', pathname, '-f', 'null', '-']
+    process = Popen(cmd, shell=False, stdin=None, stdout=None, stderr=PIPE, cwd=None)
+    output = process.stderr.readlines()
+    for line in output:
+        if not regex_bracket.match(line):
+            continue
+        else:
+            if not regex_text.search(line):
+                error_msgs.append(line.strip('\n'))
+                print line.strip('\n')
+                rc = 1
+    return rc, error_msgs
+
+def checkAVI(pathname):
+    cmd = ['avinfo', '-q', pathname, '--list']
+    process = Popen(cmd, shell=False, stdin=None, stdout=PIPE, stderr=PIPE, cwd=None)
+    output = process.stdout.read()
+    log.debug('AVINFO: %s' % output)
+    if output == '':
+        rc = 1
     else:
-        log.info('No errors found')
-    
-    return
+        rc = 0
+    return rc
+
+def checkMKV(pathname):
+    NULLF = open('/dev/null', 'w')
+    cmd = ['mkvinfo', pathname]
+    process = Popen(cmd, shell=False, stdin=None, stdout=NULLF, stderr=NULLF, cwd=None)
+    rc = process.returncode
+    return rc
 
 
 if __name__ == '__main__':
@@ -126,9 +143,18 @@ if __name__ == '__main__':
     log.debug("Parsed arguments: %r" % args)
 
     config = Settings()
-
     if len(args) == 0:
-        args = [config.SeriesDir]
+        pathname = config.SeriesDir
+    elif len(args) > 0:
+        pathname = args[0]
+        
+    FilesWithIssues = checkVideoDir(pathname)
+    if FilesWithIssues <> []:
+        for _entry in sorted(FilesWithIssues):
+            print _entry
+        print 'Number Files Identified: %s' % len(FilesWithIssues)
+    else:
+        print 'No errors found'
 
-    checkVideoDir(args[0])
-    printBadFileNames()
+#    checkAVI("/mnt/TV/Series/American Horror Story/Season 1/E01 Pilot.avi")
+#    checkAVI("/mnt/TV/Series/American Chopper/Season 6/E01 NHL Bike_B-2 Bomber Bike.avi")
