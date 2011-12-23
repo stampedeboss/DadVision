@@ -10,6 +10,7 @@ from daddyvision.common import logger
 from daddyvision.common.exceptions import UnexpectedErrorOccured, DuplicateRecord
 from daddyvision.common.options import OptionParser, CoreOptionParser
 from daddyvision.common.settings import Settings
+from daddyvision.common.countfiles import countFiles
 from daddyvision.series.fileparser import FileParser
 import logging
 import os
@@ -57,8 +58,6 @@ def load_entry(user, file_name):
         file_details = fileparser.getFileDetails(file_name)
         # SQL #
         cursor.execute('INSERT INTO Downloads(Name, SeriesName, Filename, DownloadTimeStamp) VALUES ("{}", "{}", "{}", "{}")'.format(user,
-                                                                                                                                     file_details['SeriesName'],
-                                                                                                                                     file_name,
                                                                                                                                      timestamp))
     except  sqlite3.IntegrityError, e:
         raise DuplicateRecord
@@ -81,7 +80,7 @@ class DownloadDatabase(object):
 
             source_directory = os.path.join(config.SubscriptionDir, user, type_scan)
 
-            File_Count = self._count_total_files(source_directory)
+            File_Count = countFiles(source_directory, exclude=config.ExcludeList)
             log.info('{:5s} - Number of File to be Checked: {}'.format(user, File_Count))
 
             for _symlink_dir in os.listdir(source_directory):
@@ -121,7 +120,7 @@ class DownloadDatabase(object):
                         quotient, remainder = divmod(Files_Processed, 250)
                         if remainder == 0:
                             db.commit()
-                            log.info('%-5s - Files Checked: %2.2f%%   %5s of %5s   Number of Errors: %s' % (user, 
+                            log.info('%-5s - Files Checked: %2.2f%%   %5s of %5s   Number of Errors: %s' % (user,
                                                                                                            Files_Processed/ File_Count,
                                                                                                            Files_Processed,
                                                                                                            File_Count,
@@ -129,27 +128,11 @@ class DownloadDatabase(object):
                                                                                                            )
                                  )
             db.commit()
-            log.info('{:5s} - Complete: Files Checked: {:5n}   Number of Errors: {}'.format(user, 
+            log.info('{:5s} - Complete: Files Checked: {:5n}   Number of Errors: {}'.format(user,
                                                                                         Files_Processed,
                                                                                         Files_Processed - Files_Loaded
                                                                                         )
                 )
-
-    def _count_total_files(self, valid_path):
-        File_Count = 0
-        for _root, _dirs, _files in os.walk(valid_path, followlinks=True):
-            _dirs.sort()
-            for _exclude_dir in config.ExcludeList:
-                try:
-                    _index = _dirs.index(_exclude_dir)
-                    _dirs.pop(_index)
-                    logger.TRACE('Removing Dir From Count: %s' % _exclude_dir)
-                except:
-                    continue
-
-            for _f in _files:
-                File_Count += 1
-        return File_Count
 
 
 if __name__ == '__main__':
@@ -178,5 +161,5 @@ if __name__ == '__main__':
             library.ScanSeriesLibrary('Incrementals')
     else:
         library.ScanSeriesLibrary('Series')
-    
-            
+
+

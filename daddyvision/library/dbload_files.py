@@ -11,6 +11,7 @@ from daddyvision.common import logger
 from daddyvision.common.exceptions import UnexpectedErrorOccured, DuplicateRecord
 from daddyvision.common.options import OptionParser
 from daddyvision.common.settings import Settings
+from daddyvision.common.countfiles import countFiles
 from daddyvision.series.fileparser import FileParser
 import logging
 import os
@@ -80,7 +81,8 @@ class DownloadDatabase(object):
             raise UnexpectedErrorOccured('Series Library referenced in setting NOT FOUND: {}'.format(config.SeriesDir))
             sys.exit(1)
 
-        File_Count = self._count_total_files(config.SeriesDir)
+        File_Count = countFiles(config.SeriesDir, exclude=config.ExcludeList)
+
         log.info('Number of File to be Checked: %s' % File_Count)
 
         for _root, _dirs, _files in os.walk(config.SeriesDir):
@@ -125,24 +127,6 @@ class DownloadDatabase(object):
                                                                           Files_Processed - Files_Loaded
                                                                           )
                              )
-
-
-
-    def _count_total_files(self, valid_path):
-        File_Count = 0
-        for _root, _dirs, _files in os.walk(valid_path):
-            _dirs.sort()
-            for _exclude_dir in config.ExcludeList:
-                try:
-                    _index = _dirs.index(_exclude_dir)
-                    _dirs.pop(_index)
-                    logger.TRACE('Removing Dir From Count: %s' % _exclude_dir)
-                except:
-                    continue
-
-            for _f in _files:
-                File_Count += 1
-        return File_Count
 
 if __name__ == '__main__':
 

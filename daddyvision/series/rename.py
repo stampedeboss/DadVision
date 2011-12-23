@@ -11,6 +11,7 @@ from daddyvision.common import logger
 from daddyvision.common.exceptions import (DataRetrievalError, EpisodeNotFound,
     SeriesNotFound, DuplicateFilesFound, InvalidFilename, RegxSelectionError,
     ConfigValueError, UnexpectedErrorOccured, DuplicateRecord)
+from daddyvision.common.scanvideo import checkVideoFile
 from daddyvision.series.fileparser import FileParser
 from daddyvision.series.episodeinfo import EpisodeDetails
 from logging import INFO, WARNING, ERROR, DEBUG
@@ -122,6 +123,9 @@ class Rename(object):
                                     except:
                                         log.info('Unable to delete: %s - %s' % (_file_details['FileName'],sys.exc_info()[1]))
                                     continue
+                            if checkVideoFile(_path_name):
+                                log.error('File Failed Video Check: {}'.format(_path_name))
+                                continue
                             _file_details = self.episodeinfo.getDetails(_file_details)
                             self._rename_file(_file_details)
                     except (InvalidFilename, DuplicateFilesFound, RegxSelectionError, DataRetrievalError, EpisodeNotFound, SeriesNotFound), msg:

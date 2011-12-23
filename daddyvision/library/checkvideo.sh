@@ -4,6 +4,7 @@ FFMPEG="/bin/ffmpeg"
 LIST=`find | grep \.avi$`
 
 for i in $LIST; do
+	echo $i
     OUTP="$i.txt"
     OUTP_OK="$i.txt.ok"
     TMP_OUTP="$i.tmp"
