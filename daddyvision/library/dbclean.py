@@ -15,12 +15,11 @@ from daddyvision.series.fileparser import FileParser
 import logging
 import os
 import sqlite3
-import sqlite3 as MySQLdb
 import sys
 import tempfile
 import time
 
-__pgmname__ = 'dbload'
+__pgmname__ = 'dbclean'
 __version__ = '$Rev$'
 
 __author__ = "AJ Reynolds"
@@ -42,9 +41,6 @@ logger.initialize()
 TRACE = 5
 VERBOSE = 15
 
-__version__ = '$Rev$'
-__pgmname__ = 'loadfiles'
-
 config = Settings()
 fileparser = FileParser()
 
@@ -57,7 +53,7 @@ class CleanDatabase(object):
 
     def ScanDeadEntries(self):
         log.trace('ScanSeriesLibrary: Start')
-        
+
         cursor.execute('SELECT COUNT(*)e FROM Files')
         Result = cursor.fetchall()
         File_Count = Result[0][0]
@@ -78,18 +74,19 @@ class CleanDatabase(object):
                 try:
                     cursor.execute('DELETE FROM Files WHERE FileName="{}"'.format(row[0]))
                     Files_Deleted += 1
-                    db.commit()
                 except sqlite3.Error, e:
                     raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, row[0]))
-        
+
                 quotient, remainder = divmod(Files_Processed, 250)
                 if remainder == 0:
+                    db.commit()
                     log.info('Files Checked: %2.2f%% - %5s of %5s   Number Deleted: %s' % (Files_Processed/ File_Count,
                                                                                              Files_Processed,
                                                                                              File_Count,
                                                                                              Files_Deleted
                                                                                              )
                          )
+        db.commit()
         log.info('Complete: Files Checked: %5s   Number Deleted: %s' % (Files_Processed,
                                                                           Files_Deleted
                                                                           ))

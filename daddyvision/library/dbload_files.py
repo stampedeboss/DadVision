@@ -8,19 +8,18 @@ Purpose:
 '''
 from __future__ import division
 from daddyvision.common import logger
-from daddyvision.common.exceptions import UnexpectedErrorOccured
-from daddyvision.common.options import OptionParser, CoreOptionParser
+from daddyvision.common.exceptions import UnexpectedErrorOccured, DuplicateRecord
+from daddyvision.common.options import OptionParser
 from daddyvision.common.settings import Settings
 from daddyvision.series.fileparser import FileParser
 import logging
 import os
 import sqlite3
-import sqlite3 as MySQLdb
 import sys
-import tempfile
 import time
+import datetime
 
-__pgmname__ = 'dbload'
+__pgmname__ = 'dbload_files'
 __version__ = '$Rev$'
 
 __author__ = "AJ Reynolds"
@@ -32,18 +31,12 @@ __maintainer__ = "AJ Reynolds"
 __email__ = "stampedeboss@gmail.com"
 __status__ = "Development"
 
-TRACE = 5
-VERBOSE = 15
-
 log = logging.getLogger(__pgmname__)
 
 logger.initialize()
 
 TRACE = 5
 VERBOSE = 15
-
-__version__ = '$Rev$'
-__pgmname__ = 'loadfiles'
 
 config = Settings()
 fileparser = FileParser()
@@ -53,19 +46,8 @@ cursor = db.cursor()
 
 def load_entry(file_details):
 
-#        # SQL #
-#        cursor.execute('SELECT f.SeriesName, f.SeasonNum, f.EpisodeNum, f.FileName, f.TimeStampIdentified, f.Type \
-#                            FROM Files f \
-#                            WHERE f.SeriesName = "{}" \
-#                             and  f.SeasonNum = {} \
-#                             and  f.EpisodeNum = {}'.format(file_details['SeriesName'],
-#                                                            file_details['SeasonNum'],
-#                                                            file_details['EpisodeNums'][0]
-#                                                            )
-#                       )
-#        data = cursor.fetchone()
-#        if data != None:
-#            continue
+#    t = os.path.getmtime(file_details['FileName'])
+#    timestamp = datetime.datetime.fromtimestamp(t)
 
     try:
         # SQL #
@@ -77,7 +59,6 @@ def load_entry(file_details):
                                                      )
                        )
         file_id = int(cursor.lastrowid)
-        db.commit()
     except  sqlite3.IntegrityError, e:
         raise DuplicateRecord
     except sqlite3.Error, e:
@@ -132,12 +113,14 @@ class DownloadDatabase(object):
 
                 quotient, remainder = divmod(Files_Processed, 250)
                 if remainder == 0:
+                    db.commit()
                     log.info('Files Checked: %2.2f%% - %5s of %5s   Number of Errors: %s' % (Files_Processed/ File_Count,
                                                                                              Files_Processed,
                                                                                              File_Count,
                                                                                              Files_Processed - Files_Loaded
                                                                                              )
                          )
+        db.commit()
         log.info('Complete: Files Checked: %5s   Number of Errors: %s' % (Files_Processed,
                                                                           Files_Processed - Files_Loaded
                                                                           )
@@ -161,14 +144,9 @@ class DownloadDatabase(object):
                 File_Count += 1
         return File_Count
 
-class DuplicateRecord(Exception):
-    """Raised when an entry already exists in the database
-    """
-    pass
-
 if __name__ == '__main__':
 
-    parser = CoreOptionParser()
+    parser = OptionParser()
     options, args = parser.parse_args()
 
     log_level = logging.getLevelName(options.loglevel.upper())

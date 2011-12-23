@@ -1,50 +1,45 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 '''
-Created on Dec 1, 2011
 
-@author: aj
+Purpose:
+    Scan Video Libraries to check for errors with the video
+    structure or conent
 '''
 from __future__ import division
-from optparse import OptionParser, OptionGroup
-from subprocess import Popen, call as Call, PIPE
-from logging import INFO, WARNING, ERROR, DEBUG
+from daddyvision.common import logger
+from daddyvision.common.options import OptionParser
+from daddyvision.common.settings import Settings
+from subprocess import Popen, check_call as Call, PIPE
 import logging
-import logging.handlers
 import os
-import subprocess
 import tempfile
-import time
 
-__version__ = '$Rev$'
 __pgmname__ = 'ScanVideo'
+__version__ = '$Rev$'
 
-PgmDir = os.path.dirname(__file__)
-HomeDir = os.path.expanduser('~')
-ConfigDirB = os.path.join(HomeDir, '.config')
-ConfigDir = os.path.join(ConfigDirB, 'xbmcsupt')
-LogDir = os.path.join(HomeDir, 'log')
-TEMP_LOC = os.path.join(HomeDir, __pgmname__)
+__author__ = "AJ Reynolds"
+__copyright__ = "Copyright 2011, AJ Reynolds"
+__credits__ = []
+__license__ = "GPL"
 
-#Level     Numeric value
-#CRITICAL    50
-#ERROR       40
-#WARNING     30
-#INFO        20
-#DEBUG       10
-#NOTSET       0
+__maintainer__ = "AJ Reynolds"
+__email__ = "stampedeboss@gmail.com"
+__status__ = "Development"
 
-logging.addLevelName(5, 'TRACE')
-logging.addLevelName(15, 'VERBOSE')
-log = logging.getLogger()
-setattr(log, 'TRACE', lambda *args: log.log(5, *args))
-setattr(log, 'VERBOSE', lambda *args: log.log(15, *args))
+log = logging.getLogger(__pgmname__)
+logger.initialize()
+
+TRACE = 5
+VERBOSE = 15
+
+config = Settings()
 
 class ScanVideo(object):
     def __init__(self):
         pass
 
-    def ScanDir(self, pathname):
+    def scanDir(self, pathname):
         _file_count = self._count_total_files(pathname)
         log.info('Number of File to be Checked: %s' % _file_count)
         self.FilesWithIssues = []
@@ -60,9 +55,8 @@ class ScanVideo(object):
                     if ext == '.avi':
                         cmd = ['avinfo', '-q', fq_name, '--list']
                         process = Popen(cmd, shell=False, stdin=None, stdout=PIPE, stderr=PIPE, cwd=None)
-                        process.wait()
                         output = process.stdout.read()
-                        log.TRACE('AVINFO: %s' % output)
+                        log.trace('AVINFO: %s' % output)
                         if output == '':
                             rc = 1
                         else:
@@ -70,15 +64,14 @@ class ScanVideo(object):
                     elif ext == '.mkv':
                         cmd = ['mkvinfo', fq_name]
                         process = Popen(cmd, shell=False, stdin=None, stdout=PIPE, stderr=PIPE, cwd=None)
-                        process.wait()
                         output = process.stdout.read()
-                        log.TRACE('MKVINFO: %s' % output)
+                        log.trace('MKVINFO: %s' % output)
                         rc = process.returncode
                     else:
                         continue
                     if rc > 0:
                         self.FilesWithIssues.append(fq_name)
-                        log.VERBOSE('File has issues: %s' % fq_name)
+                        log.verbose('File has issues: %s' % fq_name)
 
                     _files_checked += 1
                     quotient, remainder = divmod(_files_checked, 250)
@@ -88,27 +81,19 @@ class ScanVideo(object):
 
         return len(self.FilesWithIssues)
 
-    def GetFileNames(self, report=False):
+    def getFileNames(self, report=False):
+        _files_with_errors = tempfile.NamedTemporaryFile(mode='w')
+
         if self.FilesWithIssues <> []:
-            log.error('File Names With Issues: ')
+            _files_with_errors.write('File Names With Issues: ')
             for _entry in sorted(self.FilesWithIssues):
-                log.error('%s' % _entry)
+                _files_with_errors.write('%s' % _entry)
+                if report:
+                    print _entry
+            print 'Files Identified: %s' % len(self.FilesWithIssues)
         else:
             log.info('No errors found')
             return []
-
-        if report:
-            _cmd = ['cat', os.path.join(LogDir, '%s_error.log' % __pgmname__)]
-            _process = Popen(_cmd, shell=False, stdin=None, stderr=None, cwd=None)
-            _process.wait()
-            _cmd = ['cat', os.path.join(LogDir, '%s_error.log' % __pgmname__)]
-            _process = Popen(_cmd, shell=False, stdin=None, stdout=PIPE, stderr=None, cwd=None)
-            _process.wait()
-            _output = _process.stdout.read()
-            _cmd = ['wc', '-l',os.path.join(LogDir, '%s_error.log' % __pgmname__)]
-            _process2 = Popen(_cmd, shell=False, stdin=None, stdout=PIPE, stderr=None, cwd=None)
-            _output = _process2.stdout.read()
-            log.error('Files Identified: %s' % _output.split()[0])
 
         return self.FilesWithIssues
 
@@ -121,70 +106,28 @@ class ScanVideo(object):
 
 
 if __name__ == '__main__':
-
-    log.setLevel('TRACE')
-    _formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)-6s - %(message)s")
-    _formatter2 = logging.Formatter("%(message)s")
-
-    #_mem_log = logging.handlers.MemoryHandler(1000 * 1000, 100)
-    #_mem_log.setLevel(DEBUG)
-    #_mem_log.setFormatter(_formatter)
-    #log.addHandler(_mem_log)
-
-    _console = logging.StreamHandler()
-    _console.setLevel(INFO)
-    _console.setFormatter(_formatter)
-
-    _main_log = logging.handlers.RotatingFileHandler(os.path.join(LogDir, '%s.log' % __pgmname__), maxBytes=0, backupCount=7)
-    _main_log.setLevel(DEBUG)
-    _main_log.setFormatter(_formatter)
-
-    _error_log = logging.handlers.RotatingFileHandler(os.path.join(LogDir, '%s_error.log' % __pgmname__), maxBytes=0, backupCount=7)
-    _error_log.setLevel(ERROR)
-    _error_log.setFormatter(_formatter2)
-
-    log.addHandler(_console)
-    log.addHandler(_main_log)
-    log.addHandler(_error_log)
-
-    _main_log.doRollover()
-    _error_log.doRollover()
-
-    parser = OptionParser(
-        "%prog [options] [<pathname>]",
-        version="%prog " + __version__)
-
-    group = OptionGroup(parser, "Logging Levels:")
-    group.add_option("--loglevel", dest="loglevel",
-        action="store", type="choice", default="INFO",
-        choices=['CRITICAL' ,'ERROR', 'WARNING', 'INFO', 'VERBOSE', 'DEBUG', 'TRACE'],
-        help="Specify by name the Level of logging desired, [CRITICAL|ERROR|WARNING|INFO|VERBOSE|DEBUG|TRACE]")
-    group.add_option("-e", "--errors", dest="loglevel",
-        action="store_const", const="ERROR",
-        help="Limit logging to only include Errors and Critical information")
-    group.add_option("-q", "--quiet", dest="loglevel",
-        action="store_const", const="WARNING",
-        help="Limit logging to only include Warning, Errors, and Critical information")
-    group.add_option("-v", "--verbose", dest="loglevel",
-        action="store_const", const="VERBOSE",
-        help="increase logging to include informational information")
-    group.add_option("--debug", dest="loglevel",
-        action="store_const", const="DEBUG",
-        help="increase logging to include debug information")
-    group.add_option("--trace", dest="loglevel",
-        action="store_const", const="TRACE",
-        help="increase logging to include program trace information")
-    parser.add_option_group(group)
-
+    parser = OptionParser()
     options, args = parser.parse_args()
-    _console.setLevel(options.loglevel)
 
-    log.debug("Parsed command line options: %r" % options)
+    log_level = logging.getLevelName(options.loglevel.upper())
+
+    if options.logfile == 'daddyvision.log':
+        log_file = '{}.log'.format(__pgmname__)
+    else:
+        log_file = os.path.expanduser(options.logfile)
+
+    # If an absolute path is not specified, use the default directory.
+    if not os.path.isabs(log_file):
+        log_file = os.path.join(logger.LogDir, log_file)
+
+    logger.start(log_file, log_level, timed=True)
+
+    log.debug("Parsed command line options: {!s}".format(options))
     log.debug("Parsed arguments: %r" % args)
 
     if len(args) == 0:
-        args = ['/mnt/TV/']
+        args = [config.SeriesDir]
 
     _dir_scan = ScanVideo()
-    _file_count = _dir_scan.ScanDir(args[0])
-    _file_name_list = _dir_scan.GetFileNames(report=True)
+    _file_count = _dir_scan.scanDir(args[0])
+    _file_name_list = _dir_scan.getFileNames(report=True)

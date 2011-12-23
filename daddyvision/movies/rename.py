@@ -162,12 +162,12 @@ class Rename(object):
                     _file_details = self.parser.getFileDetails(_path_name)
 
                     if _file_details['Ext'] not in self.config.MediaExt:
-                        if os.path.split(_root)[0] != self.config.MoviesDir and os.path.basename(_root) != 'extrathumbs':
+                        if not self.regex_MoviesDir.match(_path_name):
                             os.remove(_file_details['FileName'])
                             self._del_dir(_file_details['FileName'])
                     else:
                         _fq_new_file_name = self._rename_file(_file_details)
-                        
+
         if self.regex_NewDir.match(pathname):
             _base_dir = os.path.join(os.path.split(self.config.MoviesDir)[0],self.config.NewDir)
         elif self.regex_MoviesDir.match(pathname):
@@ -192,7 +192,7 @@ class Rename(object):
 
         _num_of_movies = _movie.getTotal()
         _movie_titles = []
-        
+
         for i in range(0, (_num_of_movies)):
             _movie_titles.append(_movie.getName(i))
 
@@ -254,15 +254,15 @@ class Rename(object):
         log.trace("_rename_dir method: pathname:{!s}".format(dir))
 
         _directory_details = self.parser.getFileDetails(dir+'.avi')
-        _directory_details['FileName'] = dir 
+        _directory_details['FileName'] = dir
 
         _movie = tmdb.tmdb(_directory_details['MovieName'])
         _num_of_movies = _movie.getTotal()
         _movie_titles = []
-        
+
         for i in range(0, (_num_of_movies)):
             _movie_titles.append(_movie.getName(i))
-            
+
         if _num_of_movies > 0:
             _choice = process.extractOne(_directory_details['MovieName'], _movie_titles)
             if _choice[1] > 85:
@@ -276,7 +276,7 @@ class Rename(object):
             _new_dir = '%s (%s)' % (_directory_details['MovieName'], _directory_details['Year'])
         else:
             _new_dir = '%s' % (_directory_details['MovieName'])
-            
+
         _target_dir = os.path.join(self.config.MoviesDir, _new_dir)
 
         if os.path.exists(_target_dir):

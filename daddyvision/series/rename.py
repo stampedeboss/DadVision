@@ -62,6 +62,7 @@ class Rename(object):
 
         self.regex_repack = re.compile('^.*(repack|proper).*$', re.IGNORECASE)
         self.check_suffix = re.compile('^(?P<seriesname>.+?)[ \._\-](?P<year>[0-9][0-9][0-9][0-9]|US|us|Us)$', re.VERBOSE)
+        self.regex_SeriesDir = re.compile('^{}.*$'.format(self.config.SeriesDir), re.IGNORECASE)
 #        self.check_year = re.compile('^(?P<seriesname>.+?)[ \._\-](?P<year>[0-9][0-9][0-9][0-9])$', re.VERBOSE)
 #        self.check_US = re.compile('^(?P<seriesname>.+?)[ \._\-](?P<country>US)$', re.VERBOSE)
 
@@ -113,13 +114,14 @@ class Rename(object):
                         _file_details = self.parser.getFileDetails(_path_name)
                         if _file_details:
                             if _file_details['Ext'] not in self.config.MediaExt:
-                                try:
-                                    os.remove(_file_details['FileName'])
-                                    self._del_dir(_file_details['FileName'])
+                                if not self.regex_SeriesDir.match(_file_name):
+                                    try:
+                                        os.remove(_file_details['FileName'])
+                                        self._del_dir(_file_details['FileName'])
+                                        continue
+                                    except:
+                                        log.info('Unable to delete: %s - %s' % (_file_details['FileName'],sys.exc_info()[1]))
                                     continue
-                                except:
-                                    log.info('Unable to delete: %s - %s' % (_file_details['FileName'],sys.exc_info()[1]))
-                                continue
                             _file_details = self.episodeinfo.getDetails(_file_details)
                             self._rename_file(_file_details)
                     except (InvalidFilename, DuplicateFilesFound, RegxSelectionError, DataRetrievalError, EpisodeNotFound, SeriesNotFound), msg:
