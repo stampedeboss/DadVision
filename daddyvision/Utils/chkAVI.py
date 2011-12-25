@@ -10,7 +10,9 @@ from __future__ import division
 from daddyvision.common import logger
 from subprocess import Popen, check_call as Call, PIPE
 from daddyvision.common.countfiles import countFiles
-from daddyvision.common.chkvideo import chkAVId as chkAVI
+from daddyvision.common.chkvideo import chkAVId
+from daddyvision.common.options import OptionParser
+from daddyvision.common.settings import Settings
 import logging
 import os
 import tempfile
@@ -35,9 +37,6 @@ TRACE = 5
 VERBOSE = 15
 
 FilehIssues = []
-
-from daddyvision.common.options import OptionParser
-from daddyvision.common.settings import Settings
 
 parser = OptionParser()
 options, args = parser.parse_args()
@@ -64,7 +63,9 @@ if len(args) == 0:
 elif len(args) > 0:
     pathname = args[0]
 
-rc, FileIssues = chkAVI(pathname)
+rc, FileIssues = chkAVId(pathname)
+
+print 'Return Code: {}'.format(rc)
 if FileIssues <> []:
     print
     print

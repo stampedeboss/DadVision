@@ -148,7 +148,8 @@ class Rename(object):
                 if chkVideoFile(pathname):
                     log.error('File Failed Video Check: {}'.format(pathname))
                     return
-            self._rename_file(pathname)
+            _file_details = self.parser.getFileDetails(pathname)
+            self._rename_file(_file_details)
 
         elif os.path.isdir(pathname):
             for _root, _dirs, _files in os.walk(os.path.abspath(pathname),followlinks=False):
@@ -172,8 +173,8 @@ class Rename(object):
                             self._del_dir(_file_details['FileName'])
                     else:
                         if video_check:
-                            if chkVideoFile(_file_details['FileName']):
-                                log.error('File Failed Video Check: {}'.format(_file_details['FileName']))
+                            if chkVideoFile(_path_name):
+                                log.error('File Failed Video Check: {}'.format(_path_name))
                                 return
                         _fq_new_file_name = self._rename_file(_file_details)
 
@@ -236,14 +237,24 @@ class Rename(object):
                 os.remove(_fq_new_file_name)
             elif filecmp.cmp(_fq_new_file_name, _file_details['FileName']):
                 if _fq_new_file_name != _file_details['FileName']:
-                    log.info("Deleting %r, already at destination!" % (os.path.split(_file_details['FileName'])[1],))
+                    log.info("Deleting %r, already at destination!" % (os.path.split(_file_details['FileName'])[1]))
                     os.remove(_file_details['FileName'])
                     self._del_dir(_file_details['FileName'])
                     return
                 else:
-                    log.info("Skipping: file: %r, at already at destination!" % (os.path.split(_file_details['FileName'])[1],))
+                    log.info("Skipping: file: %r, at already at destination!" % (os.path.split(_file_details['FileName'])[1]))
                     return
-
+            else:
+                if  os.path.splitext(_fq_new_file_name)[1][1:] in ['mkv', 'm2ts']:
+                    if os.path.getsize(_fq_new_file_name) >= os.path.getsize(_file_details['FileName']):
+                        log.warn("Skipping Rename: File: %r, Requires Manual intervention (Larger Already Exists)!" % (os.path.split(_file_details['FileName'])[1]))
+                        return
+                elif _file_details['Ext'] in ['mkv', 'm2ts']:
+                    log.warn("Replacing Existing Non-MKV: File: %r!" % (os.path.split(_fq_new_file_name)[1]))
+                else: 
+                    log.warn("Skipping Rename: File: %r, Requires Manual intervention (Already Exists)!" % (os.path.split(_file_details['FileName'])[1],))
+                    return
+                    
         log.info('Renaming Movie: %s to %s' % (os.path.basename(_file_details['FileName']), _new_file_name))
         try:
             if not os.path.exists(os.path.split(_fq_new_file_name)[0]):
