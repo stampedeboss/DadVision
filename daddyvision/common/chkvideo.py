@@ -15,7 +15,7 @@ import os
 import tempfile
 import re
 
-__pgmname__ = 'ScanVideo'
+__pgmname__ = 'chkvideo'
 __version__ = '$Rev$'
 
 __author__ = "AJ Reynolds"
@@ -35,15 +35,15 @@ VERBOSE = 15
 
 FilesWithIssues = []
 
-def checkVideoDir(pathname, clearlist=True):
+def chkVideoDir(pathname, clearlist=True):
     log.trace('Checking Directory: %s' % pathname)
     global FilesWithIssues
 
     _files_checked = 0
-    
+
     if clearlist:
         FilesWithIssues = []
-        
+
     _file_count = countFiles(pathname)
     log.info('Number of Files in Tree: %s' % _file_count)
 
@@ -53,7 +53,7 @@ def checkVideoDir(pathname, clearlist=True):
             files = sorted(files)
             for fname in files:
                 fq_fname = os.path.join(root, fname)
-                rc = checkVideoFile(fq_fname)
+                rc = chkVideoFile(fq_fname)
                 if rc > 0:
                     FilesWithIssues.append(fq_fname)
                     log.verbose('File has issues: %s' % fq_fname)
@@ -65,26 +65,25 @@ def checkVideoDir(pathname, clearlist=True):
 
     return FilesWithIssues
 
-def checkVideoFile(pathname, deep=False):
+def chkVideoFile(pathname, deep=False):
     log.trace('Checking File: %s' % pathname)
-    
+
     ext = os.path.splitext(pathname)[1][1:]
     if ext == 'avi':
-        if deep:
-            rc = checkAVId(pathname)
-        else:
-            rc = checkAVI(pathname)
+        rc = chkAVI(pathname)
+        if rc == 1:
+            rc = chkAVId(pathname)[0]
     elif ext == 'mkv':
-        rc = checkMKV(pathname)
+        rc = chkMKV(pathname)
     else:
         rc = -1
     return rc
 
-def checkAVId(pathname):
+def chkAVId(pathname):
     regex_bracket = re.compile('.*\].*$', re.IGNORECASE)
     regex_text = re.compile('((frame)|(Press)|(PAR))', re.IGNORECASE)
     error_msgs = []
-    rc = 0    
+    rc = 0
     _ffmpeg_out =  tempfile.NamedTemporaryFile()
     cmd = ['ffmpeg', '-v', '5', '-i', pathname, '-f', 'null', '-']
     process = Popen(cmd, shell=False, stdin=None, stdout=None, stderr=PIPE, cwd=None)
@@ -99,7 +98,7 @@ def checkAVId(pathname):
                 rc = 1
     return rc, error_msgs
 
-def checkAVI(pathname):
+def chkAVI(pathname):
     cmd = ['avinfo', '-q', pathname, '--list']
     process = Popen(cmd, shell=False, stdin=None, stdout=PIPE, stderr=PIPE, cwd=None)
     output = process.stdout.read()
@@ -110,7 +109,7 @@ def checkAVI(pathname):
         rc = 0
     return rc
 
-def checkMKV(pathname):
+def chkMKV(pathname):
     NULLF = open('/dev/null', 'w')
     cmd = ['mkvinfo', pathname]
     process = Popen(cmd, shell=False, stdin=None, stdout=NULLF, stderr=NULLF, cwd=None)
@@ -119,7 +118,7 @@ def checkMKV(pathname):
 
 
 if __name__ == '__main__':
-    
+
     from daddyvision.common.options import OptionParser
     from daddyvision.common.settings import Settings
 
@@ -147,8 +146,8 @@ if __name__ == '__main__':
         pathname = config.SeriesDir
     elif len(args) > 0:
         pathname = args[0]
-        
-    FilesWithIssues = checkVideoDir(pathname)
+
+    FilesWithIssues = chkVideoDir(pathname)
     if FilesWithIssues <> []:
         for _entry in sorted(FilesWithIssues):
             print _entry
@@ -156,5 +155,5 @@ if __name__ == '__main__':
     else:
         print 'No errors found'
 
-#    checkAVI("/mnt/TV/Series/American Horror Story/Season 1/E01 Pilot.avi")
-#    checkAVI("/mnt/TV/Series/American Chopper/Season 6/E01 NHL Bike_B-2 Bomber Bike.avi")
+#    chkAVI("/mnt/TV/Series/American Horror Story/Season 1/E01 Pilot.avi")
+#    chkAVI("/mnt/TV/Series/American Chopper/Season 6/E01 NHL Bike_B-2 Bomber Bike.avi")

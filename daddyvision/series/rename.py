@@ -11,7 +11,8 @@ from daddyvision.common import logger
 from daddyvision.common.exceptions import (DataRetrievalError, EpisodeNotFound,
     SeriesNotFound, DuplicateFilesFound, InvalidFilename, RegxSelectionError,
     ConfigValueError, UnexpectedErrorOccured, DuplicateRecord)
-from daddyvision.common.scanvideo import checkVideoFile
+from daddyvision.common.options import OptionParser, OptionGroup
+from daddyvision.common.chkvideo import chkVideoFile
 from daddyvision.series.fileparser import FileParser
 from daddyvision.series.episodeinfo import EpisodeDetails
 from logging import INFO, WARNING, ERROR, DEBUG
@@ -73,7 +74,7 @@ class Rename(object):
         return
 
     @useLibraryLogging
-    def rename(self, pathname):
+    def rename(self, pathname, video_check=True ):
         log.trace("rename method: pathname:{}".format(pathname))
 
         _last_series = None
@@ -85,9 +86,10 @@ class Rename(object):
             log.debug("Filename:  %s" % os.path.split(pathname)[1])
             try:
                 _file_details = self.parser.getFileDetails(pathname)
-                if checkVideoFile(_path_name):
-                    log.error('File Failed Video Check: {}'.format(_path_name))
-                    return
+                if video_check:
+                    if chkVideoFile(_path_name):
+                        log.error('File Failed Video Check: {}'.format(_path_name))
+                        return
                 if _file_details : _file_details = self.episodeinfo.getDetails(_file_details)
                 if _file_details : self._rename_file(_file_details)
                 self.update_required = False
@@ -126,9 +128,10 @@ class Rename(object):
                                     except:
                                         log.info('Unable to delete: %s - %s' % (_file_details['FileName'],sys.exc_info()[1]))
                                     continue
-                            if checkVideoFile(_path_name):
-                                log.error('File Failed Video Check: {}'.format(_path_name))
-                                continue
+                            if video_check:
+                                if chkVideoFile(_path_name):
+                                    log.error('File Failed Video Check: {}'.format(_path_name))
+                                    continue
                             _file_details = self.episodeinfo.getDetails(_file_details)
                             self._rename_file(_file_details)
                     except (InvalidFilename, DuplicateFilesFound, RegxSelectionError, DataRetrievalError, EpisodeNotFound, SeriesNotFound), msg:
@@ -328,15 +331,25 @@ class Rename(object):
 class _get_out_of_loop( Exception ):
     pass
 
+class localOptions(OptionParser):
+
+    def __init__(self, unit_test=False, **kwargs):
+        OptionParser.__init__(self, **kwargs)
+
+        group = OptionGroup(self, "Modifers")
+        group.add_option("-f", "--force", dest="check",
+            action="store_false", default=True,
+            help="Bypass Video Check and Force Rename")
+        self.add_option_group(group)
+
 
 if __name__ == "__main__":
 
     from daddyvision.common.settings import Settings
-    from daddyvision.common.options import OptionParser, CoreOptionParser
 
     logger.initialize()
 
-    parser = CoreOptionParser()
+    parser = localOptions()
     options, args = parser.parse_args()
 
     log_level = logging.getLevelName(options.loglevel.upper())
@@ -368,4 +381,4 @@ if __name__ == "__main__":
         sys.exit(1)
 
     rename = Rename(_config_settings)
-    _new_fq_name = rename.rename(_path_name)
+    _new_fq_name = rename.rename(_path_name, options.check)

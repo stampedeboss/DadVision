@@ -7,8 +7,10 @@ Purpose:
 Program to rename movies files
 
 """
+from daddyvision.common.chkvideo import chkVideoFile
 from daddyvision.common.exceptions import InvalidFilename, RegxSelectionError, ConfigValueError
 from daddyvision.common.exceptions import DataRetrievalError, EpisodeNotFound, SeriesNotFound
+from daddyvision.common.options import OptionParser, OptionGroup
 from daddyvision.movies.fileparser import FileParser
 from daddyvision.common import logger
 from daddyvision.series.episodeinfo import EpisodeDetails
@@ -135,14 +137,17 @@ class Rename(object):
         return
 
     @useLibraryLogging
-    def rename(self, pathname):
+    def rename(self, pathname, video_check=True ):
         log.trace("rename method: pathname:{}".format(pathname))
 
         if os.path.isfile(pathname):
             log.debug("-----------------------------------------------")
             log.debug("Movie Directory: %s" % os.path.split(pathname)[0])
             log.debug("Movie Filename:  %s" % os.path.split(pathname)[1])
-
+            if video_check:
+                if chkVideoFile(pathname):
+                    log.error('File Failed Video Check: {}'.format(pathname))
+                    return
             self._rename_file(pathname)
 
         elif os.path.isdir(pathname):
@@ -166,6 +171,10 @@ class Rename(object):
                             os.remove(_file_details['FileName'])
                             self._del_dir(_file_details['FileName'])
                     else:
+                        if video_check:
+                            if chkVideoFile(_file_details['FileName']):
+                                log.error('File Failed Video Check: {}'.format(_file_details['FileName']))
+                                return
                         _fq_new_file_name = self._rename_file(_file_details)
 
         if self.regex_NewDir.match(pathname):
@@ -333,15 +342,25 @@ class Rename(object):
                 return
         return
 
+class localOptions(OptionParser):
+
+    def __init__(self, unit_test=False, **kwargs):
+        OptionParser.__init__(self, **kwargs)
+
+        group = OptionGroup(self, "Modifers")
+        group.add_option("-f", "--force", dest="check",
+            action="store_false", default=True,
+            help="Bypass Video Check and Force Rename")
+        self.add_option_group(group)
+
 
 if __name__ == "__main__":
 
     from daddyvision.common.settings import Settings
-    from daddyvision.common.options import OptionParser, CoreOptionParser
 
     logger.initialize()
 
-    parser = CoreOptionParser()
+    parser = localOptions()
     options, args = parser.parse_args()
 
     log_level = logging.getLevelName(options.loglevel.upper())
@@ -373,4 +392,4 @@ if __name__ == "__main__":
         sys.exit(1)
 
     rename = Rename(_config_settings)
-    _new_fq_name = rename.rename(_path_name)
+    _new_fq_name = rename.rename(_path_name, options.check)
