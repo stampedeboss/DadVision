@@ -87,8 +87,8 @@ class Rename(object):
             try:
                 _file_details = self.parser.getFileDetails(pathname)
                 if video_check:
-                    if chkVideoFile(_path_name):
-                        log.error('File Failed Video Check: {}'.format(_path_name))
+                    if chkVideoFile(pathname):
+                        log.error('File Failed Video Check: {}'.format(pathname))
                         return
                 if _file_details : _file_details = self.episodeinfo.getDetails(_file_details)
                 if _file_details : self._rename_file(_file_details)
