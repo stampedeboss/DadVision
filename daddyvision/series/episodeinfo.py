@@ -201,6 +201,7 @@ class EpisodeDetails(object):
                                                           'EpisodeNum' : epno,
                                                           'EpisodeTitle' : _name,
                                                           'DateAired': _item['first_aired']})
+                            break
                 else:
                     if _item['season_number'] == SeriesDetails['SeasonNum']:
                         SeriesDetails['EpisodeData'].append({'SeasonNum' : _item['season_number'],
@@ -210,7 +211,7 @@ class EpisodeDetails(object):
             elif 'DateAired' in SeriesDetails:
                 if _item['first_aired'] == SeriesDetails['DateAired']:
                     SeriesDetails['SeasonNum'] = _item['season_number']
-                    SeriesDetails['EpisodeNum'] = [_item['episode_number']]
+                    SeriesDetails['EpisodeNums'] = [_item['episode_number']]
                     SeriesDetails['EpisodeData'] = [{'SeasonNum' : _item['season_number'],
                                 'EpisodeNum' : _item['episode_number'],
                                 'EpisodeTitle' : _name,

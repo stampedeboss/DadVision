@@ -11,7 +11,7 @@ Created on Dec 4, 2011
 '''
 
 from __future__ import division
-from daddyvision.common.exceptions import InvalidFilename, RegxSelectionError
+from daddyvision.common.exceptions import InvalidFilename, RegxSelectionError, SeasonNotFound, EpisodeNotFound
 from daddyvision.common.options import CoreOptionParser
 from daddyvision.common import logger
 import datetime
@@ -66,10 +66,6 @@ class FileParser(dict):
         self.LogHeader = 'RegEx {}'.format(self.RegExNumber)
         log.verbose('{}: RegEx Matched'.format(self.LogHeader))
 
-#        with open(os.path.join(logger.LogDir, 'fileparse_regx.log'), 'a') as tracker:
-#            tracker.write('RegEx: {} - {}: \n'.format(self.RegExNumber, fq_name))
-#        tracker.close()
-
         _parsed_keys = _parse_details.groupdict().keys()
 
         for _key in _parsed_keys:
@@ -82,8 +78,10 @@ class FileParser(dict):
             _series_name = self._get_series_name(_parsed_keys, _parse_details)
             try:
                 _season_num = self._get_season_number(_parsed_keys, _parse_details)
+                errmsg = '{}: Missing Episode Number {}'.format(self.LogHeader,_parse_details)
                 _episode_nums = self._get_episode_numbers(_parsed_keys, _parse_details)
-            except InvalidFilename as errmsg:
+            except (SeasonNotFound, EpisodeNotFound) as errmsg:
+                errmsg = '{}: Missing Season Number and/or Episode Numbers {}'.format(self.LogHeader,_parse_details)
                 _air_date = self._get_date_aired(_parsed_keys, _parse_details)
         except InvalidFilename as errmsg:
             log.trace('{errmsg} Filename: {fq_name}'.format(errmsg, fq_name))
@@ -105,7 +103,7 @@ class FileParser(dict):
 #        self.File_Details['BaseDir'] = '/mnt/TV/Series'
 
         if _air_date:
-            self.File_Details['AirDate'] = _air_date
+            self.File_Details['DateAired'] = _air_date
         else:
             self.File_Details['SeasonNum'] = _season_num
             self.File_Details['EpisodeNums'] = _episode_nums
@@ -146,8 +144,8 @@ class FileParser(dict):
         if 'SeasonNum' in _parsed_keys:
             _season_num = int(_parse_details.group('SeasonNum'))
         else:
-            log.trace('{}: No Season / Episode Numbers or Air Date in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
-            raise RegxSelectionError('FileParser: {}: No Season / Episode Numbers or Air Date in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
+            log.trace('{}: No Season Number in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
+            raise SeasonNotFound('FileParser: {}: No Season Number in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
 
         log.trace('{}: Season Number: {}'.format(self.LogHeader, _season_num))
 
@@ -192,10 +190,10 @@ class FileParser(dict):
             _date_aired = datetime.datetime(int(_parse_details.group('year')),
                                             int(_parse_details.group('month')),
                                             int(_parse_details.group('day')))
-            self.FileDetails.append({'DateAired': _date_aired})
+            return _date_aired
         else:
             log.debug()
-            raise RegxSelectionError('FileParser: {}: No Season / Episode Numbers or Date Aired in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
+            raise InvalidFileName('FileParser: {}: No Season / Episode Numbers or Date Aired in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
 
     def GetRegx(self):
 

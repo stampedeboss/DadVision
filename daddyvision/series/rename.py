@@ -277,10 +277,13 @@ class Rename(object):
     def _format_episode_numbers(self, file_details):
         """Format episode number(s) into string, using configured values
         """
-        if len(file_details['EpisodeNums']) == 1:
-            _episode_num_fmt = self.config.ConversionsPatterns['episode_single'] % file_details['EpisodeNums'][0]
+        if "EpisodeNums" in file_details:
+            if len(file_details['EpisodeNums']) == 1:
+                _episode_num_fmt = self.config.ConversionsPatterns['episode_single'] % file_details['EpisodeNums'][0]
+            else:
+                _episode_num_fmt = self.config.ConversionsPatterns['episode_separator'].join(self.config.ConversionsPatterns['episode_single'] % x for x in file_details['EpisodeNums'])
         else:
-            _episode_num_fmt = self.config.ConversionsPatterns['episode_separator'].join(self.config.ConversionsPatterns['episode_single'] % x for x in file_details['EpisodeNums'])
+            pass
         return _episode_num_fmt
 
     def _format_episode_name(self, EpisodeData, join_with):
