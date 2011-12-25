@@ -251,17 +251,19 @@ class Rename(object):
                         return
                 elif _file_details['Ext'] in ['mkv', 'm2ts']:
                     log.warn("Replacing Existing Non-MKV: File: %r!" % (os.path.split(_fq_new_file_name)[1]))
-                else: 
+                else:
                     log.warn("Skipping Rename: File: %r, Requires Manual intervention (Already Exists)!" % (os.path.split(_file_details['FileName'])[1],))
                     return
-                    
+
         log.info('Renaming Movie: %s to %s' % (os.path.basename(_file_details['FileName']), _new_file_name))
         try:
             if not os.path.exists(os.path.split(_fq_new_file_name)[0]):
                 os.makedirs(os.path.split(_fq_new_file_name)[0])
-                if os.getgid() == 0:
-                    os.chown(os.path.split(_fq_new_file_name)[0], 1000, 100)
+                os.chown(os.path.split(_fq_new_file_name)[0], 1000, 100)
+                os.chown(os.path.split(_fq_new_file_name)[0], 1000, 100)
             os.rename(_file_details['FileName'], _fq_new_file_name)
+            os.chmod(_fq_new_file_name, 0664)
+            os.chown(_fq_new_file_name, 1000, 100)
             log.info("Successfully Renamed: %s" % _fq_new_file_name)
             self._del_dir(_file_details['FileName'])
         except OSError, exc:

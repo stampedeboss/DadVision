@@ -10,6 +10,8 @@ from __future__ import division
 from daddyvision.common import logger
 from subprocess import Popen, check_call as Call, PIPE
 from daddyvision.common.countfiles import countFiles
+from daddyvision.common.options import OptionParser, OptionGroup
+
 import logging
 import os
 import tempfile
@@ -33,16 +35,13 @@ logger.initialize()
 TRACE = 5
 VERBOSE = 15
 
-FilesWithIssues = []
+FilesWithIssues = {}
 
-def chkVideoDir(pathname, clearlist=True):
+def chkVideoDir(pathname, deep=False):
     log.trace('Checking Directory: %s' % pathname)
     global FilesWithIssues
 
     _files_checked = 0
-
-    if clearlist:
-        FilesWithIssues = []
 
     _file_count = countFiles(pathname)
     log.info('Number of Files in Tree: %s' % _file_count)
@@ -53,9 +52,11 @@ def chkVideoDir(pathname, clearlist=True):
             files = sorted(files)
             for fname in files:
                 fq_fname = os.path.join(root, fname)
-                rc = chkVideoFile(fq_fname)
-                if rc > 0:
-                    FilesWithIssues.append(fq_fname)
+                rc = chkVideoFile(fq_fname, deep)
+                if deep and rc[0] > 0:
+                    FilesWithIssues[fq_fname] = rc[1]
+                elif rc > 0:
+                    FilesWithIssues[fq_fname] = 'Errors Found'
                     log.verbose('File has issues: %s' % fq_fname)
                 _files_checked += 1
                 quotient, remainder = divmod(_files_checked, 250)
@@ -70,6 +71,9 @@ def chkVideoFile(pathname, deep=False):
 
     ext = os.path.splitext(pathname)[1][1:]
     if ext == 'avi':
+        if deep:
+            rc = chkAVId(pathname)
+            return rc
         rc = chkAVI(pathname)
         if rc == 1:
             rc = chkAVId(pathname)[0]
@@ -116,13 +120,22 @@ def chkMKV(pathname):
     rc = process.returncode
     return rc
 
+class localOptions(OptionParser):
+
+    def __init__(self, unit_test=False, **kwargs):
+        OptionParser.__init__(self, **kwargs)
+
+        group = OptionGroup(self, "Modifers")
+        group.add_option("-d", "--deep", dest="deep",
+            action="store_true", default=False,
+            help="Perform Detailed Check of AVI Files")
+        self.add_option_group(group)
+
 
 if __name__ == '__main__':
-
-    from daddyvision.common.options import OptionParser
     from daddyvision.common.settings import Settings
 
-    parser = OptionParser()
+    parser = localOptions()
     options, args = parser.parse_args()
 
     log_level = logging.getLevelName(options.loglevel.upper())
@@ -147,13 +160,10 @@ if __name__ == '__main__':
     elif len(args) > 0:
         pathname = args[0]
 
-    FilesWithIssues = chkVideoDir(pathname)
-    if FilesWithIssues <> []:
+    FilesWithIssues = chkVideoDir(pathname, options.deep)
+    if len(FilesWithIssues) > 0:
         for _entry in sorted(FilesWithIssues):
             print _entry
         print 'Number Files Identified: %s' % len(FilesWithIssues)
     else:
         print 'No errors found'
-
-#    chkAVI("/mnt/TV/Series/American Horror Story/Season 1/E01 Pilot.avi")
-#    chkAVI("/mnt/TV/Series/American Chopper/Season 6/E01 NHL Bike_B-2 Bomber Bike.avi")

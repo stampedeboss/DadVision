@@ -163,6 +163,7 @@ class Distribute(object):
             log.debug("Creating %r" % (destdir.rstrip(os.sep) + os.sep,))
             try:
                 os.makedirs(destdir)
+                os.chmod(destdir, 0775)
             except OSError, exc:
                 log.error("Failed to create %r (%s)" % (destdir, exc))
 
@@ -202,6 +203,7 @@ class Distribute(object):
                 log.debug("Creating %r" % dest_dir)
                 try:
                     os.makedirs(dest_dir)
+                    os.chmod(dest_dir, 0775)
                 except OSError, exc:
                     log.error("Failed to create %r (%s)" % (dest_dir, exc))
 

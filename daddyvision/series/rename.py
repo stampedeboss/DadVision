@@ -183,9 +183,11 @@ class Rename(object):
         try:
             if not os.path.exists(os.path.split(_new_name)[0]):
                 os.makedirs(os.path.split(_new_name)[0])
-                if os.getgid() == 0:
-                    os.chown(os.path.split(_new_name)[0], 1000, 100)
+                os.chmod(os.path.split(_new_name)[0], 0775)
+                os.chown(os.path.split(_new_name)[0], 1000, 100)
             os.rename(file_details['FileName'], _new_name)
+            os.chmod(_new_name, 0664)
+            os.chown(_new_name, 1000, 100)
 
             try:
                 self.db = sqlite3.connect(self.config.DBFile)
