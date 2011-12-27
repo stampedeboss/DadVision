@@ -40,6 +40,7 @@ config = Settings()
 host        = socket.gethostname()
 
 conn = rpyc.connect("192.168.9.201", 32489)
+print conn.root.get_service_name()
 
 #conn = rpyc.classic.connect("192.168.9.201")
 
@@ -55,7 +56,7 @@ class Main_Window():
         self.table_entries = []
 
         builder = gtk.Builder()
-        builder.add_from_file(os.path.join(self.PgmDir, '{}.glade'.format(__pgmname__)))
+        builder.add_from_file(os.path.join(self.PgmDir, '%s.glade' % (__pgmname__)))
         events = {"on_main_window_destroy" : self.bt_quit_clicked,
                   "on_cb_all_toggle_toggled" : self.on_cb_all_toggle_toggled,
                   "on_cb_new_toggle_toggled" : self.on_cb_new_toggle_toggled,
@@ -172,7 +173,6 @@ class Main_Window():
         return
 
     def load_window(self):
-        log.trace('load_window: USER: {} CONTENT: {}  ENTRIES: {}'.format(self.user, self.content, self.table_entries))
 
         if self.content == 'Series':
             self.newcell.set_visible(True)
@@ -433,7 +433,7 @@ if __name__ == "__main__":
     log_level = logging.getLevelName(options.loglevel.upper())
 
     if options.logfile == 'daddyvision.log':
-        log_file = '{}.log'.format(__pgmname__)
+        log_file = '%s.log' % (__pgmname__)
     else:
         log_file = os.path.expanduser(options.logfile)
 
@@ -443,7 +443,7 @@ if __name__ == "__main__":
 
     logger.start(log_file, log_level, timed=True)
 
-    log.debug("Parsed command line options: {!s}".format(options))
+    log.debug("Parsed command line options: %s" % (options))
     log.debug("Parsed arguments: %r" % args)
 
     mw     = Main_Window()

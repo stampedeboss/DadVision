@@ -36,10 +36,6 @@ log = logging.getLogger(__pgmname__)
 logger.initialize()
 config = Settings()
 
-#log_file = '{}.log'.format(__pgmname__)
-#log_file = os.path.join(logger.LogDir, log_file)
-#logger.start(log_file, 20, timed=True)
-
 TRACE = 5
 VERBOSE = 15
 
@@ -48,7 +44,7 @@ def listItems(user, content_type):
     return a Dict of Items {Title | [current_status, date, pathname]}
     '''
 
-    log.trace('listItems: USER: {}  TYPE: {}'.format(user, content_type))
+    log.trace('listItems: USER: %s  TYPE: %s' % (user, content_type))
 
     Return_List = []
 
@@ -61,7 +57,7 @@ def listItems(user, content_type):
         subscription_dir = os.path.join(config.SubscriptionDir, user, 'Movies')
         incremental_dir = False
     else:
-        raise UnexpectedErrorOccured('Invalid Content Type Requested: {}'.format(content_type))
+        raise UnexpectedErrorOccured('Invalid Content Type Requested: %s' % (content_type))
 
     for directory in os.listdir(os.path.abspath(content_dir)):
         if ignored(directory):
@@ -90,12 +86,12 @@ def listItems(user, content_type):
                             'Date' : mod_date,
                             'Path' : os.path.join(content_dir, directory)
                             })
-    log.trace('Return: {}'.format(Return_List))
+    log.trace('Return: %s' % (Return_List))
 
     return Return_List
 
 def updateLinks(user, request):
-    log.trace('updateLinks: USER: {}  REQUST: {}'.format(user, request))
+    log.trace('updateLinks: USER: %s  REQUST: %s' % (user, request))
 
     rc = 0
 
@@ -140,7 +136,7 @@ if __name__ == '__main__':
     log_level = logging.getLevelName(options.loglevel.upper())
 
     if options.logfile == 'daddyvision.log':
-        log_file = '{}.log'.format(__pgmname__)
+        log_file = '%s.log' % (__pgmname__)
     else:
         log_file = os.path.expanduser(options.logfile)
 
@@ -150,9 +146,8 @@ if __name__ == '__main__':
 
     logger.start(log_file, log_level, timed=True)
 
-    log.debug("Parsed command line options: {!s}".format(options))
+    log.debug("Parsed command line options: %s" % (options))
     log.debug("Parsed arguments: %r" % args)
 
-    class_instance = Subscriptions()
-    list_returned = class_instance.listItems('aly', 'Movies')
+    list_returned = listItems('aly', 'Movies')
     print list_returned
