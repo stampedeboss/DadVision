@@ -6,17 +6,19 @@
     <columns>
       <!-- column-name Select -->
       <column type="gboolean"/>
+      <!-- column-name Incremental -->
+      <column type="gboolean"/>
+      <!-- column-name Delete -->
+      <column type="gboolean"/>
+      <!-- column-name Exists -->
+      <column type="gboolean"/>
       <!-- column-name Title -->
       <column type="gchararray"/>
       <!-- column-name Date -->
       <column type="gchararray"/>
       <!-- column-name Path -->
       <column type="gchararray"/>
-      <!-- column-name Exists -->
-      <column type="gboolean"/>
-      <!-- column-name Delete -->
-      <column type="gboolean"/>
-      <!-- column-name Incremental -->
+      <!-- column-name subscribed -->
       <column type="gboolean"/>
     </columns>
   </object>
@@ -66,6 +68,8 @@
                           <object class="GtkTreeViewColumn" id="allcell">
                             <property name="title">All</property>
                             <property name="clickable">True</property>
+                            <property name="sort_indicator">True</property>
+                            <property name="sort_column_id">0</property>
                             <child>
                               <object class="GtkCellRendererToggle" id="all_toggle">
                                 <signal name="toggled" handler="on_cb_all_toggle_toggled" swapped="no"/>
@@ -79,12 +83,15 @@
                         <child>
                           <object class="GtkTreeViewColumn" id="newcell">
                             <property name="title" translatable="yes">New</property>
+                            <property name="clickable">True</property>
+                            <property name="sort_indicator">True</property>
+                            <property name="sort_column_id">1</property>
                             <child>
                               <object class="GtkCellRendererToggle" id="new_toggle">
                                 <signal name="toggled" handler="on_cb_new_toggle_toggled" swapped="no"/>
                               </object>
                               <attributes>
-                                <attribute name="active">6</attribute>
+                                <attribute name="active">1</attribute>
                               </attributes>
                             </child>
                           </object>
@@ -92,12 +99,15 @@
                         <child>
                           <object class="GtkTreeViewColumn" id="delcol">
                             <property name="title">Del</property>
+                            <property name="clickable">True</property>
+                            <property name="sort_indicator">True</property>
+                            <property name="sort_column_id">2</property>
                             <child>
                               <object class="GtkCellRendererToggle" id="delete_toggle">
                                 <signal name="toggled" handler="delete_toggle_toggled" swapped="no"/>
                               </object>
                               <attributes>
-                                <attribute name="active">5</attribute>
+                                <attribute name="active">2</attribute>
                               </attributes>
                             </child>
                           </object>
@@ -107,9 +117,12 @@
                             <property name="visible">False</property>
                             <property name="title">Exists</property>
                             <child>
-                              <object class="GtkCellRendererToggle" id="exists_toggle"/>
+                              <object class="GtkCellRendererToggle" id="exists_toggle">
+                                <property name="sensitive">False</property>
+                                <property name="activatable">False</property>
+                              </object>
                               <attributes>
-                                <attribute name="active">4</attribute>
+                                <attribute name="active">3</attribute>
                               </attributes>
                             </child>
                           </object>
@@ -122,11 +135,11 @@
                             <property name="title">Title</property>
                             <property name="clickable">True</property>
                             <property name="sort_indicator">True</property>
-                            <property name="sort_column_id">1</property>
+                            <property name="sort_column_id">4</property>
                             <child>
                               <object class="GtkCellRendererText" id="titlecell_text"/>
                               <attributes>
-                                <attribute name="text">1</attribute>
+                                <attribute name="text">4</attribute>
                               </attributes>
                             </child>
                           </object>
@@ -137,13 +150,13 @@
                             <property name="clickable">True</property>
                             <property name="sort_indicator">True</property>
                             <property name="sort_order">descending</property>
-                            <property name="sort_column_id">2</property>
+                            <property name="sort_column_id">5</property>
                             <child>
                               <object class="GtkCellRendererText" id="datecell_text">
                                 <property name="alignment">center</property>
                               </object>
                               <attributes>
-                                <attribute name="text">2</attribute>
+                                <attribute name="text">5</attribute>
                               </attributes>
                             </child>
                           </object>
@@ -152,11 +165,27 @@
                           <object class="GtkTreeViewColumn" id="pathcell">
                             <property name="visible">False</property>
                             <property name="title">Path</property>
-                            <property name="clickable">True</property>
                             <child>
-                              <object class="GtkCellRendererText" id="pathcell_text"/>
+                              <object class="GtkCellRendererText" id="pathcell_text">
+                                <property name="sensitive">False</property>
+                              </object>
                               <attributes>
-                                <attribute name="text">3</attribute>
+                                <attribute name="text">6</attribute>
+                              </attributes>
+                            </child>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkTreeViewColumn" id="cell_subscribed">
+                            <property name="visible">False</property>
+                            <property name="title" translatable="yes">Subscribed</property>
+                            <child>
+                              <object class="GtkCellRendererToggle" id="toggle_subscribed">
+                                <property name="sensitive">False</property>
+                                <property name="activatable">False</property>
+                              </object>
+                              <attributes>
+                                <attribute name="active">7</attribute>
                               </attributes>
                             </child>
                           </object>
@@ -207,14 +236,14 @@
                             <property name="can_focus">False</property>
                             <child>
                               <object class="GtkRadioButton" id="rb_aly">
-                                <property name="label" translatable="yes">Aly</property>
+                                <property name="label" translatable="yes">Aly &amp; Brian</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">False</property>
                                 <property name="use_action_appearance">False</property>
                                 <property name="active">True</property>
                                 <property name="draw_indicator">True</property>
-                                <property name="group">radiobutton1</property>
+                                <property name="group">rb_default_user</property>
                                 <signal name="toggled" handler="on_rb_aly_toggled" swapped="no"/>
                               </object>
                               <packing>
@@ -225,13 +254,13 @@
                             </child>
                             <child>
                               <object class="GtkRadioButton" id="rb_kim">
-                                <property name="label" translatable="yes">Kim</property>
+                                <property name="label" translatable="yes">Kim &amp; Julie</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">False</property>
                                 <property name="use_action_appearance">False</property>
                                 <property name="draw_indicator">True</property>
-                                <property name="group">radiobutton1</property>
+                                <property name="group">rb_default_user</property>
                                 <signal name="toggled" handler="on_rb_kim_toggled" swapped="no"/>
                               </object>
                               <packing>
@@ -248,13 +277,30 @@
                                 <property name="receives_default">False</property>
                                 <property name="use_action_appearance">False</property>
                                 <property name="draw_indicator">True</property>
-                                <property name="group">radiobutton1</property>
+                                <property name="group">rb_default_user</property>
                                 <signal name="toggled" handler="on_rb_ben_toggled" swapped="no"/>
                               </object>
                               <packing>
                                 <property name="expand">True</property>
                                 <property name="fill">True</property>
                                 <property name="position">2</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkRadioButton" id="rb_michelle">
+                                <property name="label" translatable="yes">Michelle &amp; Daniel</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">False</property>
+                                <property name="use_action_appearance">False</property>
+                                <property name="draw_indicator">True</property>
+                                <property name="group">rb_default_user</property>
+                                <signal name="toggled" handler="on_rb_michelle_toggled" swapped="no"/>
+                              </object>
+                              <packing>
+                                <property name="expand">True</property>
+                                <property name="fill">True</property>
+                                <property name="position">3</property>
                               </packing>
                             </child>
                           </object>
@@ -276,6 +322,7 @@
                                 <property name="receives_default">False</property>
                                 <property name="use_action_appearance">False</property>
                                 <property name="draw_indicator">True</property>
+                                <property name="group">rb_default_content</property>
                                 <signal name="toggled" handler="on_rb_series_toggled" swapped="no"/>
                               </object>
                               <packing>
@@ -292,7 +339,7 @@
                                 <property name="receives_default">False</property>
                                 <property name="use_action_appearance">False</property>
                                 <property name="draw_indicator">True</property>
-                                <property name="group">rb_series</property>
+                                <property name="group">rb_default_content</property>
                                 <signal name="toggled" handler="on_rb_movies_toggled" swapped="no"/>
                               </object>
                               <packing>
@@ -302,12 +349,14 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkVBox" id="vbox2">
-                                <property name="visible">True</property>
+                              <object class="GtkRadioButton" id="rb_default_content">
+                                <property name="label" translatable="yes">default_content</property>
+                                <property name="sensitive">False</property>
                                 <property name="can_focus">False</property>
-                                <child>
-                                  <placeholder/>
-                                </child>
+                                <property name="receives_default">False</property>
+                                <property name="use_action_appearance">False</property>
+                                <property name="active">True</property>
+                                <property name="draw_indicator">True</property>
                               </object>
                               <packing>
                                 <property name="expand">True</property>
@@ -354,7 +403,7 @@
             <property name="can_focus">False</property>
             <property name="layout_style">end</property>
             <child>
-              <object class="GtkRadioButton" id="radiobutton1">
+              <object class="GtkRadioButton" id="rb_default_user">
                 <property name="label" translatable="yes">radiobutton</property>
                 <property name="sensitive">False</property>
                 <property name="can_focus">False</property>

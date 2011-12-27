@@ -8,6 +8,7 @@ Purpose:
 from daddyvision.common import logger
 from daddyvision.common.options import OptionParser, CoreOptionParser
 from daddyvision.common.settings import Settings
+from daddyvision.common.exceptions import UnexpectedErrorOccured
 from datetime import date
 import logging
 import os
@@ -15,7 +16,7 @@ import sys
 import fnmatch
 
 
-__pgmname__ = 'daddyvision.library.testrmt'
+__pgmname__ = 'rmtfunctions'
 __version__ = '$Rev$'
 
 __author__ = "AJ Reynolds"
@@ -35,76 +36,76 @@ log = logging.getLogger(__pgmname__)
 logger.initialize()
 config = Settings()
 
+log_file = '{}.log'.format(__pgmname__)
+log_file = os.path.join(logger.LogDir, log_file)
+logger.start(log_file, 20, timed=True)
+
 TRACE = 5
 VERBOSE = 15
 
 
 def listItems(user, content_type):
-#return a Dict of Items {Title | [current_status, date, pathname]}
+    '''
+    return a Dict of Items {Title | [current_status, date, pathname]}
+    '''
+
+    log.trace('listItems: USER: {}  TYPE: {}'.format(user, content_type))
 
     Return_List = []
 
     if content_type.lower() == 'series':
-        target_level = 0
         content_dir = os.path.join(config.SeriesDir)
         subscription_dir = os.path.join(config.SubscriptionDir, user, 'Series')
-        incremental_dir = os.path.join(config.SubscriptionDir, user, 'Incrementals')
+        incremental_dir = os.path.join(config.SubscriptionDir, user, config.IncrementalsDir)
     elif content_type.lower() == 'movies':
-        target_level = 0
         content_dir = os.path.join(config.MoviesDir)
         subscription_dir = os.path.join(config.SubscriptionDir, user, 'Movies')
         incremental_dir = False
+    else:
+        raise UnexpectedErrorOccured('Invalid Content Type Requested: {}'.format(content_type))
 
-    log.debug('User: {} Content: {}'.format(user, content_type))
+    for directory in os.listdir(os.path.abspath(content_dir)):
+        if ignored(directory):
+            log.trace("Skipping: %s" % directory)
+            continue
 
-    startinglevel = content_dir.count(os.sep)
-    for root, dirs, files in os.walk(os.path.abspath(content_dir), followlinks=False):
-        log.info('ROOT: %s' % (root))
+        if incremental_dir and os.path.exists(os.path.join(incremental_dir, directory)):
+            current_status = config.IncrementalsDir
+        elif os.path.exists(os.path.join(subscription_dir, directory)):
+            current_status = 'Subscribed'
+        else:
+            current_status = ''
 
-        dirs.sort()
-        #return a Dict of Items {Title | [current_status, date, pathname]}
-        for directory in dirs[:]:
-            level = root.count(os.sep) - startinglevel
-            if ignored(directory):
-                log.debug("Skipping: %s" % directory)
-                dirs.remove(directory)
-                continue
-            elif level == target_level:
-                log.debug('Directory: %s Level: %s' % (directory, level))
+        title = directory.split(None, 1)
 
-                if incremental_dir and os.path.exists(os.path.join(incremental_dir, directory)):
-                    current_status = 'Incremental'
-                elif os.path.exists(os.path.join(subscription_dir, directory)):
-                    current_status = 'Subscribed'
-                else:
-                    current_status = ''
+        if title[0] in config.Predicates:
+            title = '%s, %s' % (title[1], title[0])
+        else:
+            title = directory
 
-                title = directory.split(None, 1)
+        statinfo = os.stat(os.path.join(content_dir, directory))
+        mod_date = statinfo.st_mtime
 
-                if title[0] in config.Predicates:
-                    title = '%s, %s' % (title[1], title[0])
-                else:
-                    title = directory
-
-                statinfo = os.stat(os.path.join(root, directory))
-                mod_date = statinfo.st_mtime
-
-                Return_List.append({'Title' : directory,
-                                    'Status' : current_status,
-                                    'Date' : mod_date,
-                                    'Path' : os.path.join(root, directory)
-                                    })
+        Return_List.append({'Title' : directory,
+                            'Status' : current_status,
+                            'Date' : mod_date,
+                            'Path' : os.path.join(content_dir, directory)
+                            })
+    log.trace('Return: {}'.format(Return_List))
 
     return Return_List
 
 def updateLinks(user, request):
+    log.trace('updateLinks: USER: {}  REQUST: {}'.format(user, request))
 
-#going to get a list of dict items [Title : Movie title or Series Name (dir name), Type : type, Action : action]  with action being Add, Delete, NewOnly
+    rc = 0
 
     for _entry in request:
+
         symlink = os.path.join(config.SubscriptionDir, user, _entry['Type'], _entry['Title'])
+
         if _entry['Action'] == 'Add':
-            if _entry['Type'] in ['Series', 'Incremental']:
+            if _entry['Type'] in ['Series', config.IncrementalsDir]:
                 pathname = os.path.join(config.SeriesDir, _entry['Title'])
             else:
                 pathname = os.path.join(config.MoviesDir, _entry['Title'])
@@ -115,6 +116,7 @@ def updateLinks(user, request):
                     log.info('symlink for %s to: %s' % (symlink, pathname))
                 except OSError, message:
                     log.error('Unable to created symlink for %s to: %s - %s' % (symlink, pathname, message))
+                    rc = 1
         elif _entry['Action'] == 'Delete':
             if os.path.exists(symlink):
                 try:
@@ -122,6 +124,8 @@ def updateLinks(user, request):
                     log.info('Removed Symlink: %s' % symlink)
                 except OSError, message:
                     log.error('Unable to remove symlink for %s - %s' % (symlink, message))
+                    rc = 1
+    return rc
 
 def ignored(name):
     """ Check for ignored pathnames.
