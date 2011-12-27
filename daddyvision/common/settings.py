@@ -58,6 +58,7 @@ class Settings(object):
         self.NonVideoDir = Library['NonVideoDir']
         self.SubscriptionDir = Library['SubscriptionDir']
         self.NewDir = Library['NewDir']
+        self.IncrementalsDir = Library['IncrementalsDir']
 
         self.NewMoviesDir = os.path.join(os.path.split(self.MoviesDir)[0], self.NewDir)
         self.NewSeriesDir = os.path.join(os.path.split(self.SeriesDir)[0], self.NewDir)
@@ -266,6 +267,10 @@ class Settings(object):
             dir_name = 'New'
         config['Library']['NewDir'] = dir_name
 
+        dir_name = raw_input("Enter Subdirectory for Incremental Files (%s): " % 'Incrementals').lstrip(os.sep)
+        if not dir_name:
+            dir_name = 'Incrementals'
+        config['Library']['IncrementalsDir'] = dir_name
 
         config['Common'] = {}
         config['Common']['MediaExt'] = ['avi', 'mkv', 'mp4', 'mpeg', 'm2ts', 'divx', 'mpg', "m4v"]
@@ -384,20 +389,20 @@ if __name__ == '__main__':
         if sys.argv[1] == 'update':
             update_existing = True
 
-    parms = Settings(update=update_existing)
+    config = Settings(update=update_existing)
 
-    log.info('SeriesDir: {}'.format(parms.SeriesDir))
-    log.info('MoviesDir: {}'.format(parms.MoviesDir))
-    log.info('NonVideoDir: {}'.format(parms.NonVideoDir))
-    log.info('SubscriptionDir: {}'.format(parms.SubscriptionDir))
-    log.info('NewDir: {}'.format(parms.NewDir))
-    log.info('WatchDir: {}'.format(parms.WatchDir))
-    log.info('TvdbIdList: {}'.format(parms.TvdbIdList))
-    log.info('EpisodeAdjList: {}'.format(parms.EpisodeAdjList))
-    log.info('MediaExt: {}'.format(parms.MediaExt))
-    log.info('MovieGlob: {}'.format(parms.MovieGlob))
-    log.info('IgnoreGlob: {}'.format(parms.IgnoreGlob))
-    log.info('Predicates: {}'.format(parms.Predicates))
-    log.info('DBFile: {}'.format(parms.DBFile))
-    log.info('Users: {}'.format(parms.Users))
+    log.info('SeriesDir: {}'.format(config.SeriesDir))
+    log.info('MoviesDir: {}'.format(config.MoviesDir))
+    log.info('NonVideoDir: {}'.format(config.NonVideoDir))
+    log.info('SubscriptionDir: {}'.format(config.SubscriptionDir))
+    log.info('NewDir: {}'.format(config.NewDir))
+    log.info('WatchDir: {}'.format(config.WatchDir))
+    log.info('TvdbIdList: {}'.format(config.TvdbIdList))
+    log.info('EpisodeAdjList: {}'.format(config.EpisodeAdjList))
+    log.info('MediaExt: {}'.format(config.MediaExt))
+    log.info('MovieGlob: {}'.format(config.MovieGlob))
+    log.info('IgnoreGlob: {}'.format(config.IgnoreGlob))
+    log.info('Predicates: {}'.format(config.Predicates))
+    log.info('DBFile: {}'.format(config.DBFile))
+    log.info('Users: {}'.format(config.Users))
 
