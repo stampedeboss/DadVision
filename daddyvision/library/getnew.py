@@ -8,7 +8,6 @@ Purpose:
 from daddyvision.common import logger
 from daddyvision.common.exceptions import ConfigValueError
 from daddyvision.common.options import OptionParser, OptionGroup
-from daddyvision.common.settings import Settings
 from datetime import date
 import rpyc
 import logging
@@ -35,8 +34,6 @@ VERBOSE = 15
 log = logging.getLogger(__pgmname__)
 logger.initialize()
 
-config = Settings()
-
 host        = socket.gethostname()
 
 conn = rpyc.connect("192.168.9.201", 32489)
@@ -44,15 +41,14 @@ conn = rpyc.connect("192.168.9.201", 32489)
 class Main_Window():
     def __init__(self):
 
-        self.config = Settings()
         self.PgmDir = os.path.dirname(__file__)
-        self.Incremental = self.config.IncrementalsDir
+        self.Incremental = 'Incrementals'
 
         self.user = ''
         self.content = ''
         self.table_entries = []
         self.msg_id = []
-        
+
         builder = gtk.Builder()
         builder.add_from_file(os.path.join(self.PgmDir, '%s.glade' % (__pgmname__)))
         events = {"on_main_window_destroy" : self.bt_quit_clicked,
@@ -297,7 +293,6 @@ class Main_Window():
         rb_aly_status = ("OFF", "ON")[widget.get_active()]
         if rb_aly_status == "ON":
             self.user = 'aly'
-            self.user_settings = self.config.GetSubscribers(['self.user'])
             if self.content:
                 self._get_items()
         return
@@ -306,7 +301,6 @@ class Main_Window():
         rb_ben_status = ("OFF", "ON")[widget.get_active()]
         if rb_ben_status == "ON":
             self.user = 'ben'
-            self.user_settings = self.config.GetSubscribers(['self.user'])
             if self.content:
                 self._get_items()
         return
@@ -315,7 +309,6 @@ class Main_Window():
         rb_kim_status = ("OFF", "ON")[widget.get_active()]
         if rb_kim_status == "ON":
             self.user = 'kim'
-            self.user_settings = self.config.GetSubscribers(['self.user'])
             if self.content:
                 self._get_items()
         return
@@ -324,7 +317,6 @@ class Main_Window():
         rb_michelle_status = ("OFF", "ON")[widget.get_active()]
         if rb_michelle_status == "ON":
             self.user = 'michelle'
-            self.user_settings = self.config.GetSubscribers(['self.user'])
             if self.content:
                 self._get_items()
         return
@@ -428,7 +420,7 @@ class Main_Window():
         self.pull_item()
         self.push_item('Updates Complete')
         return
-    
+
     def push_item(self, msg):
         self.msg_id.append(self.status_bar.push(0, msg))
         while gtk.events_pending():
@@ -439,7 +431,7 @@ class Main_Window():
         while len(self.msg_id) > 0:
             self.msg_id.pop()
             self.status_bar.pop(0)
-        return    
+        return
 
     def _get_items(self):
         self.push_item('Please Wait for Window to Load')
