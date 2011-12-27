@@ -36,13 +36,12 @@ log = logging.getLogger(__pgmname__)
 logger.initialize()
 config = Settings()
 
-log_file = '{}.log'.format(__pgmname__)
-log_file = os.path.join(logger.LogDir, log_file)
-logger.start(log_file, 20, timed=True)
+#log_file = '{}.log'.format(__pgmname__)
+#log_file = os.path.join(logger.LogDir, log_file)
+#logger.start(log_file, 20, timed=True)
 
 TRACE = 5
 VERBOSE = 15
-
 
 def listItems(user, content_type):
     '''
@@ -154,5 +153,6 @@ if __name__ == '__main__':
     log.debug("Parsed command line options: {!s}".format(options))
     log.debug("Parsed arguments: %r" % args)
 
-    list_returned = listItems('aly', 'Movies')
+    class_instance = Subscriptions()
+    list_returned = class_instance.listItems('aly', 'Movies')
     print list_returned

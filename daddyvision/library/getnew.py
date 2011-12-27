@@ -39,7 +39,9 @@ config = Settings()
 
 host        = socket.gethostname()
 
-conn = rpyc.classic.connect("192.168.9.201")
+conn = rpyc.connect("192.168.9.201", 32489)
+
+#conn = rpyc.classic.connect("192.168.9.201")
 
 class Main_Window():
     def __init__(self):
@@ -298,12 +300,7 @@ class Main_Window():
             self.user = 'aly'
             self.user_settings = self.config.GetSubscribers(['self.user'])
             if self.content:
-                self.bt_quit.set_visible(False)
-                self.bt_quit.set_sensitive(False)
-                self.table_entries = conn.modules.rmtfunctions.listItems(self.user, self.content)
-                self.bt_quit.set_visible(True)
-                self.bt_quit.set_sensitive(True)
-                self.load_window()
+                self._get_items()
         return
 
     def on_rb_ben_toggled(self, widget, data=None):
@@ -312,10 +309,7 @@ class Main_Window():
             self.user = 'ben'
             self.user_settings = self.config.GetSubscribers(['self.user'])
             if self.content:
-                self.bt_quit.set_sensitive(False)
-                self.table_entries = conn.modules.rmtfunctions.listItems(self.user, self.content)
-                self.bt_quit.set_sensitive(True)
-                self.load_window()
+                self._get_items()
         return
 
     def on_rb_kim_toggled(self, widget, data=None):
@@ -324,10 +318,7 @@ class Main_Window():
             self.user = 'kim'
             self.user_settings = self.config.GetSubscribers(['self.user'])
             if self.content:
-                self.bt_quit.set_sensitive(False)
-                self.table_entries = conn.modules.rmtfunctions.listItems(self.user, self.content)
-                self.bt_quit.set_sensitive(True)
-                self.load_window()
+                self._get_items()
         return
 
     def on_rb_michelle_toggled(self, widget, data=None):
@@ -336,10 +327,7 @@ class Main_Window():
             self.user = 'michelle'
             self.user_settings = self.config.GetSubscribers(['self.user'])
             if self.content:
-                self.bt_quit.set_sensitive(False)
-                self.table_entries = conn.modules.rmtfunctions.listItems(self.user, self.content)
-                self.bt_quit.set_sensitive(True)
-                self.load_window()
+                self._get_items()
         return
 
     def on_rb_series_toggled(self, widget, data=None):
@@ -347,12 +335,7 @@ class Main_Window():
         if rb_series_status == "ON":
             self.content = 'Series'
             if self.user:
-                self.bt_quit.set_visible(False)
-                self.bt_quit.set_sensitive(False)
-                self.table_entries = conn.modules.rmtfunctions.listItems(self.user, self.content)
-                self.bt_quit.set_visible(True)
-                self.bt_quit.set_sensitive(True)
-                self.load_window()
+                self._get_items()
         return
 
     def on_rb_movies_toggled(self, widget, data=None):
@@ -360,10 +343,7 @@ class Main_Window():
         if rb_movies_status == "ON":
             self.content = 'Movies'
             if self.user:
-                self.bt_quit.set_sensitive(False)
-                self.table_entries = conn.modules.rmtfunctions.listItems(self.user, self.content)
-                self.bt_quit.set_sensitive(True)
-                self.load_window()
+                self._get_items()
         return
 
     def bt_quit_clicked(self,obj):
@@ -432,11 +412,18 @@ class Main_Window():
                                                'Title' : title
                                                })
 
-        rc = conn.modules.rmtfunctions.updateLinks(self.user, Update_Request)
-        self.table_entries = conn.modules.rmtfunctions.listItems(self.user, self.content)
-        self.load_window()
+#        rc = conn.modules.rmtfunctions.updateLinks(self.user, Update_Request)
+        rc = conn.root.UpdateLinks(self.user, Update_Request)
+        self._get_items()
 
         return
+
+    def _get_items(self):
+        self.bt_quit.set_sensitive(False)
+#        self.table_entries = conn.modules.rmtfunctions.listItems(self.user, self.content)
+        self.table_entries = conn.root.ListItems(self.user, self.content)
+        self.bt_quit.set_sensitive(True)
+        self.load_window()
 
 if __name__ == "__main__":
 
