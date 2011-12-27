@@ -40,9 +40,6 @@ config = Settings()
 host        = socket.gethostname()
 
 conn = rpyc.connect("192.168.9.201", 32489)
-print conn.root.get_service_name()
-
-#conn = rpyc.classic.connect("192.168.9.201")
 
 class Main_Window():
     def __init__(self):
@@ -54,7 +51,8 @@ class Main_Window():
         self.user = ''
         self.content = ''
         self.table_entries = []
-
+        self.msg_id = []
+        
         builder = gtk.Builder()
         builder.add_from_file(os.path.join(self.PgmDir, '%s.glade' % (__pgmname__)))
         events = {"on_main_window_destroy" : self.bt_quit_clicked,
@@ -88,6 +86,7 @@ class Main_Window():
         self.bt_cancel = builder.get_object("bt_cancel")
         self.bt_save = builder.get_object("bt_save")
         self.newcell = builder.get_object("newcell")
+        self.status_bar = builder.get_object("statusbar")
 
         #Initialize our Treeview
         self.treeview=builder.get_object("treeview")
@@ -351,13 +350,25 @@ class Main_Window():
         return
 
     def bt_cancel_clicked(self,obj):
+        self.bt_cancel.set_sensitive(False)
+        self.bt_save.set_sensitive(False)
+        self.pull_item()
+        self.push_item('Reloading Window, Please Wait')
+        while gtk.events_pending():
+            gtk.main_iteration_do(False)
         self.load_window()
+        self.push_item('Please Make Your Selections and Press Save or Cancel')
+        while gtk.events_pending():
+            gtk.main_iteration_do(False)
         return
 
     def bt_save_clicked(self, obj):
 
         self.bt_cancel.set_sensitive(False)
         self.bt_save.set_sensitive(False)
+        self.push_item('Please Wait for Updates to Complete')
+        while gtk.events_pending():
+            gtk.main_iteration_do(False)
 
         treeiter = self.treeview_model.get_iter_first()
         Update_Request = []
@@ -412,18 +423,36 @@ class Main_Window():
                                                'Title' : title
                                                })
 
-#        rc = conn.modules.rmtfunctions.updateLinks(self.user, Update_Request)
         rc = conn.root.UpdateLinks(self.user, Update_Request)
         self._get_items()
-
+        self.pull_item()
+        self.push_item('Updates Complete')
+        return
+    
+    def push_item(self, msg):
+        self.msg_id.append(self.status_bar.push(0, msg))
+        while gtk.events_pending():
+            gtk.main_iteration_do(False)
         return
 
+    def pull_item(self):
+        while len(self.msg_id) > 0:
+            self.msg_id.pop()
+            self.status_bar.pop(0)
+        return    
+
     def _get_items(self):
+        self.push_item('Please Wait for Window to Load')
         self.bt_quit.set_sensitive(False)
-#        self.table_entries = conn.modules.rmtfunctions.listItems(self.user, self.content)
+        while gtk.events_pending():
+            gtk.main_iteration_do(False)
         self.table_entries = conn.root.ListItems(self.user, self.content)
         self.bt_quit.set_sensitive(True)
         self.load_window()
+        self.pull_item()
+        self.push_item('Please Make Your Selections and Press Save or Cancel')
+        while gtk.events_pending():
+            gtk.main_iteration_do(False)
 
 if __name__ == "__main__":
 
