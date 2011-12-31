@@ -83,9 +83,9 @@ class EpisodeDetails(object):
 
     def _adj_episode(self, SeriesDetails):
         for _entry in self.config.EpisodeAdjList:
-            if _entry['SeriesName'] == SeriesDetails['SeriesName']:
+            if _entry['SeriesName'] == SeriesDetails['SeriesName'] and 'SeasonNum' in SeriesDetails:
                 if _entry['SeasonNum'] == SeriesDetails['SeasonNum']:
-                    if _entry['Begin'] < SeriesDetails['EpisodeNums'][0] and _entry['End'] > SeriesDetails['EpisodeNums'][0]:
+                    if _entry['Begin'] <= SeriesDetails['EpisodeNums'][0] and _entry['End'] >= SeriesDetails['EpisodeNums'][0]:
                         SeriesDetails['SeasonNum'] = SeriesDetails['SeasonNum'] + _entry['AdjSeason']
                         SeriesDetails['EpisodeNums'][0] = SeriesDetails['EpisodeNums'][0] + _entry['AdjEpisode']
                         return SeriesDetails

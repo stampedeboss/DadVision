@@ -193,7 +193,7 @@ class FileParser(dict):
             return _date_aired
         else:
             log.debug()
-            raise InvalidFileName('FileParser: {}: No Season / Episode Numbers or Date Aired in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
+            raise InvalidFilename('FileParser: {}: No Season / Episode Numbers or Date Aired in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
 
     def GetRegx(self):
 

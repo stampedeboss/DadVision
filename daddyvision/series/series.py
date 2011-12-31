@@ -6,28 +6,29 @@ Purpose:
    Assist with maintaining a Library of TV Series and Episode files.
 
 """
+from __future__ import division
 from daddyvision.common import logger
-from daddyvision.common.exceptions import (DataRetrievalError, EpisodeNotFound,
-    SeriesNotFound, DuplicateFilesFound, InvalidFilename, RegxSelectionError,
-    ConfigValueError)
-from daddyvision.common.exceptions import (InvalidArgumentType, InvalidPath,
-    InvalidFilename, ConfigNotFound, ConfigValueError, DictKeyError,
-    DataRetrievalError, SeriesNotFound, SeasonNotFound, EpisodeNotFound,
-    EpisodeNameNotFound)
-from daddyvision.series.fileparser import FileParser
+from daddyvision.common.exceptions import (RegxSelectionError, 
+    InvalidArgumentType, InvalidPath, InvalidFilename, ConfigNotFound, 
+    ConfigValueError, DictKeyError, DataRetrievalError, SeriesNotFound, 
+    SeasonNotFound, EpisodeNotFound)
+from daddyvision.common.options import OptionParser, OptionGroup
+from daddyvision.common.settings import Settings
+from daddyvision.common.countfiles import countFiles
 from daddyvision.series.episodeinfo import EpisodeDetails
+from daddyvision.series.fileparser import FileParser
+from datetime import datetime, date, timedelta
 from logging import INFO, WARNING, ERROR, DEBUG
-import datetime
 import filecmp
 import fnmatch
 import gtk
-import gtk.glade
 import logging
 import os
 import re
 import sys
 import time
 import unicodedata
+#import gtk.glade
 
 __author__ = "AJ Reynolds"
 __copyright__ = "Copyright 2011, AJ Reynolds"
@@ -43,330 +44,259 @@ __status__ = "Development"
 
 log = logging.getLogger(__pgmname__)
 
-class SeriesMain():
+class MainWindow():
 
-    def __init__(self):
+    def __init__(self, config, options):
+        log.trace('MainWindow - __init__')
 
+        _pgm_dir = os.path.dirname(__file__)
         builder = gtk.Builder()
-        builder.add_from_file(glade_file)
+        builder.add_from_file(os.path.join(_pgm_dir, '%s.glade' % (__pgmname__)))
         events = { "on_main_window_destroy" : self.quit,
-                    "on_bt_ok_clicked" : self.bt_ok_clicked,
-                    "on_bt_close_clicked" : self.bt_close_clicked
-                    }
+                   "on_bt_close_clicked" : self.quit,
+                   "on_fc_dir_file_set" : self.on_fc_dir_file_set,
+                   "on_bt_ok_clicked" : self.bt_ok_clicked
+                  }
         builder.connect_signals(events)
 
         self.wMain = builder.get_object("main_window")
-
-        self.wMain.set_size_request(800, 600)
-        self.wMain.set_position(gtk.WIN_POS_CENTER)
+        self.fc_dir = builder.get_object("fc_dir")
+        self.bt_execute = builder.get_object("bt_execute")
+        self.bt_quit = builder.get_object("bt_quit")
 
         #Initialize Log TextView
-        self.logwindowview=builder.get_object("txtvw_log")
-        self.logwindow=gtk.TextBuffer (None)
-        self.logwindowview.set_buffer(self.logwindow)
+        self.txtview_log=builder.get_object("txtview_log")
+        self.txtbuf_log=builder.get_object('txtbuf_log')
 
-        #Initialize our Show Tree (Treeview)
-        self.treevw_show=builder.get_object("treevw_show")
-        self.treest_show_model=gtk.TreeStore(str, str, str, str, str, str, str, str)
-        self.treevw_show.set_model(self.treest_show_model)
-        #create rendered column 1
-        renderer=gtk.CellRendererText()
-        column=gtk.TreeViewColumn("STATUS", renderer, text=0)
-        column.set_resizable(True)
-        self.treevw_show.append_column(column)
-        #create rendered column 2
-        renderer=gtk.CellRendererText()
-        column=gtk.TreeViewColumn("TVDB", renderer, text=1)
-        column.set_resizable(True)
-        self.treevw_show.append_column(column)
-        #create rendered column 3
-        renderer=gtk.CellRendererText()
-        column=gtk.TreeViewColumn("SERIES", renderer, text=2)
-        column.set_resizable(True)
-        self.treevw_show.append_column(column)
-        #create rendered column 4
-        renderer=gtk.CellRendererText()
-        column=gtk.TreeViewColumn(" ", renderer, text=3)
-        column.set_resizable(True)
-        self.treevw_show.append_column(column)
-        #create rendered column 5
-        renderer=gtk.CellRendererText()
-        column=gtk.TreeViewColumn(" ", renderer, text=4)
-        column.set_resizable(True)
-        self.treevw_show.append_column(column)
-        #create rendered column 6
-        renderer=gtk.CellRendererText()
-        column=gtk.TreeViewColumn(" ", renderer, text=5)
-        column.set_resizable(True)
-        self.treevw_show.append_column(column)
-        #create rendered column 7
-        renderer=gtk.CellRendererText()
-        column=gtk.TreeViewColumn(" ", renderer, text=6)
-        column.set_resizable(True)
-        self.treevw_show.append_column(column)
-        #create rendered column 8
-        renderer=gtk.CellRendererText()
-        column=gtk.TreeViewColumn(" ", renderer, text=7)
-        column.set_resizable(True)
-        self.treevw_show.append_column(column)
+        #Initialize our Treeview
+        self.tview_series=builder.get_object("tview_series")
+        self.tview_series_model=builder.get_object("tstore_series")
+        self.tselection_series = self.tview_series.get_selection()
+        self.tselection_series.set_mode(gtk.SELECTION_MULTIPLE)
+        mode = self.tselection_series.get_mode()
+        self.tview_series.set_hover_expand(False)
 
-        self.treevw_show.set_hover_expand(False)
-
+        self.library = SeriesLibrary(self, config, options)
+        self.requested_dir = options.requested_dir
+        self.fc_dir.set_current_folder(self.requested_dir)
+        
         self.wMain.show()
-
         gtk.main()
-
         return
 
-    def insert_row(self, model, parent, status, tvdb_id=' ', show=' ', season=' ', episode=' ', title=' ', air_date=' ', item7=' '):
-        myiter=model.append(parent, None)
-        model.set_value(myiter, 0, status)
-        model.set_value(myiter, 1, tvdb_id)
-        model.set_value(myiter, 2, show)
-        model.set_value(myiter, 3, season)
-        model.set_value(myiter, 4, episode)
-        model.set_value(myiter, 5, title)
-        model.set_value(myiter, 6, air_date)
-        model.set_value(myiter, 7, item7)
+    def insert_row(self, parent, series, issue=' ', season=' ', episode=' ', title=' ', air_date=' '):
+        log.trace('insert_row: Series: {} Status: {} '.format(series, issue))
+        myiter=self.tview_series_model.append(parent, None)
+        self.tview_series_model.set_value(myiter, 0, series)
+        self.tview_series_model.set_value(myiter, 1, issue)
+        self.tview_series_model.set_value(myiter, 2, season)
+        self.tview_series_model.set_value(myiter, 3, episode)
+        self.tview_series_model.set_value(myiter, 4, title)
+        self.tview_series_model.set_value(myiter, 5, air_date)
+        self.tview_series.expand_all()
+        path = self.tview_series_model.get_path(myiter)
+        self.tview_series.scroll_to_cell(path)
+        while gtk.events_pending():
+            gtk.main_iteration_do(False)
         return myiter
 
+    def on_fc_dir_file_set(self, obj):
+        self.requested_dir = self.fc_dir.get_current_folder()
+        return
+        
     def quit(self,obj):
+        log.trace('quit: ending')
         gtk.main_quit()
 
-    def bt_ok_clicked(self,obj):
-        message = "====Begin Scan===="
-        log.debug(message)
-        self.check_dir(requested_dir)
+    def bt_ok_clicked(self, obj):
+        log.trace('bt_ok_clicked: obj: {}'.format(obj))
+        self.bt_execute.set_sensitive(False)
+#        self.bt_quit.set_sensitive(False)
+        while gtk.events_pending():
+            gtk.main_iteration_do(False)
+        self.library.check(self.requested_dir)
 
-    def bt_close_clicked(self,obj):
-        gtk.main_quit()
-
-    def log(self, message, color="black", enter="\n"):
-        message = message + enter
-        buffer = self.logwindow
+    def write_log_entry(self, msg, level=INFO, enter="\n"):
+        log.trace('write_log_entry: Level: {}  Message: {}'.format(level, msg))
+        message = msg + enter
+        buffer = self.txtbuf_log
         iter = buffer.get_end_iter()
-        if color != "black":
+        if level == WARNING:
+            log.warn(msg)
             tag = buffer.create_tag()
-            tag.set_property("foreground", color)
-            self.logwindow.insert_with_tags(buffer.get_end_iter(), message, tag)
+            tag.set_property("foreground", 'red')
+            self.txtbuf_log.insert_with_tags(buffer.get_end_iter(), message, tag)
+        elif level == ERROR:
+            log.error(msg)
+            tag = buffer.create_tag()
+            tag.set_property("foreground", 'red')
+            self.txtbuf_log.insert_with_tags(buffer.get_end_iter(), message, tag)
         else:
-            self.logwindow.insert(iter, message)
+            log.info(msg)
+            self.txtbuf_log.insert(iter, message)
             mark = buffer.create_mark("end", buffer.get_end_iter(), False)
-            self.logwindowview.scroll_to_mark(mark, 0.05, True, 0.0,1.0)
+            self.txtview_log.scroll_to_mark(mark, 0.05, True, 0.0,1.0)
+        while gtk.events_pending():
+            gtk.main_iteration_do(False)
+        return
 
-class Library(object):
 
-    def __init__(self):
+class SeriesLibrary(object):
 
-        episodeinfo = EpisodeDetails()
+    def __init__(self, mw, config, options):
+        log.trace('SeriesLibrary - __init__')
 
-        if options.use_gui:
-            mw = SeriesMain()
-
-        if not options.nogui:
+        self.config = config
+        self.options = options
+        self.mw = mw
+        self.episodeinfo = EpisodeDetails()
+        self.fileparser = FileParser()
 
     def check(self, pathname):
-
         log.trace('check: Pathname Requested: {}'.format(pathname))
 
-        dir_list = []
-        tvdb_list = []
-        showdata = []
-        lastseries = 'START'
-        lastseason = None
-        lastepno = None
-        lastepname = None
-        lastext = None
-        lastfname = None
-        lastfqname = None
-        scanned = 0
-        last_dups = ' '
+        _series_details = []
+        _episode_list = []
+        _last_file = None
+        _last_fq_name = None
+        _last_series = ' '
+        _last_season = None
+        _last_ep_no = None
+        _last_ext = None
+        _files_checked = 0
+        _last_dups = ' '
+        
+        _total_files = countFiles(pathname, exclude=config.ExcludeList, types=config.MediaExt)
+        
+        self.mw.write_log_entry("==== Begin Scan: {} ====".format(pathname), INFO)
 
-        if options.nogui:
-            MISSING = " "
-            DUPS    = " "
-        else:
-            MISSING    = mw.insert_row(mw.treest_show_model, None,"Missing")
-            DUPS    = mw.insert_row(mw.treest_show_model, None,"Dup")
-
-        log.info("====Begin Scan====")
-
-        for root, dirs, files in os.walk(os.path.abspath(requested_dir),followlinks=True):
-            if dirs != None:
-                dirs.sort()
-                for exclude_dir in exclude_list:
-                    try:
-                        index = dirs.index(exclude_dir)
-                        dirs.pop(index)
-                        if options.debug:
-                            log.debug('Removing Dir: %s' % exclude_dir)
-                    except:
-                        pass
-                    pass
-                files.sort()
-                for fname in files:
-                    scanned = scanned + 1
-                    quotient, remainder = divmod(scanned, 250)
-                    if remainder == 0:
-                        log.info('Files Processed: %s - On Series: %s' % (scanned, lastseries))
-                    fqname = os.path.join(root, fname)
-                    if options.debug:
-                        log.debug('Processing File: %s' % (fqname))
-                    for cmatcher in compiled_regexs:
-                        series = cmatcher.search(fqname)
-                        if series:
-                            if options.debug:
-                                log.debug("RegEx Matched: %s" % cmatcher.pattern)
-                                namedgroups = series.groupdict().keys()
-                                for key in namedgroups:
-                                    log.debug("%s: %s" % ( key, series.group(key)))
-                            break
-                    if not series:
-                        log.error("Unable to Parse: %s" % os.path.join(root, fname))
+        for _root, _dirs, _files in os.walk(os.path.abspath(pathname),followlinks=True):
+            if _dirs != None:
+                _dirs.sort()
+                for _dir in _dirs:
+                    if self.ignored(_dir):
+                        _dirs.remove(_dir)
+                        log.trace('Removing Dir: %s' % _dir)
+                _files.sort()
+                for _file in _files:
+                    if os.path.splitext(_file)[1][1:] in self.config.MediaExt:
+                        _files_checked += 1
+                        _fq_name = os.path.join(_root, _file)
+                        try:
+                            FileDetails = self.fileparser.getFileDetails(_fq_name)
+                        except (InvalidFilename, RegxSelectionError, SeasonNotFound), msg:
+                            self.mw.write_log_entry('Skipping - Unable to Parse: {}'.format(msg), ERROR)
+                            continue
+                    else:
                         continue
-                    if series:
-                        seriesname     = series.group('seriesname').rsplit('/',1)[-1].replace("&amp;", "&")
-                        season         = int(series.group('season'))
-                        epname        = series.group('epname')
-                        ext         = series.group('ext')
-                        fmt_epno, epno = formatEpisodeNumbers(series)
-                        if lastseries != seriesname:
-                            log.debug('Processing Series: %s' % seriesname)
-                            if args[0].lower() == 'check' or args[0].lower() == 'missing':
-                                missing = checkMissing(MISSING, dir_list, tvdb_list)
-                            showdata, tvdb_list = getSeries(seriesname)
-                            dir_list = []
-                        elif season == lastseason and epno == lastepno:
-                            if args[0].lower() == 'check' or args[0].lower() == 'dups':
-                                log.debug('Possible Dups: %s - %s' % (lastfname, fname))
-                                last_dups = handle_dup(DUPS, last_dups, showdata, os.path.abspath(requested_dir), seriesname, season, fmt_epno, epno, epname, ext, lastext, fqname, lastfqname, fname, lastfname)
 
-                    for ep_num in epno:
-                        dir_entry = "%s\t%d\t%d" % (seriesname, season, ep_num)
-                        dir_list.append(dir_entry)
+                    if FileDetails['SeriesName'] != _last_series:
+                        message = 'Files Checked: %2.2f%% - %-5s of %5s   Current Series: %s' % ((_files_checked-1)/_total_files, (_files_checked-1), _total_files, _last_series)
+                        self.mw.write_log_entry(message)
+                        if _series_details:
+                            self.checkMissing(_episode_list, _series_details)
+                        _series_details = self.getSeries(FileDetails['SeriesName'])
+                        _episode_list = []
+#                    elif FileDetails['SeasonNum'] == _last_season and FileDetails['EpisodeNums'] == _last_ep_no:
+#                        log.trace('Possible Dups: %s - %s' % (_last_file, _file))
+#                        _last_dups = self.handle_dup(None, _last_dups, _series_details, FileDetails, _last_ext, _fq_name, _last_fq_name, _file, _last_file)
 
-                    lastseries     = seriesname
-                    lastfqname     = fqname
-                    lastfname     = fname
-                    lastseason     = season
-                    lastepno     = epno
-                    lastepname     = epname
-                    lastext     = ext
+                    _episode_list.append(FileDetails)
+                    _last_file = _file
+                    _last_fq_name = _fq_name
+                    _last_series = FileDetails['SeriesName']
+                    _last_season = FileDetails['SeasonNum']
+                    _last_ep_no = FileDetails['EpisodeNums']
+                    _last_ext = FileDetails['Ext']
 
-        if args[0].lower() == 'check' or args[0].lower() == 'missing':
-            missing = checkMissing(MISSING, dir_list, tvdb_list)
+        message = 'Files Checked: %2.2f%%   %05d of %5d   Current Series: %s' % ((_files_checked)/_total_files, (_files_checked), _total_files, _last_series)
+        self.mw.write_log_entry(message)
+        self.checkMissing(_episode_list, _series_details)
+        self.mw.tview_series.collapse_all()
+        self.mw.tview_series.scroll_to_point(0,0)
+        while gtk.events_pending():
+            gtk.main_iteration_do(False)
 
-        def processDups(self, dups):
-            pass
+    def processDups(self, dups):
+        pass
 
-
-
-
-    def getSeries(seriesname):
-        if options.debug:
-            log.debug('getSeries - seriesname: %s' % (seriesname))
+    def getSeries(self, seriesname):
+        log.trace('getSeries: Series Name: %s' % (seriesname))
         try:
-            showdata = {'seriesname': seriesname}
-            showdata = episodeinfo.ShowDetails(showdata)
+            _series_details = {'SeriesName': seriesname}
+            _series_details = self.episodeinfo.getDetails(_series_details)
         except (SeriesNotFound, InvalidArgumentType, InvalidPath, InvalidFilename,
             ConfigNotFound, ConfigValueError, DataRetrievalError) as errormsg:
             log.warn(errormsg)
             log.error("Skipping series: %s" % (seriesname))
-            return None, None
-        tvdb_list = []
-        for item in showdata['episodedata']:
-            if item['airdate'] is not None:
-                if item['airdate'] < (datetime.today() - timedelta(days=1)):
-                    showid         = showdata['showid']
-                    seriesname     = showdata['seriesname']
-                    season         = item['season']
-                    epnum         = item['epno'][0]
-                    eptitle     = item['episodename']
-                    airdate     = item['airdate']
-                    tvdb_entry = "%s\t%d\t%d\t%s\t%s\t%s" % (seriesname, season, epnum, eptitle, airdate, showid)
-                    tvdb_list.append(tvdb_entry)
-        tvdb_list.sort()
-        return showdata, tvdb_list
+            return None
+        return _series_details
 
-    def checkMissing(MISSING, dir_list, tvdb_list):
-        if options.debug:
-            log.debug('checkMissing - dir_list: tvdb_list:' % ())
-        if tvdb_list == None:
-            return
+    def checkMissing(self, episode_list, series_details):
+        log.debug('checkMissing - episode_list: {} series_details: {}'.format(episode_list, series_details))
+
         missing = []
-        tvdb_entry = ''
-        dir_entry = ''
-        date_boundry = date.today() - timedelta(days=options.age_limit)
-        for tvdb_entry in tvdb_list:
-            found_show = False
-            tvdb_seriesname, tvdb_season, tvdb_epno, tvdb_eptitle, tvdb_airdate, tvdb_showid = tvdb_entry.split("\t")
-            if not options.show_specials:
-                if int(tvdb_season) == 0:
+        date_boundry = date.today() - timedelta(days=self.options.age_limit)
+
+        for series_entry in series_details['EpisodeData']:
+            found_series = False
+            if series_entry['SeasonNum'] == 0:
+                continue
+#            year, month, day = time.strptime(series_entry['DateAired'], "%Y-%m-%d %H:%M:%S")[:3]
+            if series_entry['DateAired']:
+                if series_entry['DateAired'].date() < date_boundry or series_entry['DateAired'].date() > datetime.today().date():
                     continue
-            if options.age_limit_requested:
-                year, month, day = time.strptime(tvdb_airdate, "%Y-%m-%d %H:%M:%S")[:3]
-                if date(year, month, day) < date_boundry:
-                    continue
-            for dir_entry in dir_list:
-                dir_seriesname, dir_season, dir_epno = dir_entry.split("\t")
-                if tvdb_season == dir_season and tvdb_epno == dir_epno:
-                    found_show = True
-                    continue
-            if not found_show:
-                missing.append(tvdb_entry)
-                if options.debug:
-                    log.warn(tvdb_entry)
+            else:
+                continue
+            try:
+                for episode_entry in episode_list:
+                    if series_entry['SeasonNum'] == episode_entry['SeasonNum'] and series_entry['EpisodeNum'][0] in episode_entry['EpisodeNums']:
+                        found_series = True
+                        if len(episode_entry['EpisodeNums']) > 1:
+                            episode_entry['EpisodeNums'].remove(series_entry['EpisodeNum'][0])
+                        else:
+                            episode_list.remove(episode_entry)
+                        raise GetOutOfLoop
+            except GetOutOfLoop:
+                continue
+            if not found_series:
+                missing.append(series_entry)
 
         if len(missing) > 0:
-            tvdb_seriesname, tvdb_season, tvdb_epno, tvdb_eptitle, tvdb_airdate, tvdb_showid = missing[0].split("\t")
-            message = "Missing %i episode(s) - TVDB ID: %8.8s SERIES: %-25.25s" % (len(missing), tvdb_showid, tvdb_seriesname)
-            log.warn(message)
-            if not options.nogui:
-                mw.log(message, "red")
-                missing_series = mw.insert_row(mw.treest_show_model, MISSING,
-                                            " ",
-                                            tvdb_showid,
-                                            tvdb_seriesname,
-                                            "SEA/EP",
-                                            "TITLE",
-                                            "AIR DATE")
+            message = "Missing %i episode(s) - SERIES: %-25.25s" % (len(missing), series_details['SeriesName'])
+            self.mw.write_log_entry(message, WARNING)
+            missing_series = self.mw.insert_row(None, series_details['SeriesName'])
+            
         last_season = ''
-        for tvdb_entry in missing:
-            tvdb_seriesname, tvdb_season, tvdb_epno, tvdb_eptitle, tvdb_airdate, tvdb_showid = tvdb_entry.split("\t")
-            tvdb_season = "S%2.2d" % int(tvdb_season)
-            tvdb_epno = "E%2.2d" % int(tvdb_epno)
-            tvdb_airdate = datetime.strptime(tvdb_airdate, "%Y-%m-%d %H:%M:%S")
-            if options.nogui:
-                log.warn('%8.8s SEA: %3.3s EPNO: %3.3s TITLE: %-25.25s AIRDATE: %s' % (
-                                                                                        "Missing-",
-                                                                                        tvdb_season,
-                                                                                        tvdb_epno,
-                                                                                        tvdb_eptitle,
-                                                                                        tvdb_airdate.strftime("%Y-%m-%d")))
+        for _entry in missing:
+            _season_num = "S%2.2d" % int(_entry['SeasonNum'])
+            _ep_no = "E%2.2d" % int(_entry['EpisodeNum'][0])
+            if _entry['DateAired']:
+                _date_aired = _entry['DateAired'].date()
             else:
-                if last_season != tvdb_season:
-                    missing_season = mw.insert_row(mw.treest_show_model, missing_series, " ", " ", " ", tvdb_season)
-                    missing_episode = mw.insert_row(mw.treest_show_model, missing_season,
-                                                " ",
-                                                " ",
-                                                " ",
-                                                tvdb_epno,
-                                                tvdb_eptitle,
-                                                tvdb_airdate.strftime("%Y-%m-%d"))
+                _date_aired = "Unknown"  
+            if len(missing) > 5:
+                if last_season != _entry['SeasonNum']:
+                    missing_season = self.mw.insert_row(missing_series, " ", "Missing", _season_num)
+                missing_episode = self.mw.insert_row(missing_season, " ", "Missing", _season_num, _ep_no,
+                                                                                    _entry['EpisodeTitle'].replace("&amp;", "&"),
+                                                                                    _date_aired)
+            else:
+                missing_season = self.mw.insert_row(missing_series, " ", "Missing", _season_num, _ep_no,
+                                                                                                     _entry['EpisodeTitle'].replace("&amp;", "&"),
+                                                                                                     _date_aired)
+            last_season = _entry['SeasonNum']
 
-            last_season = tvdb_season
-
-    def handle_dup(DUPS, last_dups, showdata, series_dir, seriesname, season, fmt_epno, epno, epname, ext, lastext, fqname, lastfqname, fname, lastfname):
+    def handle_dup(self, DUPS, last_dups, seriesdata, series_dir, seriesname, season, fmt_epno, epno, epname, ext, lastext, fqname, lastfqname, fname, lastfname):
         global dups_series, dups_episode
 
-        if options.debug:
-            log.debug('handle_dup - seriesname: %s season: %s fmt_epno: %s ext: %s' % (seriesname, season, fmt_epno, ext))
+        log.debug('handle_dup - seriesname: %s season: %s fmt_epno: %s ext: %s' % (seriesname, season, fmt_epno, ext))
 
         fmt_dups = '%-8.8s %-8.8s SERIES: %-25.25s SEA: %2.2s KEEPING: %-35.35s REMOVING: %-35.35s %s'
 
         if last_dups != seriesname:
             if not options.nogui:
-                dups_series = mw.insert_row(mw.treest_show_model, DUPS,
+                dups_series = mw.insert_row(mw.treest_series_model, DUPS,
                                         " ",
                                         " ",
                                         seriesname,"SEASON", "KEEPING", "REMOVING", "NEW NAME")
@@ -392,7 +322,7 @@ class Library(object):
                                     ext,
                                     " "))
             else:
-                dups_episode = mw.insert_row(mw.treest_show_model, dups_series,
+                dups_episode = mw.insert_row(mw.treest_series_model, dups_series,
                                             action,
                                             " ",
                                             " ",
@@ -416,7 +346,7 @@ class Library(object):
                 message = 'Auto Removing: %s' % lastfqname
                 log.info(message)
                 mw.log(message)
-                dups_episode = mw.insert_row(mw.treest_show_model, dups_series,
+                dups_episode = mw.insert_row(mw.treest_series_model, dups_series,
                                     action,
                                     " ",
                                     " ",
@@ -437,7 +367,7 @@ class Library(object):
                                     lastext,
                                     " "))
             else:
-                dups_episode = mw.insert_row(mw.treest_show_model, dups_series,
+                dups_episode = mw.insert_row(mw.treest_series_model, dups_series,
                                             action,
                                             " ",
                                             " ",
@@ -454,7 +384,7 @@ class Library(object):
                 'epno' : fmt_epno,
                 'ext' : ext
                 }
-        for item in showdata['episodedata']:
+        for item in seriesdata['episodedata']:
             for single_epno in epno:
                 single_epno = [single_epno]
                 if item['season'] == season and item['epno'] == single_epno:
@@ -468,8 +398,7 @@ class Library(object):
                                                 'epno'         : single_epno[0],
                                                 'episodename'     : item['episodename'],
                                                 'airdate'        : item['airdate']}]
-        if options.debug:
-            log.debug("epdata: %s" % epdata)
+        log.debug("epdata: %s" % epdata)
         if 'episodedata' in epdata:
             epdata['epname'] = formatEpisodeName(epdata['episodedata'], join_with = FileNames['multiep_join_name_with'])
             if epdata['epname'] == epname:
@@ -484,7 +413,7 @@ class Library(object):
                     except OSError, exc:
                         log.warning('Delete Failed: %s' % exc)
                 if not options.nogui:
-                    dups_episode = mw.insert_row(mw.treest_show_model, dups_series,
+                    dups_episode = mw.insert_row(mw.treest_series_model, dups_series,
                                                 action,
                                                 " ",
                                                 " ",
@@ -503,7 +432,7 @@ class Library(object):
                 except OSError, exc:
                     log.warning('Delete Failed: %s' % exc)
             if not options.nogui:
-                dups_episode = mw.insert_row(mw.treest_show_model, dups_series,
+                dups_episode = mw.insert_row(mw.treest_series_model, dups_series,
                                             action,
                                             " ",
                                             " ",
@@ -528,7 +457,7 @@ class Library(object):
                     except OSError, exc:
                         log.warning('Rename Failed: %s' % exc)
                 if not options.nogui:
-                    dups_episode = mw.insert_row(mw.treest_show_model, dups_series,
+                    dups_episode = mw.insert_row(mw.treest_series_model, dups_series,
                                             action,
                                             " ",
                                             " ",
@@ -546,94 +475,49 @@ class Library(object):
             if not options.nogui:
                 mw.log(message)
 
-    def formatEpisodeNumbers(series):
-        if options.debug:
-            log.debug('formatEpisodeNumbers - series: %s' % (series))
-        """Format episode number(s) into string, using configured values
+
+    def ignored(self, name):
+        """ Check for ignored pathnames.
         """
-        namedgroups = series.groupdict().keys()
-        if 'episodenumber1' in namedgroups:
-            # Multiple episodes, have episodenumber1 or 2 etc
-            epno = []
-            for cur in namedgroups:
-                epnomatch = re.match('episodenumber(\d+)', cur)
-                if epnomatch:
-                    epno.append(int(series.group(cur)))
-                epno.sort()
-        elif 'episodenumberstart' in namedgroups:
-            # Multiple episodes, regex specifies start and end number
-            start = int(series.group('episodenumberstart'))
-            end = int(series.group('episodenumberend'))
-            if start > end:
-                # Swap start and end
-                start, end = end, start
-            epno = range(start, end + 1)
+        return any(fnmatch.fnmatch(name.lower(), pattern) for pattern in self.config.ExcludeList)
 
-        elif 'episodenumber' in namedgroups:
-            epno = [int(series.group('episodenumber')), ]
+class GetOutOfLoop(Exception):
+    pass
+    
+class localOptions(OptionParser):
 
-        if len(epno) == 1:
-            fmt_epno = FileNames['episode_single'] % epno[0]
-        else:
-            fmt_epno = FileNames['episode_separator'].join(
-                                                        FileNames['episode_single'] % x for x in epno)
+    def __init__(self, unit_test=False, **kwargs):
+        OptionParser.__init__(self, **kwargs)
 
-        return fmt_epno, epno
+        group = OptionGroup(self, "Series Unique Options:")
+        group.add_option("-i", "--input-directory",
+            dest="requested_dir",
+            default="None",
+            help="directory to be scanned")
 
-    def formatEpisodeName(epdata, join_with):
-        if options.debug:
-            log.debug('formatEpisodeName - epdata: %s' % (epdata))
-        """Takes a list of episode names, formats them into a string.
-        If two names are supplied, such as "Pilot (1)" and "Pilot (2)", the
-        returned string will be "Pilot (1-2)"
+        group.add_option("-x", "--no-excludes", dest="no_excludes",
+            action="store_true", default=False,
+            help="Ignore Exclude File")
 
-        If two different episode names are found, such as "The first", and
-        "Something else" it will return "The first, Something else"
-        """
+        group.add_option("-r", "--remove", dest="remove",
+            action="store_true", default=False,
+            help="remove files (keep MKV over AVI, delete non-video files)")
 
-        names = []
-        for nameentry in epdata:
-            newname = nameentry['episodename']
-            newname = unicodedata.normalize('NFKD', newname).encode('ascii','ignore')
-            newname = newname.replace("&amp;", "&").replace("/", "_")
-            names.append(newname)
-            if options.debug:
-                log.debug('EP Name: %s' % nameentry['episodename'])
+        group.add_option("-d", "--days", dest="age_limit",
+            action="store", type=int, default=90,
+            help="Limit check back x number of days, default 30")
+        
+        group.add_option("-f", "--no-age-limit-requested", dest="age_limit",
+            action="store_const", const=99999,
+            help="Full Check")
+        self.add_option_group(group)
 
-        if len(names) == 0:
-            return "NOT FOUND IN TVDB"
-
-        if len(names) == 1:
-            return names[0]
-
-        found_names = []
-        numbers = []
-
-        for cname in names:
-            number = re.match("(.*) \(([0-9]+)\)$", cname)
-            if number:
-                epname, epno = number.group(1), number.group(2)
-                if len(found_names) > 0 and epname not in found_names:
-                    return join_with.join(names)
-                found_names.append(epname)
-                numbers.append(int(epno))
-            else:
-                # An episode didn't match
-                return join_with.join(names)
-
-        names = []
-        start, end = min(numbers), max(numbers)
-        names.append("%s (%d-%d)" % (found_names[0], start, end))
-        return join_with.join(names)
 
 if __name__ == "__main__":
 
-    from daddyvision.common.settings import Settings
-    from daddyvision.common.options import OptionParser, CoreOptionParser
-
+    config = Settings()
     logger.initialize()
-
-    parser = CoreOptionParser()
+    parser = localOptions()
     options, args = parser.parse_args()
 
     log_level = logging.getLevelName(options.loglevel.upper())
@@ -648,29 +532,19 @@ if __name__ == "__main__":
     log.debug("Parsed command line options: {!s}".format(options))
     log.debug("Parsed arguments: %r" % args)
 
-    _config_settings = Settings()
-
     _path_name = ''
     for i in range(len(args)):
         _path_name = '%s %s'% (_path_name, args[i])
-    _path_name = _path_name.lstrip().rstrip()
-    if len(_path_name) == 0:
-        _new_series_dir = os.path.join ( os.path.split(_config_settings.SeriesDir)[0], _config_settings.NewDir )
-        msg = 'Missing Scan Starting Point (Input Directory), Using Default: {}'.format(_new_series_dir)
-        log.info(msg)
-        _path_name = _new_series_dir
-
-    if not os.path.exists(_path_name):
-        log.error('Invalid arguments file or path name not found: %s' % _path_name)
-        sys.exit(1)
 
     if options.requested_dir == "None":
         if len(args) > 1:
-            options.requested_dir = args[1]
+            options.requested_dir = _path_name
         else:
-            log.info('Missing Scan Starting Point (Input Directory), Using Default: %r' % series_dir)
-            options.requested_dir = series_dir
+            log.info('Missing Scan Starting Point (Input Directory), Using Default: %r' % config.SeriesDir)
+            options.requested_dir = config.SeriesDir
 
-    library = Library()
+    if not os.path.exists(options.requested_dir):
+        log.error('Invalid arguments file or path name not found: %s' % options.requested_dir)
+        sys.exit(1)
 
-    library.Check(options.requested_dir)
+    mw = MainWindow(config, options)

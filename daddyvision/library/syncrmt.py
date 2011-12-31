@@ -88,7 +88,7 @@ class DaddyvisionNetwork(object):
                '{}'.format(self.options.CmdLineArgs),
                '--log-file={}'.format(log_file),
                '{}/Series/'.format(self.options.SymLinks),
-               '{}@{}:{}/'.format(self.options.user, self.options.HostName, self.options.SeriesRmt)]
+               '{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt)]
 
         try:
             process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Series'))
@@ -107,7 +107,7 @@ class DaddyvisionNetwork(object):
                '{}'.format(self.options.CmdLineArgs),
                '--log-file={}'.format(log_file),
                '{}/Movies/'.format(self.options.SymLinks),
-               '{}@{}:{}/'.format(self.options.user, self.options.HostName, self.options.MoviesRmt)]
+               '{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.MoviesRmt)]
         try:
             process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Movies'))
         except CalledProcessError, exc:
@@ -155,7 +155,7 @@ class DaddyvisionNetwork(object):
                '--log-file={}'.format(log_file),
                '--files-from={}'.format(_files_to_download_temp.name),
                './',
-               '{}@{}:{}/'.format(self.options.user, self.options.HostName, self.options.SeriesRmt)]
+               '{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt)]
         try:
             process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=directory)
         except CalledProcessError, exc:
@@ -183,6 +183,7 @@ class DaddyvisionNetwork(object):
             self.options.SymLinks = os.path.join(config.SubscriptionDir, self.options.user)
 
             profile = config.GetSubscribers(req_profile=[self.options.user])
+            self.options.UserId = profile[self.options.user]['UserId']
             self.options.SeriesRmt = profile[self.options.user]['SeriesDir']
             self.options.MoviesRmt = profile[self.options.user]['MovieDir']
             self.options.HostName = profile[self.options.user]['HostName']
