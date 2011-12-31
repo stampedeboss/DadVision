@@ -114,11 +114,12 @@ class Settings(object):
                 for line in exclude_file_obj.readlines():
                     self.ExcludeList.append(line.rstrip("\n"))
 
-        exclude_extras = os.path.expanduser(Common['ExcludeExtrasFile'])
-        if os.path.exists(exclude_extras):
-            with open(exclude_extras, "r") as exclude_file_obj:
+        self.ExcludeScanList = []
+        ExcludeScanFile = os.path.expanduser(Common['ExcludeScanFile'])
+        if os.path.exists(ExcludeScanFile):
+            with open(ExcludeScanFile, "r") as exclude_file_obj:
                 for line in exclude_file_obj.readlines():
-                    self.ExcludeList.append(line.rstrip("\n"))
+                    self.ExcludeScanList.append(line.rstrip("\n"))
 
 #        log.debug('Exclude List: LOADED')
 
@@ -295,11 +296,11 @@ class Settings(object):
         config['Common']['SplHandFile']   = os.path.join(ConfigDir, 'Series_Special_Handling')
         touch(os.path.join(ConfigDir, 'Series_Special_Handling'))
 
-        config['Common']['ExcludeExtrasFile'] = os.path.join(ConfigDir, 'Series_Exclude_Extras')
-        touch(os.path.join(ConfigDir, 'Series_Exclude_Extras'))
+        config['Common']['ExcludeFile']   = os.path.join(ConfigDir, 'Series_Excludes')
+        touch(os.path.join(ConfigDir, 'Series_Excludes'))
 
-        config['Common']['ExcludeFile']   = os.path.join(ConfigDir, 'Series_Exclude_Rename')
-        touch(os.path.join(ConfigDir, 'Series_Exclude_Rename'))
+        config['Common']['ExcludeScanFile'] = os.path.join(ConfigDir, 'Series_Excluded_From_Scans')
+        touch(os.path.join(ConfigDir, 'Series_Excluded_From_Scans'))
 
         config['Common']['EpisodeAdjFile']   = os.path.join(ConfigDir, 'Series_Episode_Adjustments')
         touch(os.path.join(ConfigDir, 'Series_Episode_Adjustments'))

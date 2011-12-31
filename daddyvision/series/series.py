@@ -8,9 +8,9 @@ Purpose:
 """
 from __future__ import division
 from daddyvision.common import logger
-from daddyvision.common.exceptions import (RegxSelectionError, 
-    InvalidArgumentType, InvalidPath, InvalidFilename, ConfigNotFound, 
-    ConfigValueError, DictKeyError, DataRetrievalError, SeriesNotFound, 
+from daddyvision.common.exceptions import (RegxSelectionError,
+    InvalidArgumentType, InvalidPath, InvalidFilename, ConfigNotFound,
+    ConfigValueError, DictKeyError, DataRetrievalError, SeriesNotFound,
     SeasonNotFound, EpisodeNotFound)
 from daddyvision.common.options import OptionParser, OptionGroup
 from daddyvision.common.settings import Settings
@@ -79,7 +79,7 @@ class MainWindow():
         self.library = SeriesLibrary(self, config, options)
         self.requested_dir = options.requested_dir
         self.fc_dir.set_current_folder(self.requested_dir)
-        
+
         self.wMain.show()
         gtk.main()
         return
@@ -103,7 +103,7 @@ class MainWindow():
     def on_fc_dir_file_set(self, obj):
         self.requested_dir = self.fc_dir.get_current_folder()
         return
-        
+
     def quit(self,obj):
         log.trace('quit: ending')
         gtk.main_quit()
@@ -151,6 +151,8 @@ class SeriesLibrary(object):
         self.mw = mw
         self.episodeinfo = EpisodeDetails()
         self.fileparser = FileParser()
+        if self.options.no_excludes:
+            config.ExcludeScanList = []
 
     def check(self, pathname):
         log.trace('check: Pathname Requested: {}'.format(pathname))
@@ -165,15 +167,16 @@ class SeriesLibrary(object):
         _last_ext = None
         _files_checked = 0
         _last_dups = ' '
-        
-        _total_files = countFiles(pathname, exclude=config.ExcludeList, types=config.MediaExt)
-        
+
+        _total_files = countFiles(pathname, exclude_list=(config.ExcludeList + config.ExcludeScanList), types=config.MediaExt)
+
         self.mw.write_log_entry("==== Begin Scan: {} ====".format(pathname), INFO)
 
         for _root, _dirs, _files in os.walk(os.path.abspath(pathname),followlinks=True):
             if _dirs != None:
                 _dirs.sort()
-                for _dir in _dirs:
+                _dirs_temp = sorted(_dirs)
+                for _dir in _dirs_temp:
                     if self.ignored(_dir):
                         _dirs.remove(_dir)
                         log.trace('Removing Dir: %s' % _dir)
@@ -191,7 +194,7 @@ class SeriesLibrary(object):
                         continue
 
                     if FileDetails['SeriesName'] != _last_series:
-                        message = 'Files Checked: %2.2f%% - %-5s of %5s   Current Series: %s' % ((_files_checked-1)/_total_files, (_files_checked-1), _total_files, _last_series)
+                        message = 'Files Checked: %2.2f%%   %5d of %5d   Current Series: %s' % ((_files_checked-1)/_total_files, (_files_checked-1), _total_files, _last_series)
                         self.mw.write_log_entry(message)
                         if _series_details:
                             self.checkMissing(_episode_list, _series_details)
@@ -209,7 +212,7 @@ class SeriesLibrary(object):
                     _last_ep_no = FileDetails['EpisodeNums']
                     _last_ext = FileDetails['Ext']
 
-        message = 'Files Checked: %2.2f%%   %05d of %5d   Current Series: %s' % ((_files_checked)/_total_files, (_files_checked), _total_files, _last_series)
+        message = 'Files Checked: %2.2f%%   %5d of %5d   Current Series: %s' % ((_files_checked)/_total_files, (_files_checked), _total_files, _last_series)
         self.mw.write_log_entry(message)
         self.checkMissing(_episode_list, _series_details)
         self.mw.tview_series.collapse_all()
@@ -266,7 +269,7 @@ class SeriesLibrary(object):
             message = "Missing %i episode(s) - SERIES: %-25.25s" % (len(missing), series_details['SeriesName'])
             self.mw.write_log_entry(message, WARNING)
             missing_series = self.mw.insert_row(None, series_details['SeriesName'])
-            
+
         last_season = ''
         for _entry in missing:
             _season_num = "S%2.2d" % int(_entry['SeasonNum'])
@@ -274,7 +277,7 @@ class SeriesLibrary(object):
             if _entry['DateAired']:
                 _date_aired = _entry['DateAired'].date()
             else:
-                _date_aired = "Unknown"  
+                _date_aired = "Unknown"
             if len(missing) > 5:
                 if last_season != _entry['SeasonNum']:
                     missing_season = self.mw.insert_row(missing_series, " ", "Missing", _season_num)
@@ -479,11 +482,12 @@ class SeriesLibrary(object):
     def ignored(self, name):
         """ Check for ignored pathnames.
         """
-        return any(fnmatch.fnmatch(name.lower(), pattern) for pattern in self.config.ExcludeList)
+        exclude = self.config.ExcludeList + self.config.ExcludeScanList
+        return any(fnmatch.fnmatch(name.lower(), pattern) for pattern in (self.config.ExcludeList + self.config.ExcludeScanList))
 
 class GetOutOfLoop(Exception):
     pass
-    
+
 class localOptions(OptionParser):
 
     def __init__(self, unit_test=False, **kwargs):
@@ -506,7 +510,7 @@ class localOptions(OptionParser):
         group.add_option("-d", "--days", dest="age_limit",
             action="store", type=int, default=90,
             help="Limit check back x number of days, default 30")
-        
+
         group.add_option("-f", "--no-age-limit-requested", dest="age_limit",
             action="store_const", const=99999,
             help="Full Check")

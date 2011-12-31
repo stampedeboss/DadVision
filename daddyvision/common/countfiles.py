@@ -26,19 +26,17 @@ __status__ = "Development"
 
 ExcludeList = []
 
-def countFiles(pathname, exclude=[], types=[]):
+def countFiles(pathname, exclude_list=[], types=[]):
 
     if not os.path.exists(pathname) or not os.path.isdir(pathname):
         raise InvalidPath("Requested pathname does not exist or isn't a directory : {}".format(pathname))
 
-    ExcludeList = exclude
-
     _file_count = 0
 
     for _root, _dirs, _files in os.walk(pathname, followlinks=True):
-
-        for _dir in _dirs[:]:
-            if ignored(_dir):
+        _dirs_temp = sorted(_dirs)
+        for _dir in _dirs_temp[:]:
+            if ignored(_dir, exclude_list=exclude_list):
                 _dirs.remove(_dir)
 
         for _file in _files:
@@ -48,10 +46,11 @@ def countFiles(pathname, exclude=[], types=[]):
 
     return _file_count
 
-def ignored(name):
+def ignored(name, exclude_list):
     """ Check for ignored pathnames.
     """
-    return any(fnmatch.fnmatch(name.lower(), pattern) for pattern in ExcludeList)
+    return any(fnmatch.fnmatch(name.lower(), pattern) for pattern in exclude_list)
+
 
 
 if __name__ == '__main__':
