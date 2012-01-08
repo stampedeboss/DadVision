@@ -6,7 +6,7 @@ Purpose:
 
 '''
 from daddyvision.common import logger
-from daddyvision.common.exceptions import ConfigValueError, SQLError, UnexpectedErrorOccured
+from daddyvision.common.exceptions import ConfigValueError, SQLError, UnexpectedErrorOccured, InvalidFilename
 from daddyvision.common.options import OptionParser, OptionGroup
 from daddyvision.common.settings import Settings
 from daddyvision.series.fileparser import FileParser
@@ -214,6 +214,11 @@ class DaddyvisionNetwork(object):
     def record_download(self, file_name):
         try:
             file_details = self.fileparser.getFileDetails(file_name)
+        except InvalidFilename, e:
+            return
+        except:
+            raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, file_name))
+        try:
             db = sqlite3.connect(config.DBFile)
             cursor = db.cursor()
             cursor.execute('INSERT INTO Downloads(Name, SeriesName, Filename) VALUES ("{}", "{}", "{}")'.format(self.options.user,
