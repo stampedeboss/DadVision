@@ -181,10 +181,14 @@ class Rename(object):
                                                                      )
                 )
         try:
-            if not os.path.exists(os.path.split(_new_name)[0]):
-                os.makedirs(os.path.split(_new_name)[0])
-                os.chmod(os.path.split(_new_name)[0], 0775)
-                os.chown(os.path.split(_new_name)[0], 1000, 100)
+            _season_folder = os.path.split(_new_name)[0]
+            _series_folder = os.path.split(_season_folder)[0]
+            if not os.path.exists(_season_folder):
+                os.makedirs(_season_folder)
+                os.chmod(_season_folder, 0775)
+                os.chown(_season_folder, 1000, 100)
+                os.chmod(_series_folder, 0775)
+                os.chown(_series_folder, 1000, 100)
             os.rename(file_details['FileName'], _new_name)
             os.chmod(_new_name, 0664)
             os.chown(_new_name, 1000, 100)
