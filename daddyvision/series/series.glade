@@ -202,7 +202,7 @@
                   <object class="GtkLabel" id="label5">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Recent - Days Back&lt;/b&gt;</property>
+                    <property name="label" translatable="yes">&lt;b&gt;Days Back&lt;/b&gt;</property>
                     <property name="use_markup">True</property>
                   </object>
                 </child>
@@ -214,13 +214,15 @@
               </packing>
             </child>
             <child>
-              <object class="GtkCheckButton" id="cb_recent_only">
-                <property name="label" translatable="yes">Recent Shows Only</property>
+              <object class="GtkCheckButton" id="cb_ignore_excludes">
+                <property name="label" translatable="yes">ignore
+excludes</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">False</property>
                 <property name="use_action_appearance">False</property>
                 <property name="draw_indicator">True</property>
+                <signal name="toggled" handler="on_cb_ignore_excludes_toggled" swapped="no"/>
               </object>
               <packing>
                 <property name="expand">False</property>

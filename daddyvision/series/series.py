@@ -48,6 +48,8 @@ class MainWindow():
 
     def __init__(self, config, options):
         log.trace('MainWindow - __init__')
+        
+        self.options = options
 
         _pgm_dir = os.path.dirname(__file__)
         builder = gtk.Builder()
@@ -55,12 +57,15 @@ class MainWindow():
         events = { "on_main_window_destroy" : self.quit,
                    "on_bt_close_clicked" : self.quit,
                    "on_fc_dir_file_set" : self.on_fc_dir_file_set,
+                   "on_cb_ignore_excludes_toggled" : self.on_cb_ignore_excludes_toggled,
                    "on_bt_ok_clicked" : self.bt_ok_clicked
                   }
         builder.connect_signals(events)
 
         self.wMain = builder.get_object("main_window")
         self.fc_dir = builder.get_object("fc_dir")
+        self.cb_ignore_excludes = builder.get_object("cb_ignore_excludes")
+        self.sb_days = builder.get_object("sb_days")
         self.bt_execute = builder.get_object("bt_execute")
         self.bt_quit = builder.get_object("bt_quit")
 
@@ -102,6 +107,14 @@ class MainWindow():
 
     def on_fc_dir_file_set(self, obj):
         self.requested_dir = self.fc_dir.get_current_folder()
+        return
+
+    def on_cb_ignore_excludes_toggled(self, widget):
+        cb_ignore_excludes_status = ("OFF", "ON")[widget.get_active()]
+        if cb_ignore_excludes_status == "ON":
+            self.options.no_excludes = True
+        else:
+            self.options.no_excludes = False
         return
 
     def quit(self,obj):
@@ -247,16 +260,16 @@ class SeriesLibrary(object):
                 continue
 #            year, month, day = time.strptime(series_entry['DateAired'], "%Y-%m-%d %H:%M:%S")[:3]
             if series_entry['DateAired']:
-                if series_entry['DateAired'].date() < date_boundry or series_entry['DateAired'].date() > datetime.today().date():
+                if series_entry['DateAired'].date() < date_boundry or series_entry['DateAired'].date() >= datetime.today().date():
                     continue
             else:
                 continue
             try:
                 for episode_entry in episode_list:
-                    if series_entry['SeasonNum'] == episode_entry['SeasonNum'] and series_entry['EpisodeNum'][0] in episode_entry['EpisodeNums']:
+                    if series_entry['SeasonNum'] == episode_entry['SeasonNum'] and series_entry['EpisodeNum'] in episode_entry['EpisodeNums']:
                         found_series = True
                         if len(episode_entry['EpisodeNums']) > 1:
-                            episode_entry['EpisodeNums'].remove(series_entry['EpisodeNum'][0])
+                            episode_entry['EpisodeNums'].remove(series_entry['EpisodeNum'])
                         else:
                             episode_list.remove(episode_entry)
                         raise GetOutOfLoop
@@ -273,7 +286,7 @@ class SeriesLibrary(object):
         last_season = ''
         for _entry in missing:
             _season_num = "S%2.2d" % int(_entry['SeasonNum'])
-            _ep_no = "E%2.2d" % int(_entry['EpisodeNum'][0])
+            _ep_no = "E%2.2d" % int(_entry['EpisodeNum'])
             if _entry['DateAired']:
                 _date_aired = _entry['DateAired'].date()
             else:
@@ -530,6 +543,9 @@ if __name__ == "__main__":
     # If an absolute path is not specified, use the default directory.
     if not os.path.isabs(log_file):
         log_file = os.path.join(logger.LogDir, log_file)
+
+    if log_level == 'INFO':
+        log_level = "ERROR"
 
     logger.start(log_file, log_level)
 

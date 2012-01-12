@@ -80,7 +80,7 @@ def chkVideoFile(pathname, deep=False):
     elif ext == 'mkv':
         rc = chkMKV(pathname)
     else:
-        rc = -1
+        rc = 0
     return rc
 
 def chkAVId(pathname):

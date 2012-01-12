@@ -8,14 +8,9 @@ Program to rename movies files
 
 """
 from daddyvision.common.chkvideo import chkVideoFile
-from daddyvision.common.exceptions import InvalidFilename, RegxSelectionError, ConfigValueError
-from daddyvision.common.exceptions import DataRetrievalError, EpisodeNotFound, SeriesNotFound
 from daddyvision.common.options import OptionParser, OptionGroup
 from daddyvision.movies.fileparser import FileParser
 from daddyvision.common import logger
-from daddyvision.series.episodeinfo import EpisodeDetails
-from logging import INFO, WARNING, ERROR, DEBUG
-from fuzzywuzzy import fuzz
 from fuzzywuzzy import process
 import re
 import os
@@ -23,11 +18,7 @@ import sys
 import filecmp
 import fnmatch
 import logging
-import datetime
-import time
-import unicodedata
 import tmdb
-from pIMDB import pIMDB
 
 '''
 import tmdb
@@ -272,11 +263,11 @@ class Rename(object):
 
         return _fq_new_file_name
 
-    def _rename_directory(self, dir):
-        log.trace("_rename_dir method: pathname:{!s}".format(dir))
+    def _rename_directory(self, directory):
+        log.trace("_rename_directory method: pathname:{!s}".format(directory))
 
-        _directory_details = self.parser.getFileDetails(dir+'.avi')
-        _directory_details['FileName'] = dir
+        _directory_details = self.parser.getFileDetails(directory+'.avi')
+        _directory_details['FileName'] = directory
 
         _movie = tmdb.tmdb(_directory_details['MovieName'])
         _num_of_movies = _movie.getTotal()
@@ -302,8 +293,8 @@ class Rename(object):
         _target_dir = os.path.join(self.config.MoviesDir, _new_dir)
 
         if os.path.exists(_target_dir):
-            if _target_dir == dir:
-                log.info('Skipping: Directory already properly named and in: {}'.format(dir) )
+            if _target_dir == directory:
+                log.info('Skipping: Directory already properly named and in: {}'.format(directory) )
                 return
             else:
                 _target_dir = os.path.join(os.path.split(self.config.MoviesDir)[0], _new_dir)
@@ -311,12 +302,12 @@ class Rename(object):
                     log.warn("Unable to process, Directory: %s, already at destination!" % (_target_dir))
                     return
 
-        log.info('Renaming Movie Directory: %s to %s' % (os.path.basename(dir), _target_dir))
+        log.info('Renaming Movie Directory: %s to %s' % (os.path.basename(directory), _target_dir))
         try:
-            os.rename(dir, _target_dir)
+            os.rename(directory, _target_dir)
             log.info("Successfully Renamed: %s" % _target_dir)
         except OSError, exc:
-            log.error("Skipping, Unable to Rename Directory: %s" % dir)
+            log.error("Skipping, Unable to Rename Directory: %s" % directory)
             log.error("Unexpected error: %s" % exc)
 
         return None

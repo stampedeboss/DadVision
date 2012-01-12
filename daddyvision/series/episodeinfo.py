@@ -11,7 +11,7 @@ from daddyvision.common.exceptions import SeriesNotFound, EpisodeNotFound, Episo
 from daddyvision.common import logger
 from daddyvision.common.options import OptionParser, CoreOptionParser
 from logging import INFO, WARNING, ERROR, DEBUG
-from tvrage.api import Show
+from tvrage.api import Show, ShowNotFound
 import datetime
 import difflib
 import errno
@@ -205,7 +205,7 @@ class EpisodeDetails(object):
                 else:
                     if _item['season_number'] == SeriesDetails['SeasonNum']:
                         SeriesDetails['EpisodeData'].append({'SeasonNum' : _item['season_number'],
-                                                      'EpisodeNum' : [_item['episode_number']],
+                                                      'EpisodeNum' : _item['episode_number'],
                                                       'EpisodeTitle' : _name,
                                                       'DateAired': _item['first_aired']})
             elif 'DateAired' in SeriesDetails:
@@ -218,7 +218,7 @@ class EpisodeDetails(object):
                                 'DateAired': _item['first_aired']}]
             else:
                 SeriesDetails['EpisodeData'].append({'SeasonNum' : _item['season_number'],
-                                'EpisodeNum' : [_item['episode_number']],
+                                'EpisodeNum' : _item['episode_number'],
                                 'EpisodeTitle' : _name,
                                 'DateAired': _item['first_aired']})
         if len(SeriesDetails['EpisodeData']) > 0:
@@ -231,19 +231,34 @@ class EpisodeDetails(object):
         log.warn('_retrieve_tvrage_info: Input Parm: {!s}'.format(SeriesDetails))
 
         _series_name = SeriesDetails['SeriesName'].rstrip()
-        _series = Show(_series_name)
-        SeriesDetails['EpisodeData'] = []
-        for epno in SeriesDetails['EpisodeNums']:
-            try:
-                episode = _series.season(SeriesDetails['SeasonNum']).episode(epno)
-            except KeyError:
-                log.debug("_episode_details: TVDB & TVRAGE No Episode Data Found - %s" % (SeriesDetails['SeriesName']))
-                raise EpisodeNotFound("_episode_details: TVDB & TVRAGE No Data Episode Found - %s" % (SeriesDetails['SeriesName']))
 
-            SeriesDetails['EpisodeData'].append({'SeasonNum' : SeriesDetails['SeasonNum'],
-                                                 'EpisodeNum' : SeriesDetails['EpisodeNums'][0],
-                                                 'EpisodeTitle' : episode.title,
-                                                 'DateAired': episode.airdate})
+        try:
+            _series = Show(_series_name)
+        except ShowNotFound, msg:
+            raise SeriesNotFound(msg)
+
+        SeriesDetails['EpisodeData'] = []
+        if 'EpisodeNums' in SeriesDetails:
+            for epno in SeriesDetails['EpisodeNums']:
+                try:
+                    episode = _series.season(SeriesDetails['SeasonNum']).episode(epno)
+                except KeyError:
+                    log.debug("_episode_details: TVDB & TVRAGE No Episode Data Found - %s" % (SeriesDetails['SeriesName']))
+                    raise EpisodeNotFound("_episode_details: TVDB & TVRAGE No Data Episode Found - %s" % (SeriesDetails['SeriesName']))
+
+                SeriesDetails['EpisodeData'].append({'SeasonNum' : SeriesDetails['SeasonNum'],
+                                                     'EpisodeNum' : epno,
+                                                     'EpisodeTitle' : episode.title,
+                                                     'DateAired': datetime.datetime.combine(episode.airdate, datetime())})
+        else:
+            _episodes = _series.episodes
+            for _season_num in _series.episodes:
+                for _episode_num in _series.episodes[_season_num]:
+                    _episode = _series.season(_season_num).episode(_episode_num)
+                    SeriesDetails['EpisodeData'].append({'SeasonNum' : _season_num,
+                                                         'EpisodeNum' : _episode_num,
+                                                         'EpisodeTitle' : _episode.title,
+                                                         'DateAired': datetime.datetime.combine(_episode.airdate, datetime.time())})
         return SeriesDetails
 
 
