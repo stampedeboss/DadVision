@@ -241,24 +241,36 @@ class EpisodeDetails(object):
         if 'EpisodeNums' in SeriesDetails:
             for epno in SeriesDetails['EpisodeNums']:
                 try:
-                    episode = _series.season(SeriesDetails['SeasonNum']).episode(epno)
+                    _episode = _series.season(SeriesDetails['SeasonNum']).episode(epno)
                 except KeyError:
                     log.debug("_episode_details: TVDB & TVRAGE No Episode Data Found - %s" % (SeriesDetails['SeriesName']))
                     raise EpisodeNotFound("_episode_details: TVDB & TVRAGE No Data Episode Found - %s" % (SeriesDetails['SeriesName']))
 
-                SeriesDetails['EpisodeData'].append({'SeasonNum' : SeriesDetails['SeasonNum'],
-                                                     'EpisodeNum' : epno,
-                                                     'EpisodeTitle' : episode.title,
-                                                     'DateAired': datetime.datetime.combine(episode.airdate, datetime())})
+                try:
+                    _date_aired = _episode.airdate
+                    if _date_aired:
+                        _date_aired = datetime.datetime.combine(_date_aired, datetime.time())
+                    SeriesDetails['EpisodeData'].append({'SeasonNum' : SeriesDetails['SeasonNum'],
+                                                         'EpisodeNum' : epno,
+                                                         'EpisodeTitle' : _episode.title,
+                                                         'DateAired': _date_aired})
+                except KeyError, msg:
+                    raise EpisodeNotFound(msg)
         else:
             _episodes = _series.episodes
             for _season_num in _series.episodes:
                 for _episode_num in _series.episodes[_season_num]:
-                    _episode = _series.season(_season_num).episode(_episode_num)
-                    SeriesDetails['EpisodeData'].append({'SeasonNum' : _season_num,
-                                                         'EpisodeNum' : _episode_num,
-                                                         'EpisodeTitle' : _episode.title,
-                                                         'DateAired': datetime.datetime.combine(_episode.airdate, datetime.time())})
+                    try:
+                        _episode = _series.season(_season_num).episode(_episode_num)
+                        _date_aired = _episode.airdate
+                        if _date_aired:
+                            _date_aired = datetime.datetime.combine(_date_aired, datetime.time())
+                        SeriesDetails['EpisodeData'].append({'SeasonNum' : _season_num,
+                                                             'EpisodeNum' : _episode_num,
+                                                             'EpisodeTitle' : _episode.title,
+                                                             'DateAired': _date_aired})
+                    except KeyError, msg:
+                        raise EpisodeNotFound(msg)
         return SeriesDetails
 
 
