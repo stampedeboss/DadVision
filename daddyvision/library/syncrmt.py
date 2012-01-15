@@ -119,7 +119,7 @@ class DaddyvisionNetwork(object):
 
         printfmt = '%P\n'
         _downloaded_files = []
-        _downloads_needed = []
+        _sync_needed = []
 
         try:
             db = sqlite3.connect(config.DBFile)
@@ -141,29 +141,34 @@ class DaddyvisionNetwork(object):
             log.error("Initial Find Command returned with RC=%d, Ending" % (exc.returncode))
             sys.exit(1)
 
-        _files_to_download_temp = tempfile.NamedTemporaryFile(mode='w')
-        with open(_available_files_temp.name, "r") as _available_files_obj:
-            for _line in _available_files_obj.readlines():
-                episode = os.path.join(config.SeriesDir, _line.strip('\n'))
-                if episode not in _downloaded_files:
-                    _files_to_download_temp.write(_line)
-                    _downloads_needed.append(episode)
+        _sync_needed_file = tempfile.NamedTemporaryFile(mode='w', delete=False)
+        with open(_sync_needed_file.name, "w") as _sync_needed_file_obj:
+            with open(_available_files_temp.name, "r") as _available_files_obj:
+                for _line in _available_files_obj.readlines():
+                    episode = os.path.join(config.SeriesDir, _line.strip('\n'))
+                    if episode not in _downloaded_files:
+                        _sync_needed_file_obj.write(_line)
+                        _sync_needed.append(episode)
             _available_files_obj.close()
+            _sync_needed_file_obj.close()
 
         log_file = os.path.join(logger.LogDir, 'syncrmt_{}.log'.format(self.options.HostName))
         cmd = ['rsync', '-rptuvhogLR'.format(self.options.CmdLineDryRun), '--progress', '--partial-dir=.rsync-partial',
                '--log-file={}'.format(log_file),
-               '--files-from={}'.format(_files_to_download_temp.name),
+               '--files-from={}'.format(_sync_needed_file.name),
                './',
                '{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt)]
         try:
             process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=directory)
         except CalledProcessError, exc:
             log.error("Incremental rsync Command returned with RC=%d, Ending" % (exc.returncode))
+            os.remove(_sync_needed_file.name)
             sys.exit(1)
 
+        os.remove(_sync_needed_file.name)
+
         if not self.options.dryrun:
-            for episode in _downloads_needed:
+            for episode in _sync_needed:
                 self.record_download(episode)
 
         _series_delete_exclusions = '/tmp/{}_series_exclude_list'.format(self.options.HostName)
