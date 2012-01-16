@@ -112,10 +112,10 @@ class DaddyvisionNetwork(object):
             sys.exit(1)
 
     def SyncIncrementals(self, directory):
-        log.trace('Syncing - Incremental Series')
+        log.info('Syncing - Incremental Series')
 
         _sync_needed = self._get_list(directory)
-               
+
         if len(_sync_needed) > 5:
             _every = 5
         else:
@@ -126,7 +126,7 @@ class DaddyvisionNetwork(object):
 
         for episode in _sync_needed:
             _counter += 1
-            _file_list.append('./{}'.format(episode)) 
+            _file_list.append('./{}'.format(episode))
             _file_name = os.path.join(config.SeriesDir, episode)
             _series = os.path.split(episode)[0]
             _file_names[_file_name] = _series
@@ -142,7 +142,7 @@ class DaddyvisionNetwork(object):
 
         if _file_list != []:
             self._process_batch(directory, _file_list, _file_names)
-              
+
         _series_delete_exclusions = '/tmp/{}_series_exclude_list'.format(self.options.HostName)
         _incremental_file_obj = open(_series_delete_exclusions, 'w')
 
@@ -163,7 +163,7 @@ class DaddyvisionNetwork(object):
         _sync_needed = []
 
         _reg_ex_dir = re.compile('^{}.*$'.format(directory), re.IGNORECASE)
-        
+
         try:
             db = sqlite3.connect(config.DBFile)
             cursor = db.cursor()
@@ -187,10 +187,10 @@ class DaddyvisionNetwork(object):
             return []
 
         return _sync_needed
-    
+
     def _process_batch(self, directory, file_list, file_names):
         log.trace('_process_batch: {}'.format(file_names))
-        
+
         cmd = ['rsync', '-rptuvhogLR'.format(self.options.CmdLineDryRun), '--progress', '--partial-dir=.rsync-partial', '--log-file={}'.format(self.log_file)]
         cmd.extend(file_list)
         cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt))
