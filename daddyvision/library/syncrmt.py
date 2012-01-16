@@ -145,7 +145,7 @@ class DaddyvisionNetwork(object):
             _counter += 1
             _file_list.append('./{}'.format(episode))
             _file_name = os.path.join(config.SeriesDir, episode)
-            _series = os.path.split(episode)[0]
+            _series = episode.split(os.sep)[0]
             _file_names[_file_name] = _series
             quotient, remainder = divmod(_counter, _every)
             if remainder == 0:
