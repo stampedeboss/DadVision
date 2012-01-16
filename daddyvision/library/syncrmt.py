@@ -19,8 +19,7 @@ import time
 import psutil
 import tempfile
 import unicodedata
-
-
+import re
 
 __pgmname__ = 'syncrmt'
 __version__ = '$Rev$'
@@ -44,6 +43,7 @@ config = Settings()
 
 TRACE = 5
 VERBOSE = 15
+printfmt = '%P\n'
 
 class DaddyvisionNetwork(object):
 
@@ -51,6 +51,7 @@ class DaddyvisionNetwork(object):
         self.options = options
         self._add_runtime_options()
         self.fileparser = FileParser()
+        self.log_file = os.path.join(logger.LogDir, 'syncrmt_{}.log'.format(self.options.HostName))
         return
 
     def SyncRMT(self):
@@ -69,110 +70,82 @@ class DaddyvisionNetwork(object):
         if 'Movies' in self.options.content:
             self.SyncMovies()
 
-        if not self.options.dryrun:
-            cmd = ['xbmc-send', '--host={}'.format(self.options.HostName), '--action=XBMC.UpdateLibrary(video)']
-            try:
-                process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=config.SeriesDir)
-            except CalledProcessError, exc:
-                log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
-
     def SyncSeries(self):
         log.info('Syncing - Series')
 
-        log_file = os.path.join(logger.LogDir, 'syncrmt_{}.log'.format(self.options.HostName))
         cmd = ['rsync', '-rptuvhogL{}'.format(self.options.CmdLineDryRun),
                '--progress',
                '--partial-dir=.rsync-partial',
                '--exclude=lost+found',
                self.options.SeriesDeleteExclusions,
                '{}'.format(self.options.CmdLineArgs),
-               '--log-file={}'.format(log_file),
+               '--log-file={}'.format(self.log_file),
                '{}/Series/'.format(self.options.SymLinks),
                '{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt)]
 
         try:
             process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Series'))
+            self._update_xbmc()
         except CalledProcessError, exc:
             log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
+            self._update_xbmc()
             sys.exit(1)
+
 
     def SyncMovies(self):
         log.info('Syncing - Movies')
 
-        log_file = os.path.join(logger.LogDir, 'syncrmt_{}.log'.format(self.options.HostName))
         cmd = ['rsync', '-rptuvhogL{}'.format(self.options.CmdLineDryRun),
                '--progress',
                '--partial-dir=.rsync-partial',
                '--exclude=lost+found',
                '{}'.format(self.options.CmdLineArgs),
-               '--log-file={}'.format(log_file),
+               '--log-file={}'.format(self.log_file),
                '{}/Movies/'.format(self.options.SymLinks),
                '{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.MoviesRmt)]
         try:
             process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Movies'))
+            self._update_xbmc()
         except CalledProcessError, exc:
             log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
+            self._update_xbmc()
             sys.exit(1)
 
     def SyncIncrementals(self, directory):
-        log.info('Syncing - Incremental Series')
+        log.trace('Syncing - Incremental Series')
 
-        printfmt = '%P\n'
-        _downloaded_files = []
-        _sync_needed = []
+        _sync_needed = self._get_list(directory)
+               
+        if len(_sync_needed) > 5:
+            _every = 5
+        else:
+            _every = len(_sync_needed)
+        _counter = 0
+        _file_list = []
+        _file_names = {}
 
-        try:
-            db = sqlite3.connect(config.DBFile)
-            cursor = db.cursor()
-            cursor.execute('SELECT FileName FROM Downloads  WHERE Name = "{}"'.format(self.options.user))
-            for row in cursor:
-                _downloaded_files.append(unicodedata.normalize('NFKD', row[0]).encode('ascii','ignore'))
-            db.close()
-        except:
-            db.close()
-            raise
+        for episode in _sync_needed:
+            _counter += 1
+            _file_list.append('./{}'.format(episode)) 
+            _file_name = os.path.join(config.SeriesDir, episode)
+            _series = os.path.split(episode)[0]
+            _file_names[_file_name] = _series
+            quotient, remainder = divmod(_counter, _every)
+            if remainder == 0:
+                try:
+                    self._process_batch(directory, _file_list, _file_names)
+                    _file_list = []
+                    _file_names = {}
+                except CalledProcessError, msg:
+                    _file_list = []
+                    break
 
-        _available_files_temp = tempfile.NamedTemporaryFile()
-        cmd = ['find', '-L','-type', 'f', '-printf', '{}'.format(printfmt)]
-        log.trace("Calling %s" % cmd)
-        try:
-            process = check_call(cmd, shell=False, stdin=None, stdout=_available_files_temp, stderr=_available_files_temp, cwd=directory)
-        except CalledProcessError, exc:
-            log.error("Initial Find Command returned with RC=%d, Ending" % (exc.returncode))
-            sys.exit(1)
-
-        _sync_needed_file = tempfile.NamedTemporaryFile(mode='w', delete=False)
-        with open(_sync_needed_file.name, "w") as _sync_needed_file_obj:
-            with open(_available_files_temp.name, "r") as _available_files_obj:
-                for _line in _available_files_obj.readlines():
-                    episode = os.path.join(config.SeriesDir, _line.strip('\n'))
-                    if episode not in _downloaded_files:
-                        _sync_needed_file_obj.write(_line)
-                        _sync_needed.append(episode)
-            _available_files_obj.close()
-            _sync_needed_file_obj.close()
-
-        log_file = os.path.join(logger.LogDir, 'syncrmt_{}.log'.format(self.options.HostName))
-        cmd = ['rsync', '-rptuvhogLR'.format(self.options.CmdLineDryRun), '--progress', '--partial-dir=.rsync-partial',
-               '--log-file={}'.format(log_file),
-               '--files-from={}'.format(_sync_needed_file.name),
-               './',
-               '{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt)]
-        try:
-            process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=directory)
-        except CalledProcessError, exc:
-            log.error("Incremental rsync Command returned with RC=%d, Ending" % (exc.returncode))
-            os.remove(_sync_needed_file.name)
-            sys.exit(1)
-
-        os.remove(_sync_needed_file.name)
-
-        if not self.options.dryrun:
-            for episode in _sync_needed:
-                self.record_download(episode)
-
+        if _file_list != []:
+            self._process_batch(directory, _file_list, _file_names)
+              
         _series_delete_exclusions = '/tmp/{}_series_exclude_list'.format(self.options.HostName)
         _incremental_file_obj = open(_series_delete_exclusions, 'w')
+
         cmd = ['find', '.', '-type', 'l', '-printf', printfmt]
         try:
             process = check_call(cmd, shell=False, stdin=None, stdout=_incremental_file_obj, stderr=None, cwd=directory)
@@ -181,6 +154,113 @@ class DaddyvisionNetwork(object):
             sys.exit(1)
 
         self.options.SeriesDeleteExclusions = '--exclude-from={}'.format(_series_delete_exclusions)
+        return
+
+    def _get_list(self, directory):
+        log.trace('_get_list: Getting list of Incremental files requiring Sync')
+
+        _downloaded_files = []
+        _sync_needed = []
+
+        _reg_ex_dir = re.compile('^{}.*$'.format(directory), re.IGNORECASE)
+        
+        try:
+            db = sqlite3.connect(config.DBFile)
+            cursor = db.cursor()
+            cursor.execute('SELECT FileName FROM Downloads  WHERE Name = "{}"'.format(self.options.user))
+            for row in cursor:
+                _downloaded_files.append(unicodedata.normalize('NFKD', row[0]).encode('ascii','ignore'))
+            db.close()
+
+            for _root, _dirs, _files in os.walk(os.path.abspath(directory),followlinks=True):
+                if _dirs:
+                    _dirs.sort()
+                _files.sort()
+                for _file in _files:
+                    _target = re.split(directory, os.path.join(_root, _file))[1].lstrip(os.sep)
+                    episode = os.path.join(config.SeriesDir, _target)
+                    if episode not in _downloaded_files:
+                        _sync_needed.append(_target)
+        except:
+            db.close()
+            log.error("Incrementals Not Processed: SQLITE3 Error")
+            return []
+
+        return _sync_needed
+    
+    def _process_batch(self, directory, file_list, file_names):
+        log.trace('_process_batch: {}'.format(file_names))
+        
+        cmd = ['rsync', '-rptuvhogLR'.format(self.options.CmdLineDryRun), '--progress', '--partial-dir=.rsync-partial', '--log-file={}'.format(self.log_file)]
+        cmd.extend(file_list)
+        cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt))
+        try:
+            process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=directory)
+            for _file_name in file_names:
+                _series = file_names[_file_name]
+                self.record_download(_series, _file_name)
+            self._update_xbmc()
+        except CalledProcessError, exc:
+            log.error("Incremental rsync Command returned with RC=%d, Ending" % (exc.returncode))
+            if exc.returncode == 255 :
+                sys.exit(1)
+            else:
+                raise UnexpectedErrorOccured("Incremental rsync Command returned with RC=%d, Ending" % (exc.returncode))
+
+    def record_download(self, series, file_name):
+        if not self.options.dryrun:
+            try:
+                db = sqlite3.connect(config.DBFile)
+                cursor = db.cursor()
+                cursor.execute('INSERT INTO Downloads(Name, SeriesName, Filename) VALUES ("{}", "{}", "{}")'.format(self.options.user,
+                                                                                                                    series,
+                                                                                                                    file_name))
+                db.commit()
+            except  sqlite3.IntegrityError, e:
+                pass
+            except sqlite3.Error, e:
+                db.close()
+                raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, file_name))
+
+            db.close()
+        return
+
+    def _update_xbmc(self):
+        if not self.options.dryrun:
+            cmd = ['xbmc-send', '--host={}'.format(self.options.HostName), '--action=XBMC.UpdateLibrary(video)']
+            try:
+                process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=config.SeriesDir)
+            except CalledProcessError, exc:
+                log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
+
+    def chkStatus(self, directory, recurse=False):
+        time.sleep(0.2)
+        pidList = psutil.process_iter()
+        for p in pidList:
+            cmdline = p.cmdline
+            if len(cmdline) > 0:
+                if p.name == 'rsync':
+                    if os.path.split(cmdline[-2].rstrip(os.sep))[0] == directory.rstrip(os.sep):
+                        if options.runaction == 'ask':
+                            while True:
+                                value = raw_input("syncrmt for: %s Already Running, Cancel This Request or Restart? (C/R): " % (directory))
+                                if not value:
+                                    continue
+                                if value.lower()[:1] == 'c':
+                                    options.runaction = 'cancel'
+                                    break
+                                if value.lower()[:1] == 'r':
+                                    options.runaction = 'restart'
+                                    break
+                        if options.runaction == 'cancel':
+                            log.warn('rmtsync for : %s is Already Running, Request Canceled' % directory)
+                            sys.exit(1)
+                        else:
+                            os.system('sudo kill -kill %s' % p.pid)
+                            log.warn('Previous Session Killed: %s' % p.pid)
+                            options.runaction = 'restart'
+                            time.sleep(0.1)
+                            self.chkStatus(directory)
         return
 
     def _add_runtime_options(self):
@@ -214,58 +294,6 @@ class DaddyvisionNetwork(object):
         if self.options.xclude:
             self.options.CmdLineArgs = self.options.CmdLineArgs + ' --exclude=*{}*'.format(self.options.xclude)
 
-        return
-
-    def record_download(self, file_name):
-        try:
-            file_details = self.fileparser.getFileDetails(file_name)
-        except InvalidFilename, e:
-            return
-        except:
-            raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, file_name))
-        try:
-            db = sqlite3.connect(config.DBFile)
-            cursor = db.cursor()
-            cursor.execute('INSERT INTO Downloads(Name, SeriesName, Filename) VALUES ("{}", "{}", "{}")'.format(self.options.user,
-                                                                                                                file_details['SeriesName'],
-                                                                                                                file_name))
-            db.commit()
-            db.close()
-        except  sqlite3.IntegrityError, e:
-            db.close()
-        except sqlite3.Error, e:
-            db.close()
-            raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, file_name))
-
-
-    def chkStatus(self, directory, recurse=False):
-        time.sleep(0.2)
-        pidList = psutil.process_iter()
-        for p in pidList:
-            cmdline = p.cmdline
-            if len(cmdline) > 0:
-                if p.name == 'rsync':
-                    if os.path.split(cmdline[-2].rstrip(os.sep))[0] == directory.rstrip(os.sep):
-                        if options.runaction == 'ask':
-                            while True:
-                                value = raw_input("syncrmt for: %s Already Running, Cancel This Request or Restart? (C/R): " % (directory))
-                                if not value:
-                                    continue
-                                if value.lower()[:1] == 'c':
-                                    options.runaction = 'cancel'
-                                    break
-                                if value.lower()[:1] == 'r':
-                                    options.runaction = 'restart'
-                                    break
-                        if options.runaction == 'cancel':
-                            log.warn('rmtsync for : %s is Already Running, Request Canceled' % directory)
-                            sys.exit(1)
-                        else:
-                            os.system('sudo kill -kill %s' % p.pid)
-                            log.warn('Previous Session Killed: %s' % p.pid)
-                            options.runaction = 'restart'
-                            time.sleep(0.1)
-                            self.chkStatus(directory)
         return
 
 class localOptions(OptionParser):
