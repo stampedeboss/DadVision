@@ -63,7 +63,7 @@ class DaddyvisionNetwork(object):
 
 
         if 'Series' in self.options.content:
-            if os.path.exists(os.path.join(self.options.SymLinks, 'Incrementals')):
+            if not options.suppress_incremental and os.path.exists(os.path.join(self.options.SymLinks, 'Incrementals')):
                 self.SyncIncrementals(os.path.join(self.options.SymLinks, 'Incrementals'))
             self.SyncSeries()
 
@@ -73,11 +73,21 @@ class DaddyvisionNetwork(object):
     def SyncSeries(self):
         log.info('Syncing - Series')
 
+        _series_delete_exclusions = '/tmp/{}_series_exclude_list'.format(self.options.HostName)
+        _incremental_file_obj = open(_series_delete_exclusions, 'w')
+
+        cmd = ['find', '.', '-type', 'l', '-printf', printfmt]
+        try:
+            process = check_call(cmd, shell=False, stdin=None, stdout=_incremental_file_obj, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Incrementals'))
+        except CalledProcessError, exc:
+            log.error("Find Command for Series Exclusions returned with RC=%d" % (exc.returncode))
+            sys.exit(1)
+
         cmd = ['rsync', '-rptuvhogL{}'.format(self.options.CmdLineDryRun),
                '--progress',
                '--partial-dir=.rsync-partial',
                '--exclude=lost+found',
-               self.options.SeriesDeleteExclusions,
+               '--exclude-from={}'.format(_series_delete_exclusions),
                '{}'.format(self.options.CmdLineArgs),
                '--log-file={}'.format(self.log_file),
                '{}/Series/'.format(self.options.SymLinks),
@@ -85,7 +95,8 @@ class DaddyvisionNetwork(object):
 
         try:
             process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Series'))
-            self._update_xbmc()
+            if not self.options.dryrun:
+                self._update_xbmc()
         except CalledProcessError, exc:
             log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
             self._update_xbmc()
@@ -105,7 +116,8 @@ class DaddyvisionNetwork(object):
                '{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.MoviesRmt)]
         try:
             process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Movies'))
-            self._update_xbmc()
+            if not self.options.dryrun:
+                self._update_xbmc()
         except CalledProcessError, exc:
             log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
             self._update_xbmc()
@@ -115,6 +127,11 @@ class DaddyvisionNetwork(object):
         log.info('Syncing - Incremental Series')
 
         _sync_needed = self._get_list(directory)
+        for _entry in _sync_needed:
+            log.info(_entry)
+
+        if self.options.dryrun:
+            return
 
         if len(_sync_needed) > 5:
             _every = 5
@@ -143,17 +160,6 @@ class DaddyvisionNetwork(object):
         if _file_list != []:
             self._process_batch(directory, _file_list, _file_names)
 
-        _series_delete_exclusions = '/tmp/{}_series_exclude_list'.format(self.options.HostName)
-        _incremental_file_obj = open(_series_delete_exclusions, 'w')
-
-        cmd = ['find', '.', '-type', 'l', '-printf', printfmt]
-        try:
-            process = check_call(cmd, shell=False, stdin=None, stdout=_incremental_file_obj, stderr=None, cwd=directory)
-        except CalledProcessError, exc:
-            log.error("Find Command for Series Exclusions returned with RC=%d" % (exc.returncode))
-            sys.exit(1)
-
-        self.options.SeriesDeleteExclusions = '--exclude-from={}'.format(_series_delete_exclusions)
         return
 
     def _get_list(self, directory):
@@ -208,21 +214,20 @@ class DaddyvisionNetwork(object):
                 raise UnexpectedErrorOccured("Incremental rsync Command returned with RC=%d, Ending" % (exc.returncode))
 
     def record_download(self, series, file_name):
-        if not self.options.dryrun:
-            try:
-                db = sqlite3.connect(config.DBFile)
-                cursor = db.cursor()
-                cursor.execute('INSERT INTO Downloads(Name, SeriesName, Filename) VALUES ("{}", "{}", "{}")'.format(self.options.user,
-                                                                                                                    series,
-                                                                                                                    file_name))
-                db.commit()
-            except  sqlite3.IntegrityError, e:
-                pass
-            except sqlite3.Error, e:
-                db.close()
-                raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, file_name))
-
+        try:
+            db = sqlite3.connect(config.DBFile)
+            cursor = db.cursor()
+            cursor.execute('INSERT INTO Downloads(Name, SeriesName, Filename) VALUES ("{}", "{}", "{}")'.format(self.options.user,
+                                                                                                                series,
+                                                                                                                file_name))
+            db.commit()
+        except  sqlite3.IntegrityError, e:
+            pass
+        except sqlite3.Error, e:
             db.close()
+            raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, file_name))
+
+        db.close()
         return
 
     def _update_xbmc(self):
@@ -332,6 +337,9 @@ class localOptions(OptionParser):
         group.add_option("--delete", dest="delete",
             action="store_true", default=False,
             help="Delete any files on rmt that do not exist on local")
+        group.add_option("--suppress", dest="suppress_incremental",
+            action="store_true", default=False,
+            help="Skip Processing of Incremental Subscriptions")
         group.add_option("-x", "--exclude", dest="xclude",
             action="store", type="string", default="",
             help="Exclude files/directories")
