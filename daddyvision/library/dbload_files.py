@@ -8,7 +8,7 @@ Purpose:
 '''
 from __future__ import division
 from daddyvision.common import logger
-from daddyvision.common.exceptions import UnexpectedErrorOccured, DuplicateRecord
+from daddyvision.common.exceptions import UnexpectedErrorOccured, DuplicateRecord, InvalidFilename
 from daddyvision.common.options import OptionParser
 from daddyvision.common.settings import Settings
 from daddyvision.common.countfiles import countFiles
@@ -81,7 +81,7 @@ class DownloadDatabase(object):
             raise UnexpectedErrorOccured('Series Library referenced in setting NOT FOUND: {}'.format(config.SeriesDir))
             sys.exit(1)
 
-        File_Count = countFiles(config.SeriesDir, exclude=config.ExcludeList)
+        File_Count = countFiles(config.SeriesDir, exclude_list=config.ExcludeList)
 
         log.info('Number of File to be Checked: %s' % File_Count)
 
@@ -110,6 +110,9 @@ class DownloadDatabase(object):
                     else:
                         log.info('Skipping Non-VIdeo File: {}'.format(_fq_name))
 #                        Files_Processed += 1
+                except InvalidFilename:
+                    log.info('Skipping Non-VIdeo File: {}'.format(_fq_name))
+                    continue
                 except DuplicateRecord:
                     Files_Loaded += 1
 
