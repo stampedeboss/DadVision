@@ -144,7 +144,9 @@ class PackageHandler(object):
             elif len(_episode) > 1:
                 _symlink = os.path.join(config.SubscriptionDir, user, 'Series')
                 _symlink = _symlink + _episode[1]
-                if os.path.exists(_symlink):
+                _symlink_inc = os.path.join(config.SubscriptionDir, user, 'Incrementals')
+                _symlink_inc = _symlink_inc + _episode[1]
+                if os.path.exists(_symlink) or os.path.exists(_symlink_inc):
                     log.info('update required: {} - {}'.format(user, pathname))
                     self._run_update(user)
                 else:
