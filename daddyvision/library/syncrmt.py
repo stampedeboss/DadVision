@@ -51,7 +51,7 @@ class DaddyvisionNetwork(object):
         self.options = options
         self._add_runtime_options()
         self.fileparser = FileParser()
-        self.log_file = os.path.join(logger.LogDir, 'syncrmt_{}.log'.format(self.options.HostName))
+        self.log_file = os.path.join(logger.LogDir, 'rsync_{}.log'.format(self.options.HostName))
         return
 
     def SyncRMT(self):
