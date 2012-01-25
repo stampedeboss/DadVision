@@ -81,7 +81,7 @@ def listItems(user, content_type):
         statinfo = os.stat(os.path.join(content_dir, directory))
         mod_date = statinfo.st_mtime
 
-        Return_List.append({'Title' : directory,
+        Return_List.append({'Title' : title,
                             'Status' : current_status,
                             'Date' : mod_date,
                             'Path' : os.path.join(content_dir, directory)
@@ -149,5 +149,5 @@ if __name__ == '__main__':
     log.debug("Parsed command line options: %s" % (options))
     log.debug("Parsed arguments: %r" % args)
 
-    list_returned = listItems('aly', 'Movies')
+    list_returned = listItems('aly', 'Series')
     print list_returned
