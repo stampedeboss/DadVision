@@ -12,6 +12,7 @@ from daddyvision.common.exceptions import UnexpectedErrorOccured
 from datetime import date
 import logging
 import os
+import re
 import sys
 import fnmatch
 
@@ -39,6 +40,8 @@ config = Settings()
 TRACE = 5
 VERBOSE = 15
 
+regex_collection = re.compile('^.*Collection:.*$', re.IGNORECASE)
+
 def listItems(user, content_type):
     '''
     return a Dict of Items {Title | [current_status, date, pathname]}
@@ -63,32 +66,34 @@ def listItems(user, content_type):
         if ignored(directory):
             log.trace("Skipping: %s" % directory)
             continue
-
-        if incremental_dir and os.path.exists(os.path.join(incremental_dir, directory)):
-            current_status = config.IncrementalsDir
-        elif os.path.exists(os.path.join(subscription_dir, directory)):
-            current_status = 'Subscribed'
+        if regex_collection.search(directory):
+            for collection_directory in os.listdir(os.path.abspath(os.path.join(content_dir, directory))):
+                if ignored(collection_directory):
+                    log.trace("Skipping: %s" % collection_directory)
+                    continue
+                _add_entry(Return_List, os.path.join(content_dir, directory), os.path.join(subscription_dir, directory), incremental_dir, collection_directory)
         else:
-            current_status = ''
+            _add_entry(Return_List, content_dir, subscription_dir, incremental_dir, directory)
 
-        title = directory.split(None, 1)
-
-        if title[0] in config.Predicates:
-            title = '%s, %s' % (title[1], title[0])
-        else:
-            title = directory
-
-        statinfo = os.stat(os.path.join(content_dir, directory))
-        mod_date = statinfo.st_mtime
-
-        Return_List.append({'Title' : title,
-                            'Status' : current_status,
-                            'Date' : mod_date,
-                            'Path' : os.path.join(content_dir, directory)
-                            })
     log.trace('Return: %s' % (Return_List))
 
     return Return_List
+
+def _add_entry(Return_List, content_dir, subscription_dir, incremental_dir, directory):
+    if incremental_dir and os.path.exists(os.path.join(incremental_dir, directory)):
+        current_status = config.IncrementalsDir
+    elif os.path.exists(os.path.join(subscription_dir, directory)):
+        current_status = 'Subscribed'
+    else:
+        current_status = ''
+    title = directory.split(None, 1)
+    if title[0] in config.Predicates:
+        title = '%s, %s' % (title[1], title[0])
+    else:
+        title = directory
+    statinfo = os.stat(os.path.join(content_dir, directory))
+    mod_date = statinfo.st_mtime
+    Return_List.append({'Title':title, 'Status':current_status, 'Date':mod_date, 'Path':os.path.join(content_dir, directory)})
 
 def updateLinks(user, request):
     log.trace('updateLinks: USER: %s  REQUST: %s' % (user, request))
@@ -149,5 +154,5 @@ if __name__ == '__main__':
     log.debug("Parsed command line options: %s" % (options))
     log.debug("Parsed arguments: %r" % args)
 
-    list_returned = listItems('aly', 'Series')
+    list_returned = listItems('aly', 'Movies')
     print list_returned
