@@ -103,11 +103,7 @@ def updateLinks(user, request):
 
     for _entry in request:
 
-        if regex_collection.search(_entry['Path']):
-            _directories = _entry['Path'].split(os.sep)
-            symlink = os.path.join(config.SubscriptionDir, user, _entry['Type'], _directories[-2], _entry['Title'])
-        else:
-            symlink = os.path.join(config.SubscriptionDir, user, _entry['Type'], _entry['Title'])
+        symlink = os.path.join(config.SubscriptionDir, user, _entry['Type'], _entry['Title'])
 
         if _entry['Action'] == 'Add':
             if not os.path.exists(symlink):
