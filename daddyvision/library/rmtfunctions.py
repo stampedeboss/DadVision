@@ -93,7 +93,8 @@ def _add_entry(Return_List, content_dir, subscription_dir, incremental_dir, dire
         title = directory
     statinfo = os.stat(os.path.join(content_dir, directory))
     mod_date = statinfo.st_mtime
-    Return_List.append({'Title':title, 'Status':current_status, 'Date':mod_date, 'Path':os.path.join(content_dir, directory)})
+    _entry = {'Title':title, 'Status':current_status, 'Date':mod_date, 'Path':os.path.join(content_dir, directory)}
+    Return_List.append(_entry)
 
 def updateLinks(user, request):
     log.trace('updateLinks: USER: %s  REQUST: %s' % (user, request))
@@ -105,17 +106,13 @@ def updateLinks(user, request):
         symlink = os.path.join(config.SubscriptionDir, user, _entry['Type'], _entry['Title'])
 
         if _entry['Action'] == 'Add':
-            if _entry['Type'] in ['Series', config.IncrementalsDir]:
-                pathname = os.path.join(config.SeriesDir, _entry['Title'])
-            else:
-                pathname = os.path.join(config.MoviesDir, _entry['Title'])
             if not os.path.exists(symlink):
                 try:
-                    os.symlink(pathname, symlink)
+                    os.symlink(_entry['Path'], symlink)
                     os.lchown(symlink, 1000, 100)
-                    log.info('symlink for %s to: %s' % (symlink, pathname))
+                    log.info('symlink for %s to: %s' % (symlink, _entry['Path']))
                 except OSError, message:
-                    log.error('Unable to created symlink for %s to: %s - %s' % (symlink, pathname, message))
+                    log.error('Unable to created symlink for %s to: %s - %s' % (symlink, _entry['Path'], message))
                     rc = 1
         elif _entry['Action'] == 'Delete':
             if os.path.exists(symlink):

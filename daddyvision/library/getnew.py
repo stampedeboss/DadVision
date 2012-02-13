@@ -386,7 +386,8 @@ class Main_Window():
 
                 Update_Request.append({'Action' : 'Delete',
                                        'Type' : type_delete,
-                                       'Title' : title
+                                       'Title' : title,
+                                       'Path' : path
                                        })
             elif all_episodes:
                 if exists and subscribed:
@@ -394,12 +395,14 @@ class Main_Window():
                 else:
                     Update_Request.append({'Action' : 'Add',
                                            'Type' : self.content,
-                                           'Title' : title
+                                           'Title' : title,
+                                           'Path' : path
                                            })
                     if exists and not subscribed:
                         Update_Request.append({'Action' : 'Delete',
                                                'Type' : self.Incremental,
-                                               'Title' : title
+                                               'Title' : title,
+                                               'Path' : path
                                                })
             elif incrementals:
                 if exists and not subscribed:
@@ -407,12 +410,14 @@ class Main_Window():
                 else:
                     Update_Request.append({'Action' : 'Add',
                                            'Type' : self.Incremental,
-                                           'Title' : title
+                                           'Title' : title,
+                                           'Path' : path
                                            })
                     if exists and subscribed:
                         Update_Request.append({'Action' : 'Delete',
                                                'Type' : self.content,
-                                               'Title' : title
+                                               'Title' : title,
+                                               'Path' : path
                                                })
 
         rc = conn.root.UpdateLinks(self.user, Update_Request)
