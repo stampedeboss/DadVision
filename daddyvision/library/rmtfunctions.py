@@ -71,7 +71,7 @@ def listItems(user, content_type):
                 if ignored(collection_directory):
                     log.trace("Skipping: %s" % collection_directory)
                     continue
-                _add_entry(Return_List, os.path.join(content_dir, directory), os.path.join(subscription_dir, directory), incremental_dir, collection_directory)
+                _add_entry(Return_List, os.path.join(content_dir, directory), subscription_dir, incremental_dir, collection_directory)
         else:
             _add_entry(Return_List, content_dir, subscription_dir, incremental_dir, directory)
 
