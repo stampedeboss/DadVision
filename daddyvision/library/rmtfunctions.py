@@ -106,14 +106,15 @@ def updateLinks(user, request):
         symlink = os.path.join(config.SubscriptionDir, user, _entry['Type'], _entry['Title'])
 
         if _entry['Action'] == 'Add':
-            if not os.path.exists(symlink):
-                try:
-                    os.symlink(_entry['Path'], symlink)
-                    os.lchown(symlink, 1000, 100)
-                    log.info('symlink for %s to: %s' % (symlink, _entry['Path']))
-                except OSError, message:
-                    log.error('Unable to created symlink for %s to: %s - %s' % (symlink, _entry['Path'], message))
-                    rc = 1
+            try:
+                if os.path.exists(symlink):
+                    os.remove(symlink)
+                os.symlink(_entry['Path'], symlink)
+                os.lchown(symlink, 1000, 100)
+                log.info('symlink for %s to: %s' % (symlink, _entry['Path']))
+            except OSError, message:
+                log.error('Unable to created symlink for %s to: %s - %s' % (symlink, _entry['Path'], message))
+                rc = 1
         elif _entry['Action'] == 'Delete':
             if os.path.exists(symlink):
                 try:
