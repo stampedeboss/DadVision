@@ -86,12 +86,12 @@ class DaddyvisionNetwork(object):
         cmd = ['rsync', '-rptuvhogL{}'.format(self.options.CmdLineDryRun),
                '--progress',
                '--partial-dir=.rsync-partial',
-               '--exclude=lost+found',
-               '--exclude-from={}'.format(_series_delete_exclusions),
-               '{}'.format(self.options.CmdLineArgs),
                '--log-file={}'.format(self.log_file),
-               '{}/Series/'.format(self.options.SymLinks),
-               '{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt)]
+               '--exclude=lost+found',
+               '--exclude-from={}'.format(_series_delete_exclusions)]
+        cmd.extend(self.options.CmdLineArgs)
+        cmd.append('{}/Series/'.format(self.options.SymLinks))
+        cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt))
 
         try:
             process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Series'))
@@ -109,11 +109,11 @@ class DaddyvisionNetwork(object):
         cmd = ['rsync', '-rptuvhogL{}'.format(self.options.CmdLineDryRun),
                '--progress',
                '--partial-dir=.rsync-partial',
-               '--exclude=lost+found',
-               '{}'.format(self.options.CmdLineArgs),
                '--log-file={}'.format(self.log_file),
-               '{}/Movies/'.format(self.options.SymLinks),
-               '{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.MoviesRmt)]
+               '--exclude=lost+found']
+        cmd.extend(self.options.CmdLineArgs)
+        cmd.append('{}/Movies/'.format(self.options.SymLinks))
+        cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.MoviesRmt))
         try:
             process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Movies'))
             if not self.options.dryrun:
@@ -291,13 +291,17 @@ class DaddyvisionNetwork(object):
         else:
             self.options.CmdLineDryRun = ''
 
-        self.options.CmdLineArgs = ''
-
-        if self.options.delete:
-            self.options.CmdLineArgs = self.options.CmdLineArgs + '--delete'
+        self.options.CmdLineArgs = []
 
         if self.options.xclude:
-            self.options.CmdLineArgs = self.options.CmdLineArgs + ' --exclude=*{}*'.format(self.options.xclude)
+            self.options.CmdLineArgs.append('--exclude=*{}*'.format(self.options.xclude))
+
+        if self.options.novideo:
+            self.options.CmdLineArgs.append('--exclude=*.avi')
+            self.options.CmdLineArgs.append('--exclude=*.mkv')
+
+        if self.options.delete:
+            self.options.CmdLineArgs.append('--delete')
 
         return
 
@@ -343,6 +347,9 @@ class localOptions(OptionParser):
         group.add_option("-x", "--exclude", dest="xclude",
             action="store", type="string", default="",
             help="Exclude files/directories")
+        group.add_option("--no-video", dest="novideo",
+            action="store_true", default=False,
+            help="Suppress Video Files, Only Move Support Files/Directories")
         self.add_option_group(group)
 
         group = OptionGroup(self, "SyncRMT Already Running")
