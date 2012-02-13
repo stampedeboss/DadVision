@@ -106,9 +106,9 @@ def updateLinks(user, request):
         symlink = os.path.join(config.SubscriptionDir, user, _entry['Type'], _entry['Title'])
 
         if _entry['Action'] == 'Add':
+            if os.path.exists(symlink):
+                os.remove(symlink)
             try:
-                if os.path.exists(symlink):
-                    os.remove(symlink)
                 os.symlink(_entry['Path'], symlink)
                 os.lchown(symlink, 1000, 100)
                 log.info('symlink for %s to: %s' % (symlink, _entry['Path']))
