@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 Author: AJ Reynolds
 Date: 11-19-2011
@@ -30,7 +31,7 @@ PgmDir = os.path.dirname(__file__)
 HomeDir = os.path.expanduser('~')
 ConfigDirB = os.path.join(HomeDir, '.config')
 ConfigDir = os.path.join(ConfigDirB, 'xbmcsupt')
-LogDir = os.path.join(HomeDir, 'log')
+LogDir      = '/srv/log'
 TEMP_LOC = os.path.join(HomeDir, __pgmname__)
 
 if not os.path.exists(LogDir):
