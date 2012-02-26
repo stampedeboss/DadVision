@@ -57,9 +57,9 @@ class DaddyvisionNetwork(object):
     def SyncRMT(self):
 
         if not self.options.dryrun:
-            self.chkStatus(self.options.SymLinks)
+            self.chkStatus()
             time.sleep(0.2)
-            self.chkStatus(self.options.SymLinks)
+            self.chkStatus()
 
 
         if 'Series' in self.options.content:
@@ -238,17 +238,26 @@ class DaddyvisionNetwork(object):
             except CalledProcessError, exc:
                 log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
 
-    def chkStatus(self, directory, recurse=False):
+    def chkStatus(self):
         time.sleep(0.2)
         pidList = psutil.process_iter()
+        nameList = ['rsync', 'python2.7', 'python']
+        '''
+        for p in pidList:
+            cmdline = p.cmdline
+            if p.name in nameList and len(cmdline) > 2:
+                if cmdline[1] == '/usr/local/bin/syncrmt':
+                    print p.name, cmdline[2]
+        '''
         for p in pidList:
             cmdline = p.cmdline
             if len(cmdline) > 0:
                 if p.name == 'rsync':
-                    if os.path.split(cmdline[-2].rstrip(os.sep))[0] == directory.rstrip(os.sep):
+                    _rsync_user = cmdline[-1].split(':')[0].split('@')[1]
+                    if _rsync_user == self.options.HostName:
                         if options.runaction == 'ask':
                             while True:
-                                value = raw_input("syncrmt for: %s Already Running, Cancel This Request or Restart? (C/R): " % (directory))
+                                value = raw_input("syncrmt for: %s Already Running, Cancel This Request or Restart? (C/R): " % (self.options.HostName))
                                 if not value:
                                     continue
                                 if value.lower()[:1] == 'c':
@@ -258,14 +267,14 @@ class DaddyvisionNetwork(object):
                                     options.runaction = 'restart'
                                     break
                         if options.runaction == 'cancel':
-                            log.warn('rmtsync for : %s is Already Running, Request Canceled' % directory)
+                            log.warn('rmtsync for : %s is Already Running, Request Canceled' % self.options.HostName)
                             sys.exit(1)
                         else:
                             os.system('sudo kill -kill %s' % p.pid)
                             log.warn('Previous Session Killed: %s' % p.pid)
                             options.runaction = 'restart'
                             time.sleep(0.1)
-                            self.chkStatus(directory)
+                            self.chkStatus()
         return
 
     def _add_runtime_options(self):
