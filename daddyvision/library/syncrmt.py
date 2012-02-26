@@ -299,6 +299,9 @@ class DaddyvisionNetwork(object):
         if self.options.novideo:
             self.options.CmdLineArgs.append('--exclude=*.avi')
             self.options.CmdLineArgs.append('--exclude=*.mkv')
+            self.options.CmdLineArgs.append('--exclude=*.mp4')
+            self.options.CmdLineArgs.append('--exclude=*.iso')
+            self.options.CmdLineArgs.append('--exclude=*.mpg')
 
         if self.options.delete:
             self.options.CmdLineArgs.append('--delete')
