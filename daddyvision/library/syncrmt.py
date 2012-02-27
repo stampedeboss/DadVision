@@ -241,14 +241,7 @@ class DaddyvisionNetwork(object):
     def chkStatus(self):
         time.sleep(0.2)
         pidList = psutil.process_iter()
-        nameList = ['rsync', 'python2.7', 'python']
-        '''
-        for p in pidList:
-            cmdline = p.cmdline
-            if p.name in nameList and len(cmdline) > 2:
-                if cmdline[1] == '/usr/local/bin/syncrmt':
-                    print p.name, cmdline[2]
-        '''
+#        nameList = ['rsync', 'python2.7', 'python']
         for p in pidList:
             cmdline = p.cmdline
             if len(cmdline) > 0:

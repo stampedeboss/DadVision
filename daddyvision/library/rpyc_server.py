@@ -6,6 +6,7 @@ Purpose:
 
 '''
 from daddyvision.common import logger
+from daddyvision.common.daemon import Daemon
 from daddyvision.common.options import OptionParser
 from rpyc.utils.server import ThreadedServer # or ForkingServer
 from daddyvision.library.rmtfunctions import listItems, updateLinks
@@ -36,10 +37,14 @@ logger.initialize()
 TRACE = 5
 VERBOSE = 15
 
+class MyDaemon(Daemon):
+
+    def run(self):
+
+        server = ThreadedServer(DaddyVisionService, hostname = '192.168.9.201', port = 32489, logger = log)
+        server.start()
 
 class DaddyVisionService(rpyc.Service):
-
-    pass
 
     def exposed_ListItems(self, user, content_type):
         return listItems(user, content_type)
@@ -67,6 +72,32 @@ if __name__ == '__main__':
     log.debug("Parsed command line options: {!s}".format(options))
     log.debug("Parsed arguments: %r" % args)
 
-    server = ThreadedServer(DaddyVisionService, hostname = '192.168.9.201', port = 32489, logger = log)
-    server.start()
 
+    daemon = MyDaemon('/tmp/daemon-rpyc_server.pid')
+
+    try:
+        from subprocess import Popen, PIPE
+        _p = Popen(["svnversion", "."], stdout=PIPE)
+        REVISION= _p.communicate()[0]
+        REVISION='Revision: {}'.format(REVISION.strip('\n').strip())
+        _p = None # otherwise we get a wild exception when Django auto-reloads
+    except Exception, e:
+        print "Could not get revision number: ", e
+        REVISION='Version: {}'.format(__version__)
+
+    if options.loglevel == 'DEBUG' or options.loglevel == 'TRACE':
+        log.info('******* DEBUG Selected, Not using Daemon ********')
+        log.info("**************  %s    ***************" % REVISION)
+        daemon.run()
+    elif 'start' == args[0]:
+        log.info("*************** STARTING DAEMON ****************" )
+        log.info("**************  %s    ***************" % REVISION)
+        daemon.start()
+    elif 'stop' == args[0]:
+        log.info("*************** STOPING DAEMON *****************" )
+        log.info("**************  %s    ***************" % REVISION)
+        daemon.stop()
+    elif 'restart' == args[0]:
+        log.info("************** RESTARTING DAEMON ***************" )
+        log.info("**************  %s    ***************" % REVISION)
+        daemon.restart()
