@@ -305,6 +305,9 @@ class DaddyvisionNetwork(object):
             self.options.CmdLineArgs.append('--exclude=*.iso')
             self.options.CmdLineArgs.append('--exclude=*.mpg')
 
+        if self.options.chksum:
+            self.options.CmdLineArgs.append('--checksum')
+
         if self.options.delete:
             self.options.CmdLineArgs.append('--delete')
 
@@ -340,21 +343,24 @@ class localOptions(OptionParser):
         self.add_option_group(group)
 
         group = OptionGroup(self, "Modifers")
-        group.add_option("-n", "--dry-run", dest="dryrun",
+        group.add_option("--checksum", dest="chksum",
             action="store_true", default=False,
-            help="Don't Run Link Create Commands")
+            help="Use Checksum not Date and Time")
         group.add_option("--delete", dest="delete",
             action="store_true", default=False,
             help="Delete any files on rmt that do not exist on local")
+        group.add_option("-n", "--dry-run", dest="dryrun",
+            action="store_true", default=False,
+            help="Don't Run Link Create Commands")
+        group.add_option("--no-video", dest="novideo",
+            action="store_true", default=False,
+            help="Suppress Video Files, Only Move Support Files/Directories")
         group.add_option("--suppress", dest="suppress_incremental",
             action="store_true", default=False,
             help="Skip Processing of Incremental Subscriptions")
         group.add_option("-x", "--exclude", dest="xclude",
             action="store", type="string", default="",
             help="Exclude files/directories")
-        group.add_option("--no-video", dest="novideo",
-            action="store_true", default=False,
-            help="Suppress Video Files, Only Move Support Files/Directories")
         self.add_option_group(group)
 
         group = OptionGroup(self, "SyncRMT Already Running")
