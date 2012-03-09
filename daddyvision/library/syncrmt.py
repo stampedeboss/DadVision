@@ -310,7 +310,7 @@ class DaddyvisionNetwork(object):
             self.options.CmdLineArgs.append('--exclude=*.VOB')
             self.options.CmdLineArgs.append('--exclude=*.IFO')
             self.options.CmdLineArgs.append('--exclude=*.BUP')
-            self.options.CmdLineArgs.append('--exclude=*.core')
+            self.options.CmdLineArgs.append('--exclude=core')
 
         if self.options.chksum:
             self.options.CmdLineArgs.append('--checksum')
