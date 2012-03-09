@@ -67,11 +67,12 @@ def listItems(user, content_type):
             log.trace("Skipping: %s" % directory)
             continue
         if regex_collection.search(directory):
+            _prefix = directory.split(':', 1)[1].lstrip()
             for collection_directory in os.listdir(os.path.abspath(os.path.join(content_dir, directory))):
                 if ignored(collection_directory):
                     log.trace("Skipping: %s" % collection_directory)
                     continue
-                _add_entry(Return_List, os.path.join(content_dir, directory), subscription_dir, incremental_dir, collection_directory)
+                _add_entry(Return_List, os.path.join(content_dir, directory), subscription_dir, incremental_dir, collection_directory, prefix='{}: '.format(_prefix))
         else:
             _add_entry(Return_List, content_dir, subscription_dir, incremental_dir, directory)
 
@@ -79,7 +80,7 @@ def listItems(user, content_type):
 
     return Return_List
 
-def _add_entry(Return_List, content_dir, subscription_dir, incremental_dir, directory):
+def _add_entry(Return_List, content_dir, subscription_dir, incremental_dir, directory, prefix=''):
     if incremental_dir and os.path.exists(os.path.join(incremental_dir, directory)):
         current_status = config.IncrementalsDir
     elif os.path.exists(os.path.join(subscription_dir, directory)):
@@ -88,9 +89,9 @@ def _add_entry(Return_List, content_dir, subscription_dir, incremental_dir, dire
         current_status = ''
     title = directory.split(None, 1)
     if title[0] in config.Predicates:
-        title = '%s, %s' % (title[1], title[0])
+        title = '{}{}, {}'.format(prefix, title[1], title[0])
     else:
-        title = directory
+        title = '{}{}'.format(prefix, directory)
     statinfo = os.stat(os.path.join(content_dir, directory))
     mod_date = statinfo.st_mtime
     _entry = {'Title':title, 'Status':current_status, 'Date':mod_date, 'Path':os.path.join(content_dir, directory)}
