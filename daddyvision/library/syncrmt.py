@@ -304,6 +304,9 @@ class DaddyvisionNetwork(object):
             self.options.CmdLineArgs.append('--exclude=*.mp4')
             self.options.CmdLineArgs.append('--exclude=*.iso')
             self.options.CmdLineArgs.append('--exclude=*.mpg')
+            self.options.CmdLineArgs.append('--exclude=*.vob')
+            self.options.CmdLineArgs.append('--exclude=*.ifo')
+            self.options.CmdLineArgs.append('--exclude=*.bup')
 
         if self.options.chksum:
             self.options.CmdLineArgs.append('--checksum')
