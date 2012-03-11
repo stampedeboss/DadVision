@@ -246,6 +246,10 @@ class DaddyvisionNetwork(object):
             cmdline = p.cmdline
             if len(cmdline) > 0:
                 if p.name == 'rsync':
+                    _rsync_target = cmdline[-1]
+                    _rsync_target = _rsync_target.split(':')
+                    if len(_rsync_target) < 2:
+                        continue
                     _rsync_user = cmdline[-1].split(':')[0].split('@')[1]
                     if _rsync_user == self.options.HostName:
                         if options.runaction == 'ask':
