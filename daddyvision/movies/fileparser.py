@@ -100,14 +100,14 @@ class FileParser(object):
 
         if 'Year' in _parsed_keys:
             self.File_Details['Year'] = _parse_details.group('Year')
-            
+
         if 'Trailer' in _parsed_keys and _parse_details.group('Trailer') != None:
             self.File_Details['Trailer'] = True
 
         if 'Ext' in _parsed_keys:
-            self.File_Details['Ext'] = _parse_details.group('Ext')
+            self.File_Details['Ext'] = _parse_details.group('Ext').lower()
         elif _file_name[-4] == '.':
-            self.File_Details['Ext'] = _file_name[-4:]
+            self.File_Details['Ext'] = _file_name[-4:].lower()
             log.debug('{}: Parse Failed to Locate Extension Using: {}'.format(self.LogHeader, self.File_Details['Ext']))
         else:
             log.trace('{}: Unable to Identify Extension for Filename: {}'.format(self.LogHeader, fq_name))
