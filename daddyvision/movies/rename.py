@@ -9,6 +9,7 @@ Program to rename movies files
 """
 from daddyvision.common.chkvideo import chkVideoFile
 from daddyvision.common.options import OptionParser, OptionGroup
+from daddyvision.common.exceptions import InvalidFilename
 from daddyvision.movies.fileparser import FileParser
 from daddyvision.common import logger
 from fuzzywuzzy import process
@@ -122,7 +123,7 @@ class Rename(object):
         self.config = config
         self.parser = FileParser(self.config)
         self.regex_repack = re.compile('^.*(repack|proper).*$', re.IGNORECASE)
-        self.regex_NewDir = re.compile('^{}.*$'.format(os.path.join(os.path.split(self.config.MoviesDir)[0], self.config.NewDir), re.IGNORECASE))
+        self.regex_NewDir = re.compile('^{}.*$'.format(self.config.NewMoviesDir, re.IGNORECASE))
         self.regex_MoviesDir = re.compile('^{}.*$'.format(self.config.MoviesDir), re.IGNORECASE)
         tmdb.configure('587c13e576f991c0a653f783b290a065')
         return
@@ -156,21 +157,23 @@ class Rename(object):
                     _path_name = os.path.join(_root, _file)
                     log.debug("-----------------------------------------------")
                     log.debug("Filename: %s" % _file)
-                    _file_details = self.parser.getFileDetails(_path_name)
-
-                    if _file_details['Ext'] not in self.config.MediaExt:
-                        if not self.regex_MoviesDir.match(_path_name):
-                            os.remove(_file_details['FileName'])
-                            self._del_dir(_file_details['FileName'])
-                    else:
-                        if video_check:
-                            if chkVideoFile(_path_name):
-                                log.error('File Failed Video Check: {}'.format(_path_name))
-                                return
-                        _fq_new_file_name = self._rename_file(_file_details)
+                    try:
+                        _file_details = self.parser.getFileDetails(_path_name)
+                        if self._ignored(_path_name) and not self.regex_MovieDir.match(_path_name):
+                            if not self.regex_MoviesDir.match(_path_name):
+                                os.remove(_file_details['FileName'])
+                                self._del_dir(_file_details['FileName'])
+                        else:
+                            if video_check and _file_details['Ext'].lower() in self.config.MediaExt:
+                                if chkVideoFile(_path_name):
+                                    log.error('File Failed Video Check: {}'.format(_path_name))
+                                    return
+                            _fq_new_file_name = self._rename_file(_file_details)
+                    except InvalidFilename:
+                        pass
 
         if self.regex_NewDir.match(pathname):
-            _base_dir = os.path.join(os.path.split(self.config.MoviesDir)[0],self.config.NewDir)
+            _base_dir = self.config.NewMoviesDir
         elif self.regex_MoviesDir.match(pathname):
             _base_dir = self.config.MoviesDir
         else:
@@ -200,9 +203,9 @@ class Rename(object):
         if _num_of_movies > 0:
             _choice = process.extractOne(_file_details['MovieName'], _movie_titles)
             if _choice[1] > 85:
-                _index = _movie_titles.index(_choice[0])
-                _file_details['MovieName'] = _choice[_index]
+                _file_details['MovieName'] = _choice[0]
                 if 'Year' not in _file_details:
+                    _index = _movie_titles.index(_choice[0])
                     _file_details['Year'] = int(_movie.getReleased(_index)[0:4])
         else:
             pass
@@ -281,7 +284,9 @@ class Rename(object):
             if _choice[1] > 85:
                 _index = _movie_titles.index(_choice[0])
                 _directory_details['MovieName'] = _choice[_index]
-                _directory_details['Year'] = int(_movie.getReleased(_index)[0:4])
+                _released = _movie.getReleased(_index)
+                if _released:
+                    _directory_details['Year'] = int(_released[0:4])
         else:
             pass
 
@@ -326,7 +331,7 @@ class Rename(object):
             _cur_dir = pathname
 
         if self.regex_NewDir.match(pathname):
-            _base_dir = os.path.join(os.path.split(self.config.MoviesDir)[0],self.config.NewDir)
+            _base_dir = self.config.NewMoviesDir
         elif self.regex_MoviesDir.match(pathname):
             _base_dir = self.config.MoviesDir
         else:
@@ -386,10 +391,9 @@ if __name__ == "__main__":
         _path_name = '%s %s'% (_path_name, args[i])
     _path_name = _path_name.lstrip().rstrip()
     if len(_path_name) == 0:
-        _new_movies_dir = os.path.join ( os.path.split(_config_settings.MoviesDir)[0], _config_settings.NewDir )
-        msg = 'Missing Scan Starting Point (Input Directory), Using Default: {}'.format(_new_movies_dir)
+        msg = 'Missing Scan Starting Point (Input Directory), Using Default: {}'.format(_config_settings.NewMoviesDir)
         log.info(msg)
-        _path_name = _new_movies_dir
+        _path_name = _config_settings.NewMoviesDir
 
     if not os.path.exists(_path_name):
         log.error('Invalid arguments file or path name not found: %s' % _path_name)
