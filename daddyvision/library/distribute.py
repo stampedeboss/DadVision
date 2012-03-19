@@ -80,7 +80,7 @@ class Distribute(object):
             pathname = self._distribute_file(pathname, _dest_dir)
         elif _fmt == 'dir':                    # a folder
             log.trace("%s directory ...%r" % (type, os.path.basename(pathname)))
-            self._distribute_directory(pathname, _dest_dir)
+            _dest_dir = self._distribute_directory(pathname, _dest_dir)
         else:                                # unknown error
             raise InvalidFilename("Skipping %r, doesn't exist!" % (pathname,))
 
@@ -116,7 +116,7 @@ class Distribute(object):
                 _series_name = _series.group(1)
                 log.debug("Series: %s" % _series_name)
                 _type = "Series"
-                _dest_dir = os.path.join(self.config.NewSeriesDir, os.path.basename(pathname.rstrip(os.sep)))    # Adds the last directory to target name
+                _dest_dir = self.config.NewSeriesDir
 
                 if os.path.isfile(pathname):
                     _fmt = 'file'
@@ -128,7 +128,7 @@ class Distribute(object):
 
         if any(pathname.lower().count(key) > 0 for key in self.config.MovieGlob):
             _type = "Movie"
-            _dest_dir = os.path.join(self.config.NewMoviesDir, os.path.basename(pathname.rstrip(os.sep)))         # Adds the last directory to target name
+            _dest_dir = self.config.NewMoviesDir
         else:
             _type = "NonVideo"
             _dest_dir = os.path.join(self.config.NonVideoDir, os.path.basename(pathname.rstrip(os.sep)))  # Adds the last directory to target name
@@ -182,10 +182,8 @@ class Distribute(object):
         log.trace('_distribute_directory: %s %s' % (src_dir, dest_dir))
 
         # initialize stuff
-        src_dir = src_dir.rstrip(os.sep) + os.sep
+        src_dir = src_dir.rstrip(os.sep)
         _tgt_dir = dest_dir
-#        _src_name = os.path.basename(src_dir.rstrip(os.sep))
-
         _files_req_unpack = False
 
         for _root, _dir_names, _file_names in os.walk(src_dir):
@@ -196,7 +194,8 @@ class Distribute(object):
                     _dir_names.remove(_dir_name)
 
             # Build Directory Structure
-            _sub_dir = _root[len(src_dir):]
+            _sub_dir = _root[len(os.path.split(src_dir)[0]):].lstrip(os.sep)
+#            _sub_dir = os.path.split(_root.rstrip(os.sep))[1]
             dest_dir = os.path.join(_tgt_dir, _sub_dir)
             # create destination directory
             if not os.path.exists(dest_dir):
@@ -225,11 +224,14 @@ class Distribute(object):
                 self._distribute_file(_file, dest_dir)
 #                self._distribute_file(_file, os.path.join(dest_dir, _root[len(src_dir):]))
 
+#        self.RAR_RE = re.compile(r"\.([rR][aA][rR]|[rR]\d{2,3})$")
+#        self.RAR_PART_RE = re.compile(r"\.part\d{2,3}\.rar$")
             # handle RARed files
             for _file in _rar_list:
                 # skip RAR parts, except the first one
                 if self.RAR_PART_RE.search(_file.lower()) \
-                        and not _file.lower().endswith(".part01.rar"):
+                        and not (_file.lower().endswith(".part01.rar") \
+                                 or _file.lower().endswith(".part001.rar")):
                     continue
 
                 _file = os.path.join(_root, _file)
@@ -241,7 +243,8 @@ class Distribute(object):
             if _files_req_unpack:
                 self._clean_names(dest_dir)
                 _files_req_unpack = False
-        return
+
+        return dest_dir
 
     def _clean_names(self, dest_dir):
         # map ugly scene short names to original directory name
@@ -358,4 +361,10 @@ if __name__ == '__main__':
         sys.exit(1)
 
     distribute = Distribute(config)
-    distribute.ProcessPathName(reqname)
+    if reqname == config.DownloadDir:
+        for entry in os.listdir(reqname):
+            type, fmt, dest_dir = distribute._get_type(os.path.join(reqname, entry))
+            if type in ('Series', 'Movie'):
+                distribute.ProcessPathName(os.path.join(reqname, entry))
+    else:
+        distribute.ProcessPathName(reqname)
