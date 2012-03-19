@@ -7,7 +7,7 @@ Purpose:
 '''
 from __future__ import division
 from daddyvision.common import logger
-from daddyvision.common.exceptions import UnexpectedErrorOccured, DuplicateRecord
+from daddyvision.common.exceptions import UnexpectedErrorOccured, DuplicateRecord, InvalidFilename
 from daddyvision.common.options import OptionParser, CoreOptionParser
 from daddyvision.common.settings import Settings
 from daddyvision.common.countfiles import countFiles
@@ -58,11 +58,15 @@ def load_entry(user, file_name):
         file_details = fileparser.getFileDetails(file_name)
         # SQL #
         cursor.execute('INSERT INTO Downloads(Name, SeriesName, Filename, DownloadTimeStamp) VALUES ("{}", "{}", "{}", "{}")'.format(user,
+                                                                                                                                     file_details['SeriesName'],
+                                                                                                                                     file_name,
                                                                                                                                      timestamp))
     except  sqlite3.IntegrityError, e:
         raise DuplicateRecord
     except sqlite3.Error, e:
         raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, file_name))
+    except InvalidFilename:
+        pass
 
 class DownloadDatabase(object):
     def __init__(self):
@@ -80,7 +84,7 @@ class DownloadDatabase(object):
 
             source_directory = os.path.join(config.SubscriptionDir, user, type_scan)
 
-            File_Count = countFiles(source_directory, exclude=config.ExcludeList)
+            File_Count = countFiles(source_directory, exclude_list=config.ExcludeList)
             log.info('{:5s} - Number of File to be Checked: {}'.format(user, File_Count))
 
             for _symlink_dir in os.listdir(source_directory):
@@ -113,6 +117,7 @@ class DownloadDatabase(object):
                                 load_entry(user, _fq_name)
                                 Files_Loaded += 1
                             else:
+                                continue
                                 log.info('Skipping Non-VIdeo File: {}'.format(_fq_name))
                         except DuplicateRecord:
                             Files_Loaded += 1
