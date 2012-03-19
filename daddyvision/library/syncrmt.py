@@ -98,9 +98,12 @@ class DaddyvisionNetwork(object):
             if not self.options.dryrun:
                 self._update_xbmc()
         except CalledProcessError, exc:
-            log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
-            self._update_xbmc()
-            sys.exit(1)
+            if exc.returncode == 255 or exc.returncode == -9:
+                sys.exit(1)
+            else:
+                log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
+                self._update_xbmc()
+                sys.exit(1)
 
 
     def SyncMovies(self):
@@ -119,9 +122,12 @@ class DaddyvisionNetwork(object):
             if not self.options.dryrun:
                 self._update_xbmc()
         except CalledProcessError, exc:
-            log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
-            self._update_xbmc()
-            sys.exit(1)
+            if exc.returncode == 255 or exc.returncode == -9:
+                sys.exit(1)
+            else:
+                log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
+                self._update_xbmc()
+                sys.exit(1)
 
     def SyncIncrementals(self, directory):
         log.info('Syncing - Incremental Series')
@@ -208,7 +214,7 @@ class DaddyvisionNetwork(object):
             self._update_xbmc()
         except CalledProcessError, exc:
             log.error("Incremental rsync Command returned with RC=%d, Ending" % (exc.returncode))
-            if exc.returncode == 255 :
+            if exc.returncode == 255 or exc.returncode == -9:
                 sys.exit(1)
             else:
                 raise UnexpectedErrorOccured("Incremental rsync Command returned with RC=%d, Ending" % (exc.returncode))
@@ -264,7 +270,7 @@ class DaddyvisionNetwork(object):
                                     options.runaction = 'restart'
                                     break
                         if options.runaction == 'cancel':
-                            log.warn('rmtsync for : %s is Already Running, Request Canceled' % self.options.HostName)
+#                            log.warn('rmtsync for : %s is Already Running, Request Canceled' % self.options.HostName)
                             sys.exit(1)
                         else:
                             os.system('sudo kill -kill %s' % p.pid)
@@ -344,13 +350,13 @@ class localOptions(OptionParser):
         group = OptionGroup(self, "Media Type")
         group.add_option("-s", "--series", dest="content", default=[],
             action="store_const", const=["Series"],
-            help="process TV Series")
+            help="process Series")
         group.add_option("-m", "--movies", dest="content",
             action="store_const", const=["Movies"],
             help="process Movies")
         group.add_option("-b", "--both", dest="content",
             action="store_const", const=["Series", "Movies"],
-            help="process both TV Series and Movies")
+            help="process both Series and Movies")
         self.add_option_group(group)
 
         group = OptionGroup(self, "Modifers")
