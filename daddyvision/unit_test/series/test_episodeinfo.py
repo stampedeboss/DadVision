@@ -26,7 +26,7 @@ class EpisodeDetailsExceptions(unittest.TestCase):
 
         HomeDir = os.path.expanduser('~')
         ConfigDirB = os.path.join(HomeDir, '.config')
-        LogDir = os.path.join(HomeDir, 'log')
+        LogDir = os.path.join('/srv', 'log')
 
         log.setLevel('TRACE')
         _formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)-8s - %(message)s")

@@ -3,7 +3,7 @@
 """
 Purpose:
    Program to perform various tasks (check for missing episodes, locate duplication files, etc).
-   Assist with maintaining a Library of TV Series and Episode files.
+   Assist with maintaining a Library of Series and Episode files.
 
 """
 from __future__ import division

@@ -48,7 +48,7 @@ GB = 1024**3
 
 _tv_parse = re.compile(
             '''
-            ^(/mnt/TV/Series/)                    # Directory
+            ^(/mnt/DadVision/Series/)             # Directory
             (?P<series>.*)                        # Series Name
             (/Season.)                            # Season Literal
             (?P<season>[0-9]+)                    # Season Number (##)

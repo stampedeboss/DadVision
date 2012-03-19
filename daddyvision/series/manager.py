@@ -89,7 +89,7 @@ class Manager(object):
         from daddyvision.unit_test.fileparseCheckNew import ScanDownload
 
         dir_scan = ScanDownload()
-        file_count = dir_scan.ScanDir('/mnt?TV/New')
+        file_count = dir_scan.ScanDir(self.config.NewSeriesDir)
 
 
     def shutdown(self):

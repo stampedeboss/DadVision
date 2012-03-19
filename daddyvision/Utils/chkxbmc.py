@@ -63,7 +63,7 @@ from pysqlite2 import dbapi2 as sqlite
 DBLITE = "/home/xbmc/.xbmc/userdata/Database/MyVideos34.db"
 
 #files home location
-FILESHOME="/mnt/TV/Series/"
+FILESHOME="/mnt/DadVision/Series/"
 
 #this is NOT case sensitive sample will ignore all variants of sample will block sAmPLE
 #sorry you need to be careful here if you put in just for instance e it will ignore all files and directories with an e so make unique!

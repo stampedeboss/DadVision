@@ -74,11 +74,12 @@ class Rename(object):
         return
 
     @useLibraryLogging
-    def rename(self, pathname, video_check=True ):
+    def rename(self, pathname, force=False, forcedelete=False ):
         log.trace("rename method: pathname:{}".format(pathname))
 
+        self.force = force
+        self.forcedelete = forcedelete
         _last_series = None
-        _tvdb_data = {}
 
         if os.path.isfile(pathname):
             log.debug("-----------------------------------------------")
@@ -86,7 +87,7 @@ class Rename(object):
             log.debug("Filename:  %s" % os.path.split(pathname)[1])
             try:
                 _file_details = self.parser.getFileDetails(pathname)
-                if video_check:
+                if not self.force:
                     if chkVideoFile(pathname):
                         log.error('File Failed Video Check: {}'.format(pathname))
                         return
@@ -110,28 +111,32 @@ class Rename(object):
                         log.debug("Ignoring %r" % os.path.join(_root, _dir))
                         _dirs.remove(_dir)
 
+                if _dirs == [] and _files == []:
+                    self._del_dir(os.path.join(_root, 'dummy'))
+                    continue
+                elif _files == []:
+                    continue
+
                 _files.sort()
 
                 for _file_name in _files:
                     _path_name = os.path.join(_root, _file_name)
                     log.debug("-----------------------------------------------")
                     log.debug("Filename: %s" % _path_name)
+                    if self._ignored(pathname) and not self.regex_SeriesDir.match(_file_name):
+                        try:
+                            os.remove(_file_details['FileName'])
+                            self._del_dir(_file_details['FileName'])
+                            continue
+                        except:
+                            log.info('Unable to delete: %s - %s' % (_file_details['FileName'],sys.exc_info()[1]))
+                        continue
                     try:
                         _file_details = self.parser.getFileDetails(_path_name)
                         if _file_details:
-                            if _file_details['Ext'] not in self.config.MediaExt:
-                                if not self.regex_SeriesDir.match(_file_name):
-                                    try:
-                                        os.remove(_file_details['FileName'])
-                                        self._del_dir(_file_details['FileName'])
-                                        continue
-                                    except:
-                                        log.info('Unable to delete: %s - %s' % (_file_details['FileName'],sys.exc_info()[1]))
-                                    continue
-                            if video_check:
-                                if chkVideoFile(_path_name):
-                                    log.error('File Failed Video Check: {}'.format(_path_name))
-                                    continue
+                            if not self.force and chkVideoFile(_path_name):
+                                log.error('File Failed Video Check: {}'.format(_path_name))
+                                continue
                             _file_details = self.episodeinfo.getDetails(_file_details)
                             self._rename_file(_file_details)
                     except (InvalidFilename, DuplicateFilesFound, RegxSelectionError, DataRetrievalError, EpisodeNotFound, SeriesNotFound), msg:
@@ -164,15 +169,21 @@ class Rename(object):
                 log.info('Unable to delete: %s' % _new_name)
             _new_name = self.config.ConversionsPatterns['proper_fqn'] % file_details
         else:
-            if os.path.exists(_new_name) and filecmp.cmp(_new_name, file_details['FileName']):
+#            if os.path.exists(_new_name) and filecmp.cmp(_new_name, file_details['FileName']):
+            if os.path.exists(_new_name):
                 if os.path.split(_new_name)[0] == os.path.split(file_details['FileName'])[0]:
                     log.info('Updating Inplace: %s ==> %s' % (file_details['FileName'], _new_name))
                     self._update_date(file_details, _new_name)
+                    return
                 else:
-                    log.info("Deleting %r, already at destination!" % (os.path.split(file_details['FileName'])[1],))
-                    os.remove(file_details['FileName'])
-                    self._del_dir(file_details['FileName'])
-                return
+                    if self.forcedelete:
+                        log.info("Deleting %r, already at destination!" % (os.path.split(file_details['FileName'])[1],))
+                        os.remove(file_details['FileName'])
+                        self._del_dir(file_details['FileName'])
+                        return
+                    elif not self.force:
+                        log.info("Skipping Rename %r, already at destination!" % (os.path.split(file_details['FileName'])[1],))
+                        return
 
         log.info(self.config.ConversionsPatterns['rename_message'] % (file_details['SeriesName'],
                                                                       file_details['SeasonNum'],
@@ -244,13 +255,16 @@ class Rename(object):
                     log.error("Unexpected error: %s" % exc)
 
     def _del_dir(self, pathname):
-        _base_dir = os.path.join(os.path.split(self.config.SeriesDir)[0],self.config.NewDir)
-        _last_dir = os.path.split(pathname)[0]
-        while _last_dir != _base_dir:
-            if len(os.listdir(_last_dir)) == 0:
+        if not re.match('^{}'.format(self.config.NewSeriesDir), pathname):
+            return
+
+        _base_dir = self.config.NewSeriesDir
+        _curr_dir = os.path.split(pathname)[0]
+        while _curr_dir != _base_dir:
+            if len(os.listdir(_curr_dir)) == 0:
                 try:
-                    os.rmdir(os.path.split(pathname)[0])
-                    _last_dir = os.path.split(_last_dir)[0]
+                    os.rmdir(_curr_dir)
+                    _curr_dir = os.path.split(_curr_dir)[0]
                     continue
                 except:
                     log.warn('_del_dir: Unable to Delete: %s' % (sys.exc_info()[1]))
@@ -346,9 +360,12 @@ class localOptions(OptionParser):
         OptionParser.__init__(self, **kwargs)
 
         group = OptionGroup(self, "Modifers")
-        group.add_option("-f", "--force", dest="check",
-            action="store_false", default=True,
+        group.add_option("-f", "--force", dest="force",
+            action="store_true", default=False,
             help="Bypass Video Check and Force Rename")
+        group.add_option("--force-delete", dest="forcedelete",
+            action="store_true", default=False,
+            help="Delete new file if episode already exists in library")
         self.add_option_group(group)
 
 
@@ -380,14 +397,13 @@ if __name__ == "__main__":
         _path_name = '%s %s'% (_path_name, args[i])
     _path_name = _path_name.lstrip().rstrip()
     if len(_path_name) == 0:
-        _new_series_dir = os.path.join ( os.path.split(_config_settings.SeriesDir)[0], _config_settings.NewDir )
-        msg = 'Missing Scan Starting Point (Input Directory), Using Default: {}'.format(_new_series_dir)
+        msg = 'Missing Scan Starting Point (Input Directory), Using Default: {}'.format(_config_settings.NewSeriesDir)
         log.info(msg)
-        _path_name = _new_series_dir
+        _path_name = _config_settings.NewSeriesDir
 
     if not os.path.exists(_path_name):
         log.error('Invalid arguments file or path name not found: %s' % _path_name)
         sys.exit(1)
 
     rename = Rename(_config_settings)
-    _new_fq_name = rename.rename(_path_name, options.check)
+    _new_fq_name = rename.rename(_path_name, options.force, options.forcedelete)

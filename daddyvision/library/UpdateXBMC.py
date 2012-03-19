@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 """
 Purpose:
-Program to watch for changes in the TV, Movie, and Links folders and take the
+Program to watch for changes in the Series, Movie, and Links folders and take the
 appropriate actions based on new subject matter.
 
 """

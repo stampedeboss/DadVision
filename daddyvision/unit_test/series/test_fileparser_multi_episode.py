@@ -15,7 +15,7 @@ class KnownValues(unittest.TestCase):
     File_SxxExx['SeasonNum'] = 1
     File_SxxExx['EpisodeNums'] = [1, 2]
     File_SxxExx['Ext'] = 'ext'
-#   File_SxxExx['BaseDir'] = '/mnt/TV/Series'
+#   File_SxxExx['BaseDir'] = '/mnt/DadVision/Series'
 
 class FileParserMultiEps(unittest.TestCase):
 
@@ -31,7 +31,7 @@ class FileParserMultiEps(unittest.TestCase):
 
 # Multi-Episode S##E##E##
     def test_FileParser_multi_case_000(self):
-        KnownValues.File_SxxExx["FileName"] = "/mnt/Series/TV/Covert Affairs/Season 1/E01-E02 Case 000.ext"
+        KnownValues.File_SxxExx["FileName"] = "/mnt/Series/DadVision/Covert Affairs/Season 1/E01-E02 Case 000.ext"
         self.assertEqual(self.parser.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
     def test_FileParser_multi_case_001(self):

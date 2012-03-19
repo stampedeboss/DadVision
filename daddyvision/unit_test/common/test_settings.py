@@ -10,20 +10,22 @@ TRACE = 5
 VERBOSE = 15
 
 class KnownValues(unittest.TestCase):
-    SeriesDir = '/mnt/TV/Series'
-    MoviesDir = '/mnt/Movies/Films'
+    SeriesDir = '/mnt/DadVision/Series'
+    MoviesDir = '/mnt/DadVision/Movies'
+    NewDir = '/mnt/DadVision/New'
+    NewSeriesDir = '/mnt/DadVision/New/Series'
+    NewMoviesDir = '/mnt/DadVision/New/Movies'
     NonVideoDir = '/mnt/Downloads/Unpacked'
     SubscriptionDir = '/mnt/Links'
-    NewDir = 'New'
     WatchDir = '/mnt/Downloads/Bittorrent'
 
     DBFile = '/home/aj/.config/xbmcsupt/daddyvision.db3'
-    TvdbIdFile = '/home/aj/.config/xbmcsupt/series_tvdb_ids'
-    SeriesAliasFile = '/home/aj/.config/xbmcsupt/series_aliases'
+    TvdbIdFile = '/home/aj/.config/xbmcsupt/Series_TvdbId'
+    SeriesAliasFile = '/home/aj/.config/xbmcsupt/Series_Aliases'
 
-    MediaExt = ['avi', 'mkv', 'mp4', 'mpeg']
+    MediaExt = ['avi', 'mkv', 'mp4', 'mpeg', 'm2ts', 'divx', 'mpg', 'm4v']
     MovieGlob = ['720', '1080', 'bluray', 'bdrip', 'brrip', 'pal', 'ntsc', 'dvd-r', 'fulldvd', 'multi', 'dts', 'hdtv', 'pdtv', 'webrip', 'dvdrip', '2lions']
-    IgnoreGlob = ['*subs*', '*subpack*', '*sample*', '*.sfv', '*.srt', '*.idx', '*.swp', '*.tmp', '*.bak', '*.nfo', '*.txt', 'thumbs.db', 'desktop.ini', 'ehthumbs_vista.db', '*.url', '*.doc', '*.docx', '*.jpg', '*.png', '*.com', '*.mds', '.*', '*~*',]
+    IgnoreGlob = ['*subs*', '*subpack*', '*sample*', '*.sfv', '*.srt', '*.idx', '*.swp', '*.tmp', '*.bak', '*.nfo', '*.txt', '*.doc', '*.docx', '*.jpg', '*.png', '*.com', '*.mds', 'thumbs.db', 'desktop.ini', 'ehthumbs_vista.db', '*.url', '.*', '*~*']
     Predicates = ['The', 'A', 'An']
 
     std_fqn = '%(BaseDir)s/%(SeriesName)s/Season %(SeasonNum)s/%(EpisodeNumFmt)s %(EpisodeTitle)s.%(Ext)s'
@@ -39,7 +41,7 @@ class KnownValues(unittest.TestCase):
 
     EpisodeAdjList =  [{'SeasonNum': 4, 'Begin': 0, 'AdjEpisode': 59, 'SeriesName': 'Pawn Stars', 'AdjSeason': -2, 'End': 9999}]
 
-    File_Details = {'BaseDir' : '/mnt/TV/Series',
+    File_Details = {'BaseDir' : '/mnt/DadVision/Series',
                     'SeriesName' : "Sample",
                     'SeasonNum' : 1,
                     'EpisodeNums' : [1,2],
@@ -71,7 +73,7 @@ class Test000(unittest.TestCase):
     def test_settings_case_013(self):
         self.assertEqual(self.settings.SubscriptionDir, KnownValues.SubscriptionDir)
     def test_settings_case_014(self):
-        self.assertEqual(self.settings.NewDir, KnownValues.NewDir)
+        self.assertEqual(self.settings.NewSeriesDir, KnownValues.NewSeriesDir)
     def test_settings_case_015(self):
         self.assertEqual(self.settings.WatchDir, KnownValues.WatchDir)
     def test_settings_case_016(self):
@@ -138,16 +140,16 @@ class Test000(unittest.TestCase):
         self.assertEqual(self.settings.TvdbIdList['V (2009)'], '94971')
 
     def test_settings_case_100a(self):
-        self.assertTrue('Leverage' in self.settings.SpecialHandlingList)
+        self.assertTrue('Special Handling Test' in self.settings.SpecialHandlingList)
     def test_settings_case_100b(self):
         self.assertFalse('Missing Entry' in self.settings.SpecialHandlingList)
 
     def test_settings_case_101a(self):
-        self.assertTrue('The New Yankee Workshop' in self.settings.ExcludeList)
+        self.assertTrue('mash' in self.settings.ExcludeScanList)
     def test_settings_case_101b(self):
         self.assertFalse('Missing Entry' in self.settings.ExcludeList)
     def test_settings_case_101c(self):
-        self.assertTrue('Special Features' in self.settings.ExcludeList)
+        self.assertTrue('*special features*' in self.settings.ExcludeList)
     def test_settings_case_102c(self):
         self.assertTrue('mkv' in self.settings.MediaExt)
     def test_settings_case_103c(self):

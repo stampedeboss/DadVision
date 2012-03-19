@@ -156,5 +156,5 @@ if __name__ == '__main__':
     list_returned = listItems('kim', 'Movies')
     print list_returned
 
-    req_add = [{'Action': 'Add', 'Path': '/mnt/Movies/Films/Collection: Disney/101 Dalmatians (1961)', 'Type': 'Movies', 'Title': '101 Dalmatians (1961)'}]
+    req_add = [{'Action': 'Add', 'Path': '/mnt/DadVision/Movies/Collection: Disney/101 Dalmatians (1961)', 'Type': 'Movies', 'Title': '101 Dalmatians (1961)'}]
     updateLinks('kim', req_add)

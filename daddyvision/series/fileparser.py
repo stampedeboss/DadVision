@@ -100,7 +100,7 @@ class FileParser(dict):
         self.File_Details['FileName'] = fq_name
         self.File_Details['SeriesName'] = _series_name
         self.File_Details['Ext'] = _ext
-#        self.File_Details['BaseDir'] = '/mnt/TV/Series'
+#        self.File_Details['BaseDir'] = '/mnt/DadVision/Series'
 
         if _air_date:
             self.File_Details['DateAired'] = _air_date

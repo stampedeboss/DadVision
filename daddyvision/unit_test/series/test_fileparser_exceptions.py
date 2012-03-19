@@ -13,7 +13,7 @@ class KnownValues(unittest.TestCase):
     File_SxxExx['SeasonNum'] = 1
     File_SxxExx['EpisodeNums'] = [1]
     File_SxxExx['Ext'] = 'ext'
-#   File_SxxExx['BaseDir'] = '/mnt/TV/Series'
+#   File_SxxExx['BaseDir'] = '/mnt/DadVision/Series'
 
 class FileParserExceptions(unittest.TestCase):
     

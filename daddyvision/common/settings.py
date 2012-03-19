@@ -54,14 +54,14 @@ class Settings(object):
         Library = self.config['Library']
         self.SeriesDir = Library['SeriesDir']
         self.MoviesDir = Library['MoviesDir']
+        self.NewDir = Library['NewDir']
         self.DownloadDir = Library['DownloadDir']
         self.NonVideoDir = Library['NonVideoDir']
         self.SubscriptionDir = Library['SubscriptionDir']
-        self.NewDir = Library['NewDir']
         self.IncrementalsDir = Library['IncrementalsDir']
 
-        self.NewMoviesDir = os.path.join(os.path.split(self.MoviesDir)[0], self.NewDir)
-        self.NewSeriesDir = os.path.join(os.path.split(self.SeriesDir)[0], self.NewDir)
+        self.NewMoviesDir = os.path.join(self.NewDir, os.path.split(self.MoviesDir)[1].rstrip(os.sep))
+        self.NewSeriesDir = os.path.join(self.NewDir, os.path.split(self.SeriesDir)[1].rstrip(os.sep))
 
         if not os.path.exists(self.SeriesDir):
             log.error("Path Not Found: %s" % self.SeriesDir)
@@ -73,8 +73,18 @@ class Settings(object):
             log.error("Invalid Config Entries, Ending")
             raise ConfigValueError("Path Not Found: %s" % self.MoviesDir)
 
+        if not os.path.exists(self.NewSeriesDir):
+            log.error("Path Not Found: %s" % self.NewSeriesDir)
+            log.error("Invalid Config Entries, Ending")
+            raise ConfigValueError("Path Not Found: %s" % self.NewSeriesDir)
+
+        if not os.path.exists(self.NewMoviesDir):
+            log.error("Path Not Found: %s" % self.NewMoviesDir)
+            log.error("Invalid Config Entries, Ending")
+            raise ConfigValueError("Path Not Found: %s" % self.NewMoviesDir)
+
         if not os.path.exists(self.NonVideoDir):
-            log.error("Path Not Found: %s" % self.NonVIdeoDir)
+            log.error("Path Not Found: %s" % self.NonVideoDir)
             log.error("Invalid Config Entries, Ending")
             raise ConfigValueError("Path Not Found: %s" % self.NonVideoDir)
 
@@ -257,16 +267,12 @@ class Settings(object):
         _base_dir = get_dir('/mnt', "Base Directory for Libraries")
 
         config['Library'] = {}
-        config['Library']['SeriesDir'] = get_dir(os.path.join(_base_dir, "TV/Series"), "Series")
-        config['Library']['MoviesDir'] = get_dir(os.path.join(_base_dir, "Movies/Films"), "Movies")
+        config['Library']['SeriesDir'] = get_dir(os.path.join(_base_dir, "DadVision/Series"), "Series")
+        config['Library']['MoviesDir'] = get_dir(os.path.join(_base_dir, "DadVision/Movies"), "Movies")
+        config['Library']['NewDir'] = get_dir(os.path.join(_base_dir, "DadVision/New"), "New")
         config['Library']['NonVideoDir'] = get_dir(os.path.join(_base_dir, "Downloads/Unpacked"), "Unknown Unpack")
         config['Library']['DownloadDir'] = get_dir(os.path.join(_base_dir, "Downloads/Bittorrent"), "Downloads")
         config['Library']['SubscriptionDir'] = get_dir(os.path.join(_base_dir, "Links"), "Subscription Files")
-
-        dir_name = raw_input("Enter Subdirectory for New Files (%s): " % 'New').lstrip(os.sep)
-        if not dir_name:
-            dir_name = 'New'
-        config['Library']['NewDir'] = dir_name
 
         dir_name = raw_input("Enter Subdirectory for Incremental Files (%s): " % 'Incrementals').lstrip(os.sep)
         if not dir_name:
@@ -394,9 +400,11 @@ if __name__ == '__main__':
 
     log.info('SeriesDir: {}'.format(config.SeriesDir))
     log.info('MoviesDir: {}'.format(config.MoviesDir))
+    log.info('NewDir: {}'.format(config.NewDir))
+    log.info('NewSeriesDir: {}'.format(config.NewSeriesDir))
+    log.info('NewMoviesDir: {}'.format(config.NewMoviesDir))
     log.info('NonVideoDir: {}'.format(config.NonVideoDir))
     log.info('SubscriptionDir: {}'.format(config.SubscriptionDir))
-    log.info('NewDir: {}'.format(config.NewDir))
     log.info('WatchDir: {}'.format(config.WatchDir))
     log.info('TvdbIdList: {}'.format(config.TvdbIdList))
     log.info('EpisodeAdjList: {}'.format(config.EpisodeAdjList))
@@ -406,4 +414,3 @@ if __name__ == '__main__':
     log.info('Predicates: {}'.format(config.Predicates))
     log.info('DBFile: {}'.format(config.DBFile))
     log.info('Users: {}'.format(config.Users))
-
