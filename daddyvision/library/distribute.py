@@ -6,11 +6,14 @@ Purpose:
     the files will be unzipped and renamed to meet the library standard.
 """
 from daddyvision.common import logger
+from daddyvision.common.options import OptionParser, OptionGroup
+from daddyvision.common.settings import Settings
 from daddyvision.common.exceptions import (BaseDaddyVisionException,
     DataRetrievalError, EpisodeNotFound, SeriesNotFound, InvalidFilename,
     RegxSelectionError, ConfigValueError)
 from daddyvision.movies.rename import Rename as RenameMovie
 from daddyvision.series.rename import Rename as RenameSeries
+
 from subprocess import Popen, PIPE
 import filecmp
 import fnmatch
@@ -49,10 +52,11 @@ def useLibraryLogging(func):
 
 class Distribute(object):
 
-    def __init__(self, config):
+    def __init__(self, config, clean_up_name=True):
         log.trace('__init__')
 
         self.config = config
+        self.clean_up_names = clean_up_name
         self.type = None
 
         self.RegEx = []
@@ -241,7 +245,8 @@ class Distribute(object):
                     _files_req_unpack = True
 
             if _files_req_unpack:
-                self._clean_names(dest_dir)
+                if self.clean_up_names:
+                    self._clean_names(dest_dir)
                 _files_req_unpack = False
 
         return dest_dir
@@ -326,14 +331,23 @@ class Distribute(object):
             log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
         return
 
-if __name__ == '__main__':
+class localOptions(OptionParser):
 
-    from daddyvision.common.options import CoreOptionParser
-    from daddyvision.common.settings import Settings
+    def __init__(self, unit_test=False, **kwargs):
+        OptionParser.__init__(self, **kwargs)
+
+        group = OptionGroup(self, "Distribute")
+        group.add_option("--no-cleanup", dest="clean_up_name",
+            action="store_false", default=True,
+            help="Do not clean-up names from unpack")
+        self.add_option_group(group)
+
+
+if __name__ == '__main__':
 
     logger.initialize()
 
-    parser = CoreOptionParser()
+    parser = localOptions()
     options, args = parser.parse_args()
 
     log_level = logging.getLevelName(options.loglevel.upper())
@@ -360,7 +374,7 @@ if __name__ == '__main__':
         log.error('Invalid arguments file or path name not found: %s' % reqname)
         sys.exit(1)
 
-    distribute = Distribute(config)
+    distribute = Distribute(config, options.clean_up_name)
     if reqname == config.DownloadDir:
         for entry in os.listdir(reqname):
             type, fmt, dest_dir = distribute._get_type(os.path.join(reqname, entry))
