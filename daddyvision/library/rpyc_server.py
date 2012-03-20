@@ -77,7 +77,7 @@ if __name__ == '__main__':
 
     try:
         from subprocess import Popen, PIPE
-        _p = Popen(["svnversion", "."], stdout=PIPE)
+        _p = Popen(["svnversion",  "/usr/local/lib/python2.7/dist-packages/daddyvision/"], stdout=PIPE)
         REVISION= _p.communicate()[0]
         REVISION='Revision: {}'.format(REVISION.strip('\n').strip())
         _p = None # otherwise we get a wild exception when Django auto-reloads
