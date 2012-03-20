@@ -147,4 +147,5 @@ if __name__ == "__main__":
     elif 'restart' == args[0]:
         log.info("************** RESTARTING DAEMON ***************" )
         log.info("**************  %s    ***************" % REVISION)
+        log.info(sys.argv[0])
         daemon.restart()
