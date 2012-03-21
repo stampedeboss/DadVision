@@ -75,10 +75,13 @@ class Distribute(object):
         self.rename_series = RenameSeries(self.config)
         self.rename_movies = RenameMovie(self.config)
 
-    def ProcessPathName(self, pathname):
+    def ProcessPathName(self, pathname, content_type=''):
         log.trace('ProcessFile: %s' % pathname)
 
         self.type, _fmt, _dest_dir = self._get_type(pathname)
+        if content_type:
+            self.type = content_type
+
         if _fmt == 'file':
             log.trace("%s file - %r..." % (type, pathname))
             pathname = self._distribute_file(pathname, _dest_dir)
@@ -342,6 +345,18 @@ class localOptions(OptionParser):
             help="Do not clean-up names from unpack")
         self.add_option_group(group)
 
+        group = OptionGroup(self, "Media Type")
+        group.add_option("-s", "--series", dest="content", default="",
+            action="store_const", const="Series",
+            help="Process as Series")
+        group.add_option("-m", "--movies", dest="content",
+            action="store_const", const="Movies",
+            help="Process as Movies")
+        group.add_option("-n", "--non-video", dest="content",
+            action="store_const", const="NonVideo",
+            help="Process as Non-Video")
+        self.add_option_group(group)
+
 
 if __name__ == '__main__':
 
@@ -377,8 +392,11 @@ if __name__ == '__main__':
     distribute = Distribute(config, options.clean_up_name)
     if reqname == config.DownloadDir:
         for entry in os.listdir(reqname):
-            type, fmt, dest_dir = distribute._get_type(os.path.join(reqname, entry))
-            if type in ('Series', 'Movie'):
-                distribute.ProcessPathName(os.path.join(reqname, entry))
+            if not options.content:
+                content_type, fmt, dest_dir = distribute._get_type(os.path.join(reqname, entry))
+            else:
+                content_type = options.content
+            if content_type in ('Series', 'Movie'):
+                distribute.ProcessPathName(os.path.join(reqname, entry), content_type)
     else:
         distribute.ProcessPathName(reqname)
