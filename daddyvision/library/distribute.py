@@ -78,10 +78,8 @@ class Distribute(object):
     def ProcessPathName(self, pathname, content_type=''):
         log.trace('ProcessFile: %s' % pathname)
 
-        self.type, _fmt, _dest_dir = self._get_type(pathname)
-        if content_type:
-            self.type = content_type
-
+        self.type, _fmt, _dest_dir = self._get_type(pathname, content_type)
+ 
         if _fmt == 'file':
             log.trace("%s file - %r..." % (type, pathname))
             pathname = self._distribute_file(pathname, _dest_dir)
@@ -109,13 +107,30 @@ class Distribute(object):
                 raise BaseDaddyVisionException('Unknown Error: {}'.format(sys.exc_info()[1]))
 
 
-    def _get_type(self, pathname):
+    def _get_type(self, pathname, content_type):
         log.trace('_get_type: Pathname: {}'.format(pathname))
 
         _file_name = os.path.split(pathname.rstrip(os.sep))[1]
         _dest_dir = None
         _type = None
         _fmt = None
+
+        if content_type:
+            if content_type == 'Series':
+                _type = "Series"
+                _dest_dir = self.config.NewSeriesDir
+            elif content_type == "Movie":
+                _type = "Movie"
+                _dest_dir = self.config.NewMoviesDir
+            else:
+                _type = "NonVideo"
+                _dest_dir = os.path.join(self.config.NonVideoDir, os.path.basename(pathname.rstrip(os.sep)))  # Adds the last directory to target name
+            if os.path.isfile(pathname):
+                _fmt = 'file'
+                _dest_dir = os.path.splitext(_dest_dir)[0]
+            elif os.path.isdir(pathname):
+                _fmt = 'dir'
+            return _type, _fmt, _dest_dir
 
         for cRegEx in self.RegEx:
             _series = cRegEx.search(_file_name)
@@ -392,11 +407,8 @@ if __name__ == '__main__':
     distribute = Distribute(config, options.clean_up_name)
     if reqname == config.DownloadDir:
         for entry in os.listdir(reqname):
-            if not options.content:
-                content_type, fmt, dest_dir = distribute._get_type(os.path.join(reqname, entry))
-            else:
-                content_type = options.content
+            content_type, fmt, dest_dir = distribute._get_type(os.path.join(reqname, entry))
             if content_type in ('Series', 'Movie'):
-                distribute.ProcessPathName(os.path.join(reqname, entry), content_type)
+                distribute.ProcessPathName(os.path.join(reqname, entry))
     else:
-        distribute.ProcessPathName(reqname)
+        distribute.ProcessPathName(reqname, options.content)
