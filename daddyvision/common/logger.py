@@ -47,7 +47,7 @@ class DaddyVisionFormatter(logging.Formatter):
         logging.Formatter.__init__(self, self.plain_fmt, '%Y-%m-%d %H:%M')
 
     def format(self, record):
-        extra_list = ['rename', 'distribute']
+        extra_list = ['rename', 'distribute', 'syncrmt']
 #        print getattr(record, 'name')
 #        if hasattr(record, 'name'):
         if getattr(record, 'name') in extra_list:

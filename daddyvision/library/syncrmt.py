@@ -46,6 +46,19 @@ TRACE = 5
 VERBOSE = 15
 printfmt = '%P\n'
 
+def useLibraryLogging(func):
+
+    def wrapper(self, *args, **kw):
+        # Set the library name in the logger
+        from daddyvision.common import logger
+        logger.set_library(self.options.HostName.upper())
+        try:
+            return func(self, *args, **kw)
+        finally:
+            logger.set_library('')
+
+    return wrapper
+
 class DaddyvisionNetwork(object):
 
     def __init__(self, options):
@@ -55,12 +68,13 @@ class DaddyvisionNetwork(object):
         self.log_file = os.path.join(logger.LogDir, 'rsync_{}.log'.format(self.options.HostName))
         return
 
+    @useLibraryLogging
     def SyncRMT(self):
 
         s = socket.socket()
         port = 32480 # port number is a number, not string
         try:
-            s.connect((self.options.HostName, port)) 
+            s.connect((self.options.HostName, port))
             s.close()
         except Exception, e:
             ip_address = socket.gethostbyname(self.options.HostName)
