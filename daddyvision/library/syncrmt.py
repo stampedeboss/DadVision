@@ -63,7 +63,7 @@ class DaddyvisionNetwork(object):
             s.connect((self.options.HostName, port)) 
             s.close()
         except Exception, e:
-            log.warn('Host appears to be offline: %s      Exception type is %s' % (self.options.HostName, `e`))
+            log.warn('%s appears to be offline - %s' % (self.options.HostName.upper(), `e`))
             sys.exit(0)
 
         if not self.options.dryrun:
