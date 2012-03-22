@@ -13,6 +13,7 @@ from daddyvision.series.fileparser import FileParser
 from subprocess import Popen, call as Call,  check_call, CalledProcessError
 import logging
 import os
+import socket
 import sqlite3
 import sys
 import time
@@ -55,6 +56,15 @@ class DaddyvisionNetwork(object):
         return
 
     def SyncRMT(self):
+
+        s = socket.socket()
+        port = 32480 # port number is a number, not string
+        try:
+            s.connect((self.options.HostName, port)) 
+            s.close()
+        except Exception, e:
+            log.warn('Host appears to be offline: %s      Exception type is %s' % (self.options.HostName, `e`))
+            sys.exit(0)
 
         if not self.options.dryrun:
             self.chkStatus()
