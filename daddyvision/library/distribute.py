@@ -79,7 +79,7 @@ class Distribute(object):
         log.trace('ProcessFile: %s' % pathname)
 
         self.type, _fmt, _dest_dir = self._get_type(pathname, content_type)
- 
+
         if _fmt == 'file':
             log.trace("%s file - %r..." % (type, pathname))
             pathname = self._distribute_file(pathname, _dest_dir)
@@ -379,6 +379,8 @@ if __name__ == '__main__':
 
     parser = localOptions()
     options, args = parser.parse_args()
+    print args
+    sys.exit()
 
     log_level = logging.getLevelName(options.loglevel.upper())
     log_file = os.path.expanduser(options.logfile)
@@ -394,21 +396,16 @@ if __name__ == '__main__':
 
     config = Settings ()
 
-    reqname = ''
-    for i in range(len(args)):
-        reqname = '%s %s' % (reqname, args[i])
-
-    reqname = reqname.lstrip().rstrip()
-
-    if not os.path.exists(reqname):
-        log.error('Invalid arguments file or path name not found: %s' % reqname)
-        sys.exit(1)
-
     distribute = Distribute(config, options.clean_up_name)
-    if reqname == config.DownloadDir:
-        for entry in os.listdir(reqname):
-            content_type, fmt, dest_dir = distribute._get_type(os.path.join(reqname, entry))
-            if content_type in ('Series', 'Movie'):
-                distribute.ProcessPathName(os.path.join(reqname, entry))
-    else:
-        distribute.ProcessPathName(reqname, options.content)
+    for _path_name in args:
+        _path_name = _path_name.lstrip().rstrip()
+        if not os.path.exists(_path_name):
+            log.error('Invalid arguments file or path name not found: %s' % _path_name)
+            sys.exit(1)
+        if _path_name == config.DownloadDir:
+            for entry in os.listdir(_path_name):
+                content_type, fmt, dest_dir = distribute._get_type(os.path.join(_path_name, entry))
+                if content_type in ('Series', 'Movie'):
+                    distribute.ProcessPathName(os.path.join(_path_name, entry))
+        else:
+            distribute.ProcessPathName(_path_name, options.content)
