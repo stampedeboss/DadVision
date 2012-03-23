@@ -280,7 +280,10 @@ class Settings(object):
         config['Library']['IncrementalsDir'] = dir_name
 
         config['Common'] = {}
-        config['Common']['MediaExt'] = ['avi', 'mkv', 'mp4', 'mpeg', 'm2ts', 'divx', 'mpg', "m4v"]
+        config['Common']['MediaExt'] = ['avi', 'bup', 'core', 'divx', 'ifo', 'img', 'iso',
+                                        'm2ts', "m4v",'mp4', 'mkv', 'mpeg', 'mpg', 'vob'
+                                        ]
+        
         config['Common']['MovieGlob'] = ["720", "1080", "bluray", "bdrip", "brrip", "pal",
                                                  "ntsc", "dvd-r", "fulldvd", "multi", "dts",
                                                  "hdtv", "pdtv", "webrip", "dvdrip", "2lions"

@@ -334,18 +334,9 @@ class DaddyvisionNetwork(object):
             self.options.CmdLineArgs.append('--exclude=*{}*'.format(self.options.xclude))
 
         if self.options.novideo:
-            self.options.CmdLineArgs.append('--exclude=*.avi')
-            self.options.CmdLineArgs.append('--exclude=*.mkv')
-            self.options.CmdLineArgs.append('--exclude=*.mp4')
-            self.options.CmdLineArgs.append('--exclude=*.iso')
-            self.options.CmdLineArgs.append('--exclude=*.mpg')
-            self.options.CmdLineArgs.append('--exclude=*.vob')
-            self.options.CmdLineArgs.append('--exclude=*.ifo')
-            self.options.CmdLineArgs.append('--exclude=*.bup')
-            self.options.CmdLineArgs.append('--exclude=*.VOB')
-            self.options.CmdLineArgs.append('--exclude=*.IFO')
-            self.options.CmdLineArgs.append('--exclude=*.BUP')
-            self.options.CmdLineArgs.append('--exclude=core')
+            for entry in config.MediaExt:
+                self.options.CmdLineArgs.append('--exclude=*.{}'.format(entry))
+                self.options.CmdLineArgs.append('--exclude=*.{}'.format(entry).upper())
 
         if self.options.chksum:
             self.options.CmdLineArgs.append('--checksum')
