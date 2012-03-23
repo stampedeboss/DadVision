@@ -112,16 +112,17 @@ class DaddyvisionNetwork(object):
                '--progress',
                '--partial-dir=.rsync-partial',
                '--log-file={}'.format(self.log_file),
-               '--exclude=lost+found',
-               '--exclude-from={}'.format(_series_delete_exclusions)]
-        cmd.extend(self.options.CmdLineArgs)
+               '--exclude=lost+found']
         try:
             if not options.reverse:
+                cmd.extend('--exclude-from={}'.format(_series_delete_exclusions))
+                cmd.extend(self.options.CmdLineArgs)
                 cmd.append('{}/Series/'.format(self.options.SymLinks))
                 cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt))
                 log.info(' '.join(cmd))
                 process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Series'))
             else:
+                cmd.extend(self.options.CmdLineArgs)
                 cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt))
                 cmd.append('{}/'.format(config.SeriesDir))
                 log.info(' '.join(cmd))
@@ -358,7 +359,7 @@ class DaddyvisionNetwork(object):
 
         if self.options.delete:
             self.options.CmdLineArgs.append('--delete')
-        
+
         if self.options.reverse:
             self.options.suppress_incremental = True
 
