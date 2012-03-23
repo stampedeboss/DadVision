@@ -379,8 +379,6 @@ if __name__ == '__main__':
 
     parser = localOptions()
     options, args = parser.parse_args()
-    print args
-    sys.exit()
 
     log_level = logging.getLevelName(options.loglevel.upper())
     log_file = os.path.expanduser(options.logfile)
