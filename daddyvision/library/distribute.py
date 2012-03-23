@@ -393,8 +393,8 @@ if __name__ == '__main__':
     log.debug("Parsed arguments: %r" % args)
 
     config = Settings ()
-
     distribute = Distribute(config, options.clean_up_name)
+
     for _path_name in args:
         _path_name = _path_name.lstrip().rstrip()
         if not os.path.exists(_path_name):
