@@ -115,11 +115,18 @@ class DaddyvisionNetwork(object):
                '--exclude=lost+found',
                '--exclude-from={}'.format(_series_delete_exclusions)]
         cmd.extend(self.options.CmdLineArgs)
-        cmd.append('{}/Series/'.format(self.options.SymLinks))
-        cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt))
-
         try:
-            process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Series'))
+            if not options.reverse:
+                cmd.append('{}/Series/'.format(self.options.SymLinks))
+                cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt))
+                log.info(' '.join(cmd))
+                process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Series'))
+            else:
+                cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt))
+                cmd.append('{}/'.format(config.SeriesDir))
+                log.info(' '.join(cmd))
+                process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=config.SeriesDir)
+
             if not self.options.dryrun:
                 self._update_xbmc()
         except CalledProcessError, exc:
@@ -140,10 +147,18 @@ class DaddyvisionNetwork(object):
                '--log-file={}'.format(self.log_file),
                '--exclude=lost+found']
         cmd.extend(self.options.CmdLineArgs)
-        cmd.append('{}/Movies/'.format(self.options.SymLinks))
-        cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.MoviesRmt))
+
         try:
+            if not options.reverse:
+                cmd.append('{}/Movies/'.format(self.options.SymLinks))
+                cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.MoviesRmt))
+            else:
+                cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.MoviesRmt))
+                cmd.append('{}/Movies/'.format(self.options.SymLinks))
+
+            log.info(' '.join(cmd))
             process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Movies'))
+
             if not self.options.dryrun:
                 self._update_xbmc()
         except CalledProcessError, exc:
@@ -231,6 +246,7 @@ class DaddyvisionNetwork(object):
         cmd = ['rsync', '-rptuvhogLR'.format(self.options.CmdLineDryRun), '--progress', '--partial-dir=.rsync-partial', '--log-file={}'.format(self.log_file)]
         cmd.extend(file_list)
         cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt))
+        log.info(' '.join(cmd))
         try:
             process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=directory)
             for _file_name in file_names:
@@ -314,7 +330,6 @@ class DaddyvisionNetwork(object):
             self.options.SeriesRmt = profile[self.options.user]['SeriesDir']
             self.options.MoviesRmt = profile[self.options.user]['MovieDir']
             self.options.HostName = profile[self.options.user]['HostName']
-
         else:
             parser.error('Missing User Command Line Parameter, Use "syncrmt --help" for details')
             sys.exit(1)
@@ -343,6 +358,9 @@ class DaddyvisionNetwork(object):
 
         if self.options.delete:
             self.options.CmdLineArgs.append('--delete')
+        
+        if self.options.reverse:
+            self.options.suppress_incremental = True
 
         return
 
@@ -388,6 +406,9 @@ class localOptions(OptionParser):
         group.add_option("--no-video", dest="novideo",
             action="store_true", default=False,
             help="Suppress Video Files, Only Move Support Files/Directories")
+        group.add_option("--reverse", dest="reverse",
+            action="store_true", default=False,
+            help="Reverse flow of Update, RMT --> Local")
         group.add_option("--suppress", dest="suppress_incremental",
             action="store_true", default=False,
             help="Skip Processing of Incremental Subscriptions")
