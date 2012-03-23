@@ -8,7 +8,7 @@ Purpose:
 from __future__ import division
 from daddyvision.common import logger
 from daddyvision.common.exceptions import UnexpectedErrorOccured, DuplicateRecord, InvalidFilename
-from daddyvision.common.options import OptionParser, CoreOptionParser
+from daddyvision.common.options import OptionParser, OptionGroup
 from daddyvision.common.settings import Settings
 from daddyvision.common.countfiles import countFiles
 from daddyvision.series.fileparser import FileParser
@@ -72,11 +72,13 @@ class DownloadDatabase(object):
     def __init__(self):
         pass
 
-    def ScanSeriesLibrary(self, type_scan):
+    def ScanSeriesLibrary(self, type_scan, user_list):
         log.trace('ScanSeriesLibrary: Start')
 
         user_profiles = config.GetSubscribers()
         for user in config.Users:
+            if user_list and user not in user_list:
+                continue
             user_profile = user_profiles[user]
 
             Files_Loaded = 0
@@ -139,9 +141,32 @@ class DownloadDatabase(object):
                                                                                         )
                 )
 
+class localOptions(OptionParser):
+
+    def __init__(self, unit_test=False, **kwargs):
+        OptionParser.__init__(self, **kwargs)
+
+        group = OptionGroup(self, "Users")
+        group.add_option("-a", "--aly", dest="users",
+            action="append_const", const="aly",
+            help="Sync Tigger for Aly")
+        group.add_option("-k", "--kim", dest="users",
+            action="append_const", const="kim",
+            help="Sync Goofy for Kim")
+        group.add_option("-p", "--peterson", dest="users",
+            action="append_const", const="ben",
+            help="Sync Tigger for Ben and Mac")
+        self.add_option_group(group)
+
+        group = OptionGroup(self, "Media Type")
+        group.add_option("-i", "--incremental", dest="scan_type", default='Series',
+            action="store_const", const="Incrementals",
+            help="Process Incrementals instead of Series")
+        self.add_option_group(group)
+
 
 if __name__ == '__main__':
-    parser = CoreOptionParser()
+    parser = localOptions()
     options, args = parser.parse_args()
 
     log_level = logging.getLevelName(options.loglevel.upper())
@@ -161,10 +186,4 @@ if __name__ == '__main__':
     log.debug("Parsed arguments: %r" % args)
 
     library = DownloadDatabase()
-    if len(args) > 0:
-        if args[0].lower()[0:4] == 'incr':
-            library.ScanSeriesLibrary('Incrementals')
-    else:
-        library.ScanSeriesLibrary('Series')
-
-
+    library.ScanSeriesLibrary(options.scan_type, options.users)

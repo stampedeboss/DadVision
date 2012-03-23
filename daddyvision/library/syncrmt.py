@@ -123,13 +123,13 @@ class DaddyvisionNetwork(object):
                 cmd.extend(self.options.CmdLineArgs)
                 cmd.append('{}/Series/{}'.format(self.options.SymLinks, self.dir_name))
                 cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt))
-                log.info(' '.join(cmd))
+                log.verbose(' '.join(cmd))
                 process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Series'))
             else:
                 cmd.extend(self.options.CmdLineArgs)
                 cmd.append('{}@{}:{}/{}'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt, self.dir_name))
                 cmd.append('{}/'.format(config.SeriesDir))
-                log.info(' '.join(cmd))
+                log.verbose(' '.join(cmd))
                 process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=config.SeriesDir)
 
             if not self.options.dryrun:
@@ -161,7 +161,7 @@ class DaddyvisionNetwork(object):
                 cmd.append('{}@{}:{}/{}'.format(self.options.UserId, self.options.HostName, self.options.MoviesRmt, self.dir_name))
                 cmd.append('{}/Movies/'.format(self.options.SymLinks))
 
-            log.info(' '.join(cmd))
+            log.verbose(' '.join(cmd))
             process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Movies'))
 
             if not self.options.dryrun:
@@ -251,7 +251,7 @@ class DaddyvisionNetwork(object):
         cmd = ['rsync', '-rptuvhogLR'.format(self.options.CmdLineDryRun), '--progress', '--partial-dir=.rsync-partial', '--log-file={}'.format(self.log_file)]
         cmd.extend(file_list)
         cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt))
-        log.info(' '.join(cmd))
+        log.verbose(' '.join(cmd))
         try:
             process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=directory)
             for _file_name in file_names:
