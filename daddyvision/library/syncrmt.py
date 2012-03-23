@@ -336,7 +336,7 @@ class DaddyvisionNetwork(object):
         if self.options.novideo:
             for entry in config.MediaExt:
                 self.options.CmdLineArgs.append('--exclude=*.{}'.format(entry))
-                self.options.CmdLineArgs.append('--exclude=*.{}'.format(entry).upper())
+                self.options.CmdLineArgs.append('--exclude=*.{}'.format(entry.upper()))
 
         if self.options.chksum:
             self.options.CmdLineArgs.append('--checksum')
