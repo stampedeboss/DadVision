@@ -69,7 +69,11 @@ class DaddyvisionNetwork(object):
         return
 
     @useLibraryLogging
-    def SyncRMT(self):
+    def SyncRMT(self, dir_name=''):
+
+        self.dir_name = dir_name.rstrip(os.sep)
+        if self.dir_name:
+            options.suppress_incremental = True
 
         s = socket.socket()
         port = 32480 # port number is a number, not string
@@ -115,15 +119,15 @@ class DaddyvisionNetwork(object):
                '--exclude=lost+found']
         try:
             if not options.reverse:
-                cmd.extend('--exclude-from={}'.format(_series_delete_exclusions))
+                cmd.append('--exclude-from={}'.format(_series_delete_exclusions))
                 cmd.extend(self.options.CmdLineArgs)
-                cmd.append('{}/Series/'.format(self.options.SymLinks))
+                cmd.append('{}/Series/{}'.format(self.options.SymLinks, self.dir_name))
                 cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt))
                 log.info(' '.join(cmd))
                 process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Series'))
             else:
                 cmd.extend(self.options.CmdLineArgs)
-                cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt))
+                cmd.append('{}@{}:{}/{}'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt, self.dir_name))
                 cmd.append('{}/'.format(config.SeriesDir))
                 log.info(' '.join(cmd))
                 process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=config.SeriesDir)
@@ -151,10 +155,10 @@ class DaddyvisionNetwork(object):
 
         try:
             if not options.reverse:
-                cmd.append('{}/Movies/'.format(self.options.SymLinks))
+                cmd.append('{}/Movies/{}'.format(self.options.SymLinks, self.dir_name))
                 cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.MoviesRmt))
             else:
-                cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.MoviesRmt))
+                cmd.append('{}@{}:{}/{}'.format(self.options.UserId, self.options.HostName, self.options.MoviesRmt, self.dir_name))
                 cmd.append('{}/Movies/'.format(self.options.SymLinks))
 
             log.info(' '.join(cmd))
@@ -449,5 +453,13 @@ if __name__ == '__main__':
     log.debug("Parsed command line options: {!s}".format(options))
     log.debug("Parsed arguments: %r" % args)
 
-    syncrmt = DaddyvisionNetwork(options)
-    syncrmt = syncrmt.SyncRMT()
+    if len(args) > 0:
+        if len(options.content) > 1:
+            log.error("Passed Series/Movie Name can't use BOTH (-b) for content")
+            sys.exit(1)
+        for entry in args:
+            syncrmt = DaddyvisionNetwork(options)
+            syncrmt = syncrmt.SyncRMT(entry)
+    else:
+        syncrmt = DaddyvisionNetwork(options)
+        syncrmt = syncrmt.SyncRMT()
