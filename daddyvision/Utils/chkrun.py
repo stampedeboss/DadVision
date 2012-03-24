@@ -51,6 +51,7 @@ class chkStatus(object):
                         log.debug('%s %s' % (p.name,cmdline))
 #                        log.info('%s %s' % (cmdline[1], cmdline[2]))
                     elif p.name == 'python':
+                        print len(cmdline)
                         log.info('%s %s %s %s' % (p.pid, p.terminal, cmdline[1] or '', cmdline[2] or ''))
                     elif p.name == 'rsync':
                         log.info('%s %s %s %s' % (p.pid, p.terminal, p.name,cmdline[-1]))
