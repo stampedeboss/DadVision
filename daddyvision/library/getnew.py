@@ -94,7 +94,7 @@ class Main_Window():
         self.rb_default_content.set_active(True)
         self.unlock_user_controls()
 
-        self.treeview.set_search_column(1)
+        self.treeview.set_search_column(4)
         self.wMain.show()
         gtk.main()
 
@@ -196,6 +196,7 @@ class Main_Window():
             self.treeview_model.set_sort_column_id(4,gtk.SORT_ASCENDING)
         else:
             self.treeview_model.set_sort_column_id(5,gtk.SORT_DESCENDING)
+        self.treeview.grab_focus()
         return
 
     def insert_row(self, model, allepisodes, incremental, title, date, path):
