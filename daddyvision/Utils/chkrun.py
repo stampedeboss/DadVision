@@ -51,10 +51,12 @@ class chkStatus(object):
                         log.debug('%s %s' % (p.name,cmdline))
 #                        log.info('%s %s' % (cmdline[1], cmdline[2]))
                     elif p.name == 'python':
-                        print len(cmdline), cmdline
-                        log.info('%s %s %s %s' % (p.pid, p.terminal, cmdline[1] or '', cmdline[2] or ''))
+                        if len(cmdline) == 2:
+                            log.info('{:<6d} {:<8s} {}'.format(p.pid, p.terminal, os.path.basename(cmdline[1])))
+                        elif len(cmdline) == 3:
+                            log.info('{:>6d} {:<8s} {} {}'.format(p.pid, p.terminal, os.path.basename(cmdline[1]), cmdline[2]))
                     elif p.name == 'rsync':
-                        log.info('%s %s %s %s' % (p.pid, p.terminal, p.name,cmdline[-1]))
+                        log.info('{:>6d} {:<8s} {} {}'.format(p.pid, p.terminal, p.name, cmdline[-1]))
 #                    logger ('Running: %s  Directory: %s  Host: %s')
 #                    logger.info()
 #                    if os.path.split(cmdline[-2].rstrip(os.sep))[0] == directory.rstrip(os.sep):
