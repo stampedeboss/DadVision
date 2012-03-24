@@ -87,14 +87,14 @@ class DaddyvisionNetwork(object):
 
         if not self.options.dryrun:
             self.chkStatus()
-            time.sleep(0.2)
-            self.chkStatus()
+ #           time.sleep(0.2)
+ #           self.chkStatus()
 
 
         if 'Series' in self.options.content:
+            self.SyncSeries()
             if not options.suppress_incremental and os.path.exists(os.path.join(self.options.SymLinks, 'Incrementals')):
                 self.SyncIncrementals(os.path.join(self.options.SymLinks, 'Incrementals'))
-            self.SyncSeries()
 
         if 'Movies' in self.options.content:
             self.SyncMovies()
@@ -178,10 +178,9 @@ class DaddyvisionNetwork(object):
         log.info('Syncing - Incremental Series')
 
         _sync_needed = self._get_list(directory)
-        for _entry in _sync_needed:
-            log.info(_entry)
-
         if self.options.dryrun:
+            for _entry in _sync_needed:
+                log.info(_entry)
             return
 
         if len(_sync_needed) > 5:
@@ -293,7 +292,6 @@ class DaddyvisionNetwork(object):
     def chkStatus(self):
         time.sleep(0.2)
         pidList = psutil.process_iter()
-#        nameList = ['rsync', 'python2.7', 'python']
         for p in pidList:
             cmdline = p.cmdline
             if len(cmdline) > 0:
@@ -304,7 +302,9 @@ class DaddyvisionNetwork(object):
                         continue
                     _rsync_user = cmdline[-1].split(':')[0].split('@')[1]
                     if _rsync_user == self.options.HostName:
-                        if options.runaction == 'ask':
+                        if p.terminal:
+                            options.runaction = 'cancel'
+                        elif options.runaction == 'ask':
                             while True:
                                 value = raw_input("syncrmt for: %s Already Running, Cancel This Request or Restart? (C/R): " % (self.options.HostName))
                                 if not value:
@@ -319,11 +319,11 @@ class DaddyvisionNetwork(object):
 #                            log.warn('rmtsync for : %s is Already Running, Request Canceled' % self.options.HostName)
                             sys.exit(1)
                         else:
-                            os.system('sudo kill -kill %s' % p.pid)
+                            p.kill()
                             log.warn('Previous Session Killed: %s' % p.pid)
                             options.runaction = 'restart'
                             time.sleep(0.1)
-                            self.chkStatus()
+#                            self.chkStatus()
         return
 
     def _add_runtime_options(self):

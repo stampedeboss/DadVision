@@ -798,6 +798,23 @@ class FileParserSingleEps(unittest.TestCase):
         KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/[Group_Name]_-_Covert_Affairs_01001 Case 185.ext"
         self.assertEqual(self.parser.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
+    def test_FileParser_single_case_186(self):
+        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs Season 1 Episode 01 Case 186.ext"
+        self.assertEqual(self.parser.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
+
+    def test_FileParser_single_case_187(self):
+        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs Season 01 Episode 01 Case 187.ext"
+        self.assertEqual(self.parser.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
+
+    def test_FileParser_single_case_188(self):
+        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs Season 1 Episode 001 Case 188.ext"
+        self.assertEqual(self.parser.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
+
+    def test_FileParser_single_case_189(self):
+        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs Season 01 Episode 001 Case 189.ext"
+        self.assertEqual(self.parser.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
+    
+    
     def theSuite(self):
         suite = unittest.TestLoader().loadTestsFromTestCase(self)
         return suite        
