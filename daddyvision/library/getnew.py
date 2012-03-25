@@ -122,7 +122,7 @@ class Main_Window():
             self.rb_kim.set_sensitive(True)
             self.rb_michelle.set_sensitive(False)
         elif host == 'sleepy':
-            self.user = 'kim'
+            self.user = 'michelle'
             self.rb_michelle.set_active(True)
             self.rb_aly.set_sensitive(False)
             self.rb_ben.set_sensitive(False)
