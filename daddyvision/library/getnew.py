@@ -109,18 +109,25 @@ class Main_Window():
             self.rb_michelle.set_sensitive(False)
         elif host == 'pluto':
             self.user = 'ben'
-            self.rb_aly.set_sensitive(False)
             self.rb_ben.set_active(True)
+            self.rb_aly.set_sensitive(False)
             self.rb_ben.set_sensitive(True)
             self.rb_kim.set_sensitive(False)
             self.rb_michelle.set_sensitive(False)
         elif host == 'goofy':
             self.user = 'kim'
+            self.rb_kim.set_active(True)
             self.rb_aly.set_sensitive(False)
             self.rb_ben.set_sensitive(False)
-            self.rb_kim.set_active(True)
             self.rb_kim.set_sensitive(True)
             self.rb_michelle.set_sensitive(False)
+        elif host == 'sleepy':
+            self.user = 'kim'
+            self.rb_michell.set_active(True)
+            self.rb_aly.set_sensitive(False)
+            self.rb_ben.set_sensitive(False)
+            self.rb_kim.set_sensitive(False)
+            self.rb_michelle.set_sensitive(True)
         else:
             if self.user == 'aly':
                 self.rb_aly.set_active(True)
@@ -253,7 +260,9 @@ class Main_Window():
         existing = self.treeview_model.get_value(treeiter, 3)
         subscribed = self.treeview_model.get_value(treeiter, 7)
 
-        if existing:
+        if self.user == 'michelle':
+                self.treeview_model.set_value(treeiter, 1, False)
+        elif existing:
             if incremental and not subscribed and not delete_req:
                 self.treeview_model.set_value(treeiter, 1, True)
             elif allshows and not delete_req:
@@ -283,6 +292,8 @@ class Main_Window():
 
             self.lock_user_controls()
         else:
+            self.treeview_model.set_value(treeiter, 0, False)
+            self.treeview_model.set_value(treeiter, 1, False)
             self.treeview_model.set_value(treeiter, 2, False)
         return
 
