@@ -90,7 +90,10 @@ class DaddyvisionNetwork(object):
  #           time.sleep(0.2)
  #           self.chkStatus()
 
-
+        if not self.options.SeriesRmt and not self.options.MoviesRmt and not self.options.dryrun:
+            self._update_xbmc()
+            sys.exit(0)
+                
         if 'Series' in self.options.content:
             self.SyncSeries()
             if not options.suppress_incremental and os.path.exists(os.path.join(self.options.SymLinks, 'Incrementals')):
@@ -381,6 +384,9 @@ class localOptions(OptionParser):
         group.add_option("-k", "--kim", dest="user",
             action="store_const", const="kim",
             help="Sync Goofy for Kim")
+        group.add_option("-d", "--eeyore", dest="user",
+            action="store_const", const="michelle",
+            help="Sync Eeyore for Michelle")
         group.add_option("-p", "--peterson", dest="user",
             action="store_const", const="ben",
             help="Sync Tigger for Ben and Mac")
