@@ -168,7 +168,7 @@ class Distribute(object):
         """ Move or copy a single file.
         """
         # ignored file?
-        if self._ignored(os.path.basename(srcfile)):
+        if self._ignored(os.path.basename(srcfile)) and options.ignore:
             log.verbose("Ignoring %r!" % (srcfile,))
             return
 
@@ -211,7 +211,7 @@ class Distribute(object):
         for _root, _dir_names, _file_names in os.walk(src_dir):
             # don't scan ignored subdirs
             for _dir_name in _dir_names[:]:
-                if self._ignored(_dir_name):
+                if self._ignored(_dir_name) and options.ignore:
                     log.verbose("Ignoring %r" % os.path.join(_root, _dir_name)[len(src_dir):])
                     _dir_names.remove(_dir_name)
 
@@ -232,7 +232,7 @@ class Distribute(object):
             _rar_list = []
             _file_list = []
             for _file in sorted(_file_names):
-                if self._ignored(_file):
+                if self._ignored(_file) and options.ignore:
                     log.verbose("Ignoring %r" % os.path.join(_root, _file))
                     continue
                 if self.RAR_RE.search(_file):
@@ -358,6 +358,9 @@ class localOptions(OptionParser):
         group.add_option("--no-cleanup", dest="clean_up_name",
             action="store_false", default=True,
             help="Do not clean-up names from unpack")
+        group.add_option("--no-ignore", dest="ignore",
+            action="store_false", default=True,
+            help="Process all files, Ignore nothing")
         self.add_option_group(group)
 
         group = OptionGroup(self, "Media Type")
