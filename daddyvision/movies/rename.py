@@ -208,7 +208,7 @@ class Rename(object):
                     _index = _movie_titles.index(_choice[0])
                     _file_details['Year'] = int(_movie.getReleased(_index)[0:4])
         else:
-            pass
+            return
 
         if 'Trailer' in _file_details:
             _trailer = '-trailer'
