@@ -149,7 +149,7 @@ class Rename(object):
                     if _dir == 'VIDEO_TS':
                         self._rename_directory(_root)
                         _dirs.remove(_dir)
-                    if self._ignored(_dir):
+                    if self._ignored(_dir) and options.ignore:
                         _dirs.remove(_dir)
                         log.debug("Ignoring %r" % os.path.join(_root, _dir))
                 _files.sort()
@@ -159,7 +159,7 @@ class Rename(object):
                     log.debug("Filename: %s" % _file)
                     try:
                         _file_details = self.parser.getFileDetails(_path_name)
-                        if self._ignored(_path_name) and not self.regex_MovieDir.match(_path_name):
+                        if self._ignored(_path_name) and not self.regex_MovieDir.match(_path_name) and options.ignore:
                             if not self.regex_MoviesDir.match(_path_name):
                                 os.remove(_file_details['FileName'])
                                 self._del_dir(_file_details['FileName'])
@@ -360,6 +360,9 @@ class localOptions(OptionParser):
         group.add_option("-f", "--force", dest="check",
             action="store_false", default=True,
             help="Bypass Video Check and Force Rename")
+        group.add_option("--no-ignore", dest="ignore",
+            action="store_false", default=True,
+            help="Bypass Ignore Process and Handle all Files")
         self.add_option_group(group)
 
 
