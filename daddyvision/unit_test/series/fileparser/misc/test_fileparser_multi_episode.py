@@ -189,10 +189,12 @@ class FileParserMultiEps(unittest.TestCase):
         self.assertEqual(self.parser.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
 # Multi-Episode #### ####
+    @unittest.expectedFailure
     def test_FileParser_multi_case_037(self):
         KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs 101 102 Case 037.ext"
         self.assertEqual(self.parser.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
+    @unittest.expectedFailure
     def test_FileParser_multi_case_038(self):
         KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs 0101 0102 Case 038.ext"
         self.assertEqual(self.parser.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)

@@ -360,21 +360,21 @@ class FileParser(dict):
             ''',
             re.X|re.I))
 
-        self.RegxParse.append(re.compile(
-            '''                                     # Regex #10 foo.123 124 125
-            ^(/.*/)*                                # Directory
-            (?P<SeriesName>.*)                      # Series Name
-            [ \._\-]                                # Sep
-            (?P<SeasonNum>[0-9]+)                   # first season number (1)
-            (?P<EpisodeNumStart>[0-9][0-9]+)        # first episode (x23)
-            [ \._\-]                                # separator
-            (?P<SeasonNumEnd>[0-9]+)                # more season numbers (1)
-            (?P<EpisodeNumEnd>[0-9][0-9]+)          # last episode number (25)
-            (?P<EpisodeName>.+)                     # Optional Title
-            \.(?P<Ext>....?)$                       # Extension
-            [^\/]*$
-            ''',
-            re.X|re.I))
+#        self.RegxParse.append(re.compile(
+#            '''                                     # Regex #10 foo.123 124 125
+#            ^(/.*/)*                                # Directory
+#            (?P<SeriesName>.*)                      # Series Name
+#            [ \._\-]                                # Sep
+#            (?P<SeasonNum>[0-9]+)                   # first season number (1)
+#            (?P<EpisodeNumStart>[0-9][0-9]+)        # first episode (x23)
+#            [ \._\-]                                # separator
+#            (?P<SeasonNumEnd>[0-9]+)                # more season numbers (1)
+#            (?P<EpisodeNumEnd>[0-9][0-9]+)          # last episode number (25)
+#            (?P<EpisodeName>.+)                     # Optional Title
+#            \.(?P<Ext>....?)$                       # Extension
+#            [^\/]*$
+#            ''',
+#            re.X|re.I))
 
 #----------------------------------------------------------------------------------------
         #Groups
