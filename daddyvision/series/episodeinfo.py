@@ -75,7 +75,7 @@ class EpisodeDetails(object):
         SeriesDetails = self._adj_episode(SeriesDetails)
         try:
             SeriesDetails = self._retrieve_tvdb_info(SeriesDetails)
-        except:
+        except SeriesNotFound:
             SeriesDetails = self._retrieve_tvrage_info(SeriesDetails)
 
         log.debug('getDetails: Series Data Returned: {!s}'.format(SeriesDetails))
@@ -103,8 +103,10 @@ class EpisodeDetails(object):
 
         if _tvdb_id == None:
             x = Show(_series_name)
-            _series_name = x.name
-            _series_name, _tvdb_id = self._find_series_id(_series_name)
+            _tvrage_series_name = x.name
+            _how_close = difflib.SequenceMatcher(None, _series_name, _tvrage_series_name).ratio()
+            if _how_close > .85:
+                _series_name, _tvdb_id = self._find_series_id(_tvrage_series_name)
 
         if _tvdb_id == None:
             error_msg="_retrieve_tvdb_info: Unable to Locate Series in TVDB: %s" % (_series_name)
@@ -120,7 +122,10 @@ class EpisodeDetails(object):
         else:
             SeriesDetails['SeriesName'] = _series_name
             SeriesDetails['TVDBSeriesID'] = _tvdb_id
-        SeriesDetails = self._episode_details(SeriesDetails)
+        try:
+            SeriesDetails = self._episode_details(SeriesDetails)
+        except EpisodeNotFound, msg:
+            raise
         return SeriesDetails
 
     def _find_series_id(self,_series_name):
@@ -236,6 +241,13 @@ class EpisodeDetails(object):
             _series = Show(_series_name)
         except ShowNotFound, msg:
             raise SeriesNotFound(msg)
+        except msg:
+            raise DataRetrievalError('Unknown Error Accessing TV Rage: {}'.format(msg))
+
+        _tvrage_series_name = _series.name
+        _how_close = difflib.SequenceMatcher(None, _series_name, _tvrage_series_name).ratio()
+        if _how_close < .85:
+            raise SeriesNotFound()
 
         SeriesDetails['EpisodeData'] = []
         if 'EpisodeNums' in SeriesDetails:

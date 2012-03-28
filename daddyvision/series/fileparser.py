@@ -381,15 +381,15 @@ class FileParser(dict):
         self.RegxParse.append(re.compile(
             '''                                     # Regex 11
             ^(/.*/)?                                # Optional Directory
-            ({.*})                                  # { GROUP NAME }
+            ([\[|{].*[\]}])                         # { GROUP NAME }
             [\._ \-]?[\._ \-]?[\._ \-]?             # Optional Sep 1-3
-            (?P<SeriesName>.*?)                      # Series Name
-            [/\._ \-]                               # Sep 1
-            [S|s]                                   # s|S
+            (?P<SeriesName>.*?[0-9][0-9][0-9][0-9])  # Series Name
+            [ \._\-]                                # Separator .|1
+            [S|s]?                                   # s|S
             [/\._ \-]?                              # Optional Sep 1
             (?P<SeasonNum>[0-9]+)                   # Season Number (##)
             [/\._ \-]?                              # Optional Sep 1
-            [E|e]                                   # Episode Number (##)
+            [x|e] ?                                  # Episode Number (##)
             (?P<EpisodeNum>[0-9][0-9]+)             # e
             [/\._ \-]?                              # Optional Sep 1
             (?P<EpisodeName>.+)?                    # Optional Title
@@ -398,56 +398,21 @@ class FileParser(dict):
             re.X|re.I))
 
         self.RegxParse.append(re.compile(
-            '''                                     # RegEx 12
+            '''                                     # Regex 11
             ^(/.*/)?                                # Optional Directory
-            (\[.*\])                                # { GROUP NAME }
+            ([\[|{].*[\]}])                         # { GROUP NAME }
             [\._ \-]?[\._ \-]?[\._ \-]?             # Optional Sep 1-3
-            (?P<SeriesName>.*?)                      # Series Name
-            [/\._ \-]                               # Sep 1
-            [S|s]                                   # s|S
+            (?P<SeriesName>.*?)                     # Series Name
+            [ \._\-]                                # Separator .|1
+            [S|s]?                                   # s|S
             [/\._ \-]?                              # Optional Sep 1
             (?P<SeasonNum>[0-9]+)                   # Season Number (##)
             [/\._ \-]?                              # Optional Sep 1
-            [E|e]                                   # e
-            (?P<EpisodeNum>[0-9][0-9]+)             # Episode Number (##)
+            [x|e] ?                                  # Episode Number (##)
+            (?P<EpisodeNum>[0-9][0-9]+)             # e
             [/\._ \-]?                              # Optional Sep 1
-            (?P<EpisodeName>.+)?                    # Optional Title
-            \.(?P<Ext>....?)$                       # Extension
-            ''',
-            re.X|re.I))
-
-        self.RegxParse.append(re.compile(
-            '''                                     # Regex 13
-            ^(/.*/)?                                # Optional Directory
-            ({.*})                                  # { GROUP NAME }
-            [\._ \-]?[\._ \-]?[\._ \-]?             # Optional Sep 0-3
-            (?P<SeriesName>.*?)                      # Series Name
-            [/\._ \-]+                              # Sep 1
-            [/\._ \-]?                              # Optional Sep 1
-            (?P<SeasonNum>[0-9]+)                   # Season Number (##)
-            [/\._ \-]?                              # Optional Sep 1
-            [E|e|x|X]?                               #
-            (?P<EpisodeNum>[0-9][0-9]+)             # Episode Number (##)
-            [/\._ \-]                               # Sep 1
             (?P<EpisodeName>.+)?                    # Optional Title
             \.(?P<Ext>....?)$                       # extension
-            ''',
-            re.X|re.I))
-
-        self.RegxParse.append(re.compile(
-            '''                                     # RegEx 14
-            ^(/.*/)?                                # Optional Directory
-            (\[.*\])                                # { GROUP NAME }
-            [\._ \-]?[\._ \-]?[\._ \-]?             # Optional Sep 0-3
-            (?P<SeriesName>.*?)                      # Series Name
-            [/\._ \-]                               # Sep 1
-            (?P<SeasonNum>[0-9]+)                   # Season Number (##)
-            [/\._ \-]?                              # Optional Sep 1
-            [E|e|x|X]?                               # e
-            (?P<EpisodeNum>[0-9][0-9]+)             # Episode Number (##)
-            [/\._ \-]+                              # Optional Sep 1
-            (?P<EpisodeName>.+)?                    # Optional Title
-            \.(?P<Ext>....?)$                       # Extension
             ''',
             re.X|re.I))
 
@@ -458,20 +423,20 @@ class FileParser(dict):
             ^(/.*/)?                                # Optional Directory
             (?P<SeriesName>.*?)                     # Series Name
             [/\._ \-]                               # Sep 1
-            [s|season]                              # s|season
+            [s]                                     # s
             [/\._ \-]?                              # Optional Sep 1
             (?P<SeasonNum>[0-9]+)                   # Season Number (##)
             [/\._ \-]?                              # Optional Sep 1
-            [E|e]                                   # e
+            [e|episode]                             # e
             (?P<EpisodeNum>[0-9][0-9]+)             # Episode Number (##)
             [/\._ \-]?                              # Optional Sep 1
             (?P<EpisodeName>.*)                     # Optional Title
             \.(?P<Ext>....?)$                       # Extension
             ''',
             re.X|re.I))
-        
+
         self.RegxParse.append(re.compile(
-            '''
+            '''                                    # RegEx 16
             ^(/.*/)?
             (?P<SeriesName>.*?)
             [/\._ \-]
@@ -488,28 +453,24 @@ class FileParser(dict):
             ''',
             re.X|re.I))
 
-        self.RegxParse.append(re.compile(
-            '''                                     # RegEx 16
-            ^(/.*/)?                                # Optional Directory
-            (?P<SeriesName>.*?)                     # Series Name
-            [/\._ \-]                               # Sep 1
-            (Season)                                # Season
-            [/\._ \-]                               # Sep 1
-            (?P<SeasonNum>[0-9]+)                   # Season Number (##)
-            [/\._ \-]                               # Sep 1
-            (Episode)                               # Episode (ignored)
-            (?P<EpisodeNum>[0-9][0-9]+)             # Episode Number (##)
-            [/\._ \-]?                              # Optional Sep 1
-            (?P<EpisodeName>.*)                     # Optional Title
-            \.(?P<Ext>....?)$                       # Extension
-            ''',
-            re.X|re.I))
-
-
 #----------------------------------------------------------------------------------------
         #Single Episode No S or Season
         self.RegxParse.append(re.compile(
             '''                                    # #17  foo ##e|x##
+            ^(/.*/)?                               # Optional Directory
+            (?P<SeriesName>.*[0-9][0-9][0-9][0-9]) # Series Name with Year
+            [/\._ \-]+                             # Sep 1 or More
+            (?P<SeasonNum>[0-9]+)                  # Season Number (##)
+            [e|x]?                                  # e|x
+            (?P<EpisodeNum>[0-9][0-9]+)            # Episode Number(##)
+            [/\._ \-]*                             # Optional Sep 1 or more
+            (?P<EpisodeName>.+)?                   # Optional Title
+            \.(?P<Ext>....?)$                      # Extension
+            ''',
+            re.X|re.I))
+
+        self.RegxParse.append(re.compile(
+            '''                                    # #18  foo ##e|x##
             ^(/.*/)?                               # Optional Directory
             (?P<SeriesName>.*?)                    # Series Name
             [/\._ \-]+                             # Sep 1 or More
