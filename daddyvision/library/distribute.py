@@ -79,7 +79,7 @@ class Distribute(object):
         log.trace('ProcessFile: %s' % pathname)
 
         self.type, _fmt, _dest_dir = self._get_type(pathname)
-
+        
         if _fmt == 'file':
             log.trace("%s file - %r..." % (type, pathname))
             pathname = self._distribute_file(pathname, _dest_dir)
@@ -206,6 +206,7 @@ class Distribute(object):
         # initialize stuff
         src_dir = src_dir.rstrip(os.sep)
         _tgt_dir = dest_dir
+        _base_dir = os.path.join(dest_dir, os.path.basename(src_dir))
         _files_req_unpack = False
 
         for _root, _dir_names, _file_names in os.walk(src_dir):
@@ -267,7 +268,7 @@ class Distribute(object):
                     self._clean_names(dest_dir)
                 _files_req_unpack = False
 
-        return dest_dir
+        return _base_dir
 
     def _clean_names(self, dest_dir):
         # map ugly scene short names to original directory name
@@ -368,7 +369,7 @@ class localOptions(OptionParser):
             action="store_const", const="Series",
             help="Process as Series")
         group.add_option("-m", "--movies", dest="content",
-            action="store_const", const="Movies",
+            action="store_const", const="Movie",
             help="Process as Movies")
         group.add_option("-n", "--non-video", dest="content",
             action="store_const", const="NonVideo",

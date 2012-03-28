@@ -145,6 +145,7 @@ class Rename(object):
 
         elif os.path.isdir(pathname):
             for _root, _dirs, _files in os.walk(os.path.abspath(pathname),followlinks=False):
+                _dirs.sort()
                 for _dir in _dirs[:]:
                     if _dir == 'VIDEO_TS':
                         self._rename_directory(_root)
