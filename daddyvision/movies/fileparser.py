@@ -48,18 +48,6 @@ class FileParser(object):
         self.regex_repack = re.compile('^.*(repack|proper).*$', re.IGNORECASE)
         self.RegxParse = self.GetRegx()
 
-#        @TODO: Eventually move MovieGlob to settings
-#        self.MovieGlob = ["1080p", "720p", "bluray", "x264", "x264-refined", "h264", "ac3", "ac-3",
-#                          "uncut", "director", "directors", "director's", "unrated", "extended", "retail",
-#                          "repack", "proper", "480p", "dvdr", "dvdrip", "brrip", "bdrip", "hdtv", "ntsc", "pal",
-#                          "r5", "br-screener", "screener", "tsxvid", "xvid", "divxnl", "divx", "scr", "hq",
-#                          "pdvd-rip", "pdvd", "pdv", "Predvd", "pre-dvd", "dvd", "ppvrip", "pdtv", "cam",
-#                          "telesync", "telecine", "WorkPrint", "vhs", "cvcd", "vcd", "webrip", "br-scr",
-#                          "ts", "ws", "nl", "nlt", "cn ", "tc ", "extratorrent", "2lions", " vostfr", "fxm",
-#                          "subs", "nl Subs", "french", "english", "spanish", "ita ", "italia",
-#                          "hindi", "german", "eng","swesub", ]
-
-
     def getFileDetails(self, fq_name):
         log.trace("GetFileDetails: File: %s" % (fq_name))
 
