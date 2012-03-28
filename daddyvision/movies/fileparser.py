@@ -45,21 +45,19 @@ class FileParser(object):
         log.trace("Entering: __init__")
 
         self.config = config
-
-        self.FileDetails = {}
         self.regex_repack = re.compile('^.*(repack|proper).*$', re.IGNORECASE)
         self.RegxParse = self.GetRegx()
 
 #        @TODO: Eventually move MovieGlob to settings
-        self.MovieGlob = ["1080p", "720p", "bluray", "x264", "x264-refined", "h264", "ac3", "ac-3",
-                          "uncut", "director", "directors", "director's", "unrated", "extended", "retail",
-                          "repack", "proper", "480p", "dvdr", "dvdrip", "brrip", "bdrip", "hdtv", "ntsc", "pal",
-                          "r5", "br-screener", "screener", "tsxvid", "xvid", "divxnl", "divx", "scr", "hq",
-                          "pdvd-rip", "pdvd", "pdv", "Predvd", "pre-dvd", "dvd", "ppvrip", "pdtv", "cam",
-                          "telesync", "telecine", "WorkPrint", "vhs", "cvcd", "vcd", "webrip", "br-scr",
-                          "ts", "ws", "nl", "nlt", "cn ", "tc ", "extratorrent", "2lions", " vostfr", "fxm",
-                          "subs", "nl Subs", "french", "english", "spanish", "ita ", "italia",
-                          "hindi", "german", "eng","swesub", ]
+#        self.MovieGlob = ["1080p", "720p", "bluray", "x264", "x264-refined", "h264", "ac3", "ac-3",
+#                          "uncut", "director", "directors", "director's", "unrated", "extended", "retail",
+#                          "repack", "proper", "480p", "dvdr", "dvdrip", "brrip", "bdrip", "hdtv", "ntsc", "pal",
+#                          "r5", "br-screener", "screener", "tsxvid", "xvid", "divxnl", "divx", "scr", "hq",
+#                          "pdvd-rip", "pdvd", "pdv", "Predvd", "pre-dvd", "dvd", "ppvrip", "pdtv", "cam",
+#                          "telesync", "telecine", "WorkPrint", "vhs", "cvcd", "vcd", "webrip", "br-scr",
+#                          "ts", "ws", "nl", "nlt", "cn ", "tc ", "extratorrent", "2lions", " vostfr", "fxm",
+#                          "subs", "nl Subs", "french", "english", "spanish", "ita ", "italia",
+#                          "hindi", "german", "eng","swesub", ]
 
 
     def getFileDetails(self, fq_name):
@@ -86,7 +84,7 @@ class FileParser(object):
 
         _parsed_keys = _parse_details.groupdict().keys()
         for _key in _parsed_keys:
-            log.debug("{}: {}".format(_key, _parse_details.group(_key)))
+            log.verbose("{}: {}".format(_key, _parse_details.group(_key)))
 
         self.File_Details = {}
         self.File_Details['FileName'] = fq_name
@@ -132,13 +130,17 @@ class FileParser(object):
         _movie_name = re.sub("(\D)[.](\D)", "\\1 \\2", _movie_name)
         _movie_name = re.sub("(\D)[.]", "\\1 ", _movie_name)
         _movie_name = re.sub("[.](\D)", " \\1", _movie_name)
+        _movie_name = _movie_name.replace("(", "")
+        _movie_name = _movie_name.replace("[", "")
+        _movie_name = _movie_name.replace(")", "")
+        _movie_name = _movie_name.replace("]", "")
         _movie_name = _movie_name.replace("_", " ")
         _movie_name = re.sub("-$", "", _movie_name)
 
         _word_list = _movie_name.split()
         _title = []
         for _word in _word_list:
-            if _word.lower() in self.MovieGlob:
+            if _word.lower() in self.config.MovieGlob:
                 break
             else:
                 _title.append(_word.capitalize())
@@ -156,13 +158,9 @@ class FileParser(object):
         RegxParse.append(re.compile(
             '''                                     # RegEx 1
             ^(/.*/)?                                # Optional Directory
-            [({.*})?|(\[.*\])]?                     # { GROUP NAME }
-            [\._ \-]?[\._ \-]?[\._ \-]?             # Optional Sep 1-3
-            (?P<MovieName>.*?)                      # Movie Name
-            [/\._ \-][\(]?                          # Sep 1
             (?P<Year>[1-2][09][0-9][0-9])
-            [\)]?[/\._ \-]                          # Sep 1
-            (?P<Keywords>.+)?                       # Optional Title
+            [\._ \-][\._ \-]?[\._ \-]?              # Sep 1-3
+            (?P<MovieName>.*?)                      # Movie Name
             \.(?P<Ext>....?)$                       # extension
             ''',
             re.X|re.I))
@@ -170,9 +168,45 @@ class FileParser(object):
         RegxParse.append(re.compile(
             '''                                     # RegEx 2
             ^(/.*/)?                                # Optional Directory
+            (.*[\._ ]\-[\._ ])                      # Collection Name
+            (?P<MovieName>.*?)                      # Movie Name
+            [/\._ \-][\(]?                          # Sep 1
+            (?P<Year>[1-2][09][0-9][0-9])?
+            [\)]?[/\._ \-]                          # Sep 1
+            (?P<Keywords>.+)?                       # Optional Title
+            \.(?P<Ext>....?)$                       # extension
+            ''',
+            re.X|re.I))
+
+        RegxParse.append(re.compile(
+            '''                                     # RegEx 3
+            ^(/.*/)?                                # Optional Directory
+            [({.*})?|(\[.*\])]?                     # { GROUP NAME }
+            [\._ \-]?[\._ \-]?[\._ \-]?             # Optional Sep 1-3
+            (?P<MovieName>.*?)                      # Movie Name
+            [/\._ \-][\(]?                          # Sep 1
+            (?P<Year>[1-2][09][0-9][0-9])?
+            [\)]?[/\._ \-]                          # Sep 1
+            (?P<Keywords>.+)?                       # Optional Title
+            \.(?P<Ext>....?)$                       # extension
+            ''',
+            re.X|re.I))
+
+        RegxParse.append(re.compile(
+            '''                                     # RegEx 4
+            ^(/.*/)?                                # Optional Directory
             (?P<MovieName>.*?)                      # Movie Name
             [/\._ \-]?                              # Sep 1
-            (?P<Trailer>.trailer)?                  # trailer indicator
+            (?P<Trailer>.trailer)                  # trailer indicator
+            \.(?P<Ext>....?)$                       # extension
+            ''',
+            re.X|re.I))
+
+        RegxParse.append(re.compile(
+            '''                                     # RegEx 4
+            ^(/.*/)?                                # Optional Directory
+            (?P<MovieName>.*?)                      # Movie Name
+            [/\._ \-]?                              # Sep 1
             \.(?P<Ext>....?)$                       # extension
             ''',
             re.X|re.I))
@@ -181,10 +215,10 @@ class FileParser(object):
 
 if __name__ == '__main__':
 
-    from daddyvision.common.options import OptionParser, CoreOptionParser
+    from daddyvision.common.options import OptionParser
     from daddyvision.common.settings import Settings
 
-    parser = CoreOptionParser()
+    parser = OptionParser()
     options, args = parser.parse_args()
 
     log_level = logging.getLevelName(options.loglevel.upper())
@@ -204,7 +238,6 @@ if __name__ == '__main__':
     log.debug("Parsed arguments: %r" % args)
 
     config = Settings()
-
     _my_parser = FileParser(config)
 
     if len(args) > 0:

@@ -207,6 +207,8 @@ class Rename(object):
                 if 'Year' not in _file_details:
                     _index = _movie_titles.index(_choice[0])
                     _file_details['Year'] = int(_movie.getReleased(_index)[0:4])
+            else:
+                return
         else:
             return
 

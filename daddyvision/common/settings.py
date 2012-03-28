@@ -283,11 +283,19 @@ class Settings(object):
         config['Common']['MediaExt'] = ['avi', 'bup', 'core', 'divx', 'ifo', 'img', 'iso',
                                         'm2ts', "m4v",'mp4', 'mkv', 'mpeg', 'mpg', 'vob'
                                         ]
-        
-        config['Common']['MovieGlob'] = ["720", "1080", "bluray", "bdrip", "brrip", "pal",
-                                                 "ntsc", "dvd-r", "fulldvd", "multi", "dts",
-                                                 "hdtv", "pdtv", "webrip", "dvdrip", "2lions"
-                                                ]
+
+        config['Common']['MovieGlob'] = ["1080p", "720p", "bluray", "x264", "x264-refined", "h264",
+                                         "ac3", "ac-3", "uncut", "director", "directors", "director's",
+                                         "unrated", "extended", "retail", "repack", "proper", "480p",
+                                         "dvdr", "dvdrip", "brrip", "bdrip", "hdtv", "ntsc", "pal", "r5",
+                                         "br-screener", "screener", "tsxvid", "xvid", "divxnl", "divx",
+                                         "scr", "hq", "pdvd-rip", "pdvd", "pdv", "Predvd", "pre-dvd", "dvd",
+                                         "ppvrip", "pdtv", "cam", "telesync", "telecine", "WorkPrint", "vhs",
+                                         "cvcd", "vcd", "webrip", "br-scr", "ts", "ws", "nl", "nlt", "cn ",
+                                         "tc ", "extratorrent", "2lions", " vostfr", "fxm", "subs", "nl Subs",
+                                         "french", "english", "spanish", "ita ", "italia", "hindi", "german",
+                                         "eng","swesub", 'blu-ray', 'dvd-r', 'fulldvd', 'multi', 'dts',
+                                          ]
         config['Common']['IgnoreGlob'] = ['*subs*', '*subpack*', '*sample*', '*.sfv', '*.srt',
                                                   '*.idx', '*.swp', '*.tmp', '*.bak', '*.nfo', '*.txt',
                                                   '*.doc', '*.docx', '*.jpg', '*.png', '*.com', '*.mds',

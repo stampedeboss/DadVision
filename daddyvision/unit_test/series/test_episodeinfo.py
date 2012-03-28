@@ -10,7 +10,7 @@ import sys
 
 class KnownValues(unittest.TestCase):
     SeriesData = {'SeriesName' : 'Suits'}
-    Suits_Data = {}
+    Suits_Data = {'TVDBSeriesID': '247808'}
     
 class EpisodeDetailsExceptions(unittest.TestCase):
 
@@ -44,9 +44,9 @@ class EpisodeDetailsExceptions(unittest.TestCase):
         self.mymodule = EpisodeDetails()
         
  
-    @unittest.expectedFailure
+#    @unittest.expectedFailure
     def test_EpisodeDetails_exception_case_000(self):
-        self.assertEqual(self.mymodule.getDetails({'SeriesName' : "Suits"}), KnownValues.Suits_Data)
+        self.assertEqual(self.mymodule.getDetails({'SeriesName' : "Suits"})['TVDBSeriesID'], KnownValues.Suits_Data['TVDBSeriesID'])
 
     def test_EpisodeDetails_exception_case_001(self):
         self.assertRaises(InvalidArgumentType, self.mymodule.getDetails, 'string')
