@@ -52,11 +52,11 @@ def useLibraryLogging(func):
 
 class Distribute(object):
 
-    def __init__(self, config, clean_up_name=True):
+    def __init__(self, config, options):
         log.trace('__init__')
 
         self.config = config
-        self.clean_up_names = clean_up_name
+        self.options = options
         self.type = None
 
         self.RegEx = []
@@ -75,10 +75,10 @@ class Distribute(object):
         self.rename_series = RenameSeries(self.config)
         self.rename_movies = RenameMovie(self.config)
 
-    def ProcessPathName(self, pathname, content_type=''):
+    def ProcessPathName(self, pathname):
         log.trace('ProcessFile: %s' % pathname)
 
-        self.type, _fmt, _dest_dir = self._get_type(pathname, content_type)
+        self.type, _fmt, _dest_dir = self._get_type(pathname)
 
         if _fmt == 'file':
             log.trace("%s file - %r..." % (type, pathname))
@@ -107,7 +107,7 @@ class Distribute(object):
                 raise BaseDaddyVisionException('Unknown Error: {}'.format(sys.exc_info()[1]))
 
 
-    def _get_type(self, pathname, content_type):
+    def _get_type(self, pathname):
         log.trace('_get_type: Pathname: {}'.format(pathname))
 
         _file_name = os.path.split(pathname.rstrip(os.sep))[1]
@@ -115,11 +115,11 @@ class Distribute(object):
         _type = None
         _fmt = None
 
-        if content_type:
-            if content_type == 'Series':
+        if self.options.content:
+            if self.options.content == 'Series':
                 _type = "Series"
                 _dest_dir = self.config.NewSeriesDir
-            elif content_type == "Movie":
+            elif self.options.content == "Movie":
                 _type = "Movie"
                 _dest_dir = self.config.NewMoviesDir
             else:
@@ -168,7 +168,7 @@ class Distribute(object):
         """ Move or copy a single file.
         """
         # ignored file?
-        if self._ignored(os.path.basename(srcfile)) and options.ignore:
+        if self._ignored(os.path.basename(srcfile)) and self.options.ignore:
             log.verbose("Ignoring %r!" % (srcfile,))
             return
 
@@ -211,7 +211,7 @@ class Distribute(object):
         for _root, _dir_names, _file_names in os.walk(src_dir):
             # don't scan ignored subdirs
             for _dir_name in _dir_names[:]:
-                if self._ignored(_dir_name) and options.ignore:
+                if self._ignored(_dir_name) and self.options.ignore:
                     log.verbose("Ignoring %r" % os.path.join(_root, _dir_name)[len(src_dir):])
                     _dir_names.remove(_dir_name)
 
@@ -232,7 +232,7 @@ class Distribute(object):
             _rar_list = []
             _file_list = []
             for _file in sorted(_file_names):
-                if self._ignored(_file) and options.ignore:
+                if self._ignored(_file) and self.options.ignore:
                     log.verbose("Ignoring %r" % os.path.join(_root, _file))
                     continue
                 if self.RAR_RE.search(_file):
@@ -263,7 +263,7 @@ class Distribute(object):
                     _files_req_unpack = True
 
             if _files_req_unpack:
-                if self.clean_up_names:
+                if self.options.clean_up_name:
                     self._clean_names(dest_dir)
                 _files_req_unpack = False
 
@@ -396,7 +396,7 @@ if __name__ == '__main__':
     log.debug("Parsed arguments: %r" % args)
 
     config = Settings ()
-    distribute = Distribute(config, options.clean_up_name)
+    distribute = Distribute(config, options)
 
     for _path_name in args:
         _path_name = _path_name.lstrip().rstrip()
@@ -409,4 +409,4 @@ if __name__ == '__main__':
                 if content_type in ('Series', 'Movie'):
                     distribute.ProcessPathName(os.path.join(_path_name, entry))
         else:
-            distribute.ProcessPathName(_path_name, options.content)
+            distribute.ProcessPathName(_path_name)
