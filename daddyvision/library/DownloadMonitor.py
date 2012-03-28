@@ -11,7 +11,7 @@ Purpose:
 from daddyvision.common import logger
 from daddyvision.common.daemon import Daemon
 from daddyvision.common.exceptions import ConfigValueError
-from daddyvision.common.options import OptionParser, CoreOptionParser
+from daddyvision.common.options import OptionParser, OptionGroup
 from daddyvision.common.settings import Settings
 from daddyvision.library.distribute import Distribute
 from logging import INFO, WARNING, ERROR, DEBUG
@@ -89,15 +89,15 @@ class PackageHandler(object):
     ''' Process the file or directory passed
     '''
     def __init__(self):
-        self.distribute = Distribute(config)
+        self.distribute = Distribute(config, options)
         log.debug('PackageHandler Initialized')
 
     def NewDownload(self, pathname):
         self.distribute.ProcessPathName(pathname)
-
+        
 if __name__ == "__main__":
 
-    parser = CoreOptionParser()
+    parser = OptionParser()
     options, args = parser.parse_args()
 
     log_level = logging.getLevelName(options.loglevel.upper())
@@ -116,6 +116,11 @@ if __name__ == "__main__":
     log.debug("Parsed command line options: {!s}".format(options))
     log.debug("Parsed arguments: %r" % args)
 
+    # Add options needed by distribute
+    options.clean_up_name = True
+    options.ignore = True
+    options.content = ""
+    
     if options.loglevel != 'DEBUG' and options.loglevel != 'TRACE':
         if len(args) != 1 or (args[0].lower() != 'start' and args[0].lower() != 'stop' and args[0].lower() != 'restart'):
             parser.error('Invalid or missing arguments')
