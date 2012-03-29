@@ -9,6 +9,7 @@ from __future__ import division
 from daddyvision.common.exceptions import InvalidFilename, RegxSelectionError
 from daddyvision.common import logger
 import logging
+import fnmatch
 import os
 import re
 import sys
@@ -56,7 +57,7 @@ class FileParser(object):
         self.RegExNumber = 0
         for _pattern in self.RegxParse:
             self.RegExNumber += 1
-            _parse_details = _pattern.match(fq_name)
+            _parse_details = _pattern.match(_file_name)
             if not _parse_details:
                 continue
             else:
@@ -118,22 +119,27 @@ class FileParser(object):
         _movie_name = re.sub("(\D)[.](\D)", "\\1 \\2", _movie_name)
         _movie_name = re.sub("(\D)[.]", "\\1 ", _movie_name)
         _movie_name = re.sub("[.](\D)", " \\1", _movie_name)
-        _movie_name = _movie_name.replace("(", "")
-        _movie_name = _movie_name.replace("[", "")
-        _movie_name = _movie_name.replace(")", "")
-        _movie_name = _movie_name.replace("]", "")
         _movie_name = _movie_name.replace("_", " ")
+#        _movie_name = _movie_name.replace("(", "")
+#        _movie_name = _movie_name.replace("[", "")
+#        _movie_name = _movie_name.replace(")", "")
+#        _movie_name = _movie_name.replace("]", "")
         _movie_name = re.sub("-$", "", _movie_name)
 
         _word_list = _movie_name.split()
         _title = []
         for _word in _word_list:
-            if _word.lower() in self.config.MovieGlob:
+            if self._ignored(_word):
                 break
             else:
-                _title.append(_word.capitalize())
+                if _word[0:1] in ['(', '[', '{']:
+                    _word = '('+_word[1:].capitalize()
+                    _title.append(_word)
+                else:
+                    _title.append(_word.capitalize())
 
         _movie_name = " ".join(_title)
+        _movie_name = _movie_name.replace("3d", "3D")
 
         log.trace('{}: Movie Name: {}'.format(self.LogHeader, _movie_name.strip()))
 
@@ -144,46 +150,67 @@ class FileParser(object):
 
         RegxParse = []
         RegxParse.append(re.compile(
-            '''                                     # RegEx 1
-            ^(/.*/)?                                # Optional Directory
-            (?P<Year>[1-2][09][0-9][0-9])
-            [\._ \-][\._ \-]?[\._ \-]?              # Sep 1-3
-            (?P<MovieName>.*?)                      # Movie Name
-            \.(?P<Ext>....?)$                       # extension
+            '''                                     # RegEx 1  YEAR First
+            ^(?P<Year>(19|20)[0-9][0-9])
+            [\._ \-][\._ \-]?[\._ \-]?
+            (?P<MovieName>.*)
+            [\._ \-]?
+            (?P<Keywords>.+)?
+            \.(?P<Ext>....?)$
             ''',
             re.X|re.I))
 
         RegxParse.append(re.compile(
-            '''                                     # RegEx 2
-            ^(/.*/)?                                # Optional Directory
-            (.*[\._ ]\-[\._ ])                      # Collection Name
-            (?P<MovieName>.*?)                      # Movie Name
-            [/\._ \-][\(]?                          # Sep 1
-            (?P<Year>[1-2][09][0-9][0-9])?
-            [\)]?[/\._ \-]                          # Sep 1
-            (?P<Keywords>.+)?                       # Optional Title
-            \.(?P<Ext>....?)$                       # extension
+            '''                                     # RegEx 2  COLLECTION NAME
+            ^(.*?[\._ ]\-[\._ ])
+            (?P<MovieName>.*)
+            [/\._ \-]
+            [\(\[]?
+            (?P<Year>(19|20|21)[0-9][0-9])
+            [\)\]]?
+            [/\._ \-]?
+            (?P<Keywords>.+)?
+            \.(?P<Ext>....?)$
             ''',
             re.X|re.I))
 
         RegxParse.append(re.compile(
-            '''                                     # RegEx 3
-            ^(/.*/)?                                # Optional Directory
-            [({.*})?|(\[.*\])]?                     # { GROUP NAME }
-            [\._ \-]?[\._ \-]?[\._ \-]?             # Optional Sep 1-3
-            (?P<MovieName>.*?)                      # Movie Name
-            [/\._ \-][\(]?                          # Sep 1
-            (?P<Year>[1-2][09][0-9][0-9])?
-            [\)]?[/\._ \-]                          # Sep 1
-            (?P<Keywords>.+)?                       # Optional Title
-            \.(?P<Ext>....?)$                       # extension
+            '''                                     # RegEx 2  COLLECTION NAME
+            ^(.*?[\._ ]\-[\._ ])
+            (?P<MovieName>.*)
+            [/\._ \-]?
+            (?P<Keywords>.+)?
+            \.(?P<Ext>....?)$
             ''',
             re.X|re.I))
 
         RegxParse.append(re.compile(
-            '''                                     # RegEx 4
-            ^(/.*/)?                                # Optional Directory
-            (?P<MovieName>.*?)                      # Movie Name
+            '''                                     # RegEx 3  GROUP NAME
+            ^[({.*})?|(\[.*\])]
+            [\._ \-]?[\._ \-][\._ \-]?              # Optional Sep 1-3
+            (?P<MovieName>.*?)
+            [\._ \-][\(\[]?
+            (?P<Year>(19|20)[0-9][0-9])
+            [\)\]]?[\._ \-]?
+            (?P<Keywords>.+)?
+            \.(?P<Ext>....?)$
+            ''',
+            re.X|re.I))
+
+        RegxParse.append(re.compile(
+            '''                                      # RegEx 4  YEAR
+            (?P<MovieName>.*?)
+            [\._ \-][\(\[]?
+            (?P<Year>(19|20)[0-9][0-9])
+            [\)\]]?[\._ \-]?
+            (?P<Keywords>.+)?
+            \.(?P<Ext>....?)$
+            ''',
+            re.X|re.I))
+
+        RegxParse.append(re.compile(
+            '''                                     # RegEx 5  TRAILER
+            ^(?P<MovieName>.*?)                      # Movie Name
             [/\._ \-]?                              # Sep 1
             (?P<Trailer>.trailer)                  # trailer indicator
             \.(?P<Ext>....?)$                       # extension
@@ -191,15 +218,18 @@ class FileParser(object):
             re.X|re.I))
 
         RegxParse.append(re.compile(
-            '''                                     # RegEx 4
-            ^(/.*/)?                                # Optional Directory
-            (?P<MovieName>.*?)                      # Movie Name
-            [/\._ \-]?                              # Sep 1
+            '''                                     # RegEx 6  ALL OTHERS
+            ^(?P<MovieName>.*?)                      # Movie Name
             \.(?P<Ext>....?)$                       # extension
             ''',
             re.X|re.I))
 
         return RegxParse
+
+    def _ignored(self, name):
+        """ Check for ignored pathnames.
+        """
+        return any(fnmatch.fnmatch(name.lower(), pattern) for pattern in self.config.MovieGlob2)
 
 if __name__ == '__main__':
 

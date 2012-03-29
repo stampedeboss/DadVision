@@ -13,10 +13,6 @@ class KnownValues(unittest.TestCase):
     Movie_Details['MovieName'] = 'Every Which Way But Loose'
     Movie_Details['Year'] = '1978'
     Movie_Details['Ext'] = 'mkv'
-    Movie_Details_No_Date = {}
-    Movie_Details_No_Date['FileName'] = "/mnt/DadVision/Movies/Every Which Way But Loose (1978)/Every Which Way But Loose (1978).mkv"
-    Movie_Details_No_Date['MovieName'] = 'Every Which Way But Loose'
-    Movie_Details_No_Date['Ext'] = 'mkv'
 
 class FileParserMovies(unittest.TestCase):
 
@@ -44,91 +40,146 @@ class FileParserMovies(unittest.TestCase):
             {Group Name} Movie Title (year)
     '''
 
+    def load_date(self, File_Name):
+        KnownValues.Movie_Details = {}
+        KnownValues.Movie_Details["FileName"] = "/mnt/Download/Bittorrent/{}/{}.mkv".format(File_Name, File_Name)
+        KnownValues.Movie_Details['MovieName'] = 'Every Which Way But Loose'
+        KnownValues.Movie_Details['Year'] = '1978'
+        KnownValues.Movie_Details['Ext'] = 'mkv'
+
+    def load_no_date(self, File_Name):
+        KnownValues.Movie_Details = {}
+        KnownValues.Movie_Details["FileName"] = "/mnt/Download/Bittorrent/{}/{}.mkv".format(File_Name, File_Name)
+        KnownValues.Movie_Details['MovieName'] = 'Every Which Way But Loose'
+        KnownValues.Movie_Details['Ext'] = 'mkv'
+
 #    @unittest.expectedFailure
     def test_FileParser_case_011(self):
-        File_Name = 'Every Which Way But Loose 720P BluRay x264-LCHD'
-        KnownValues.Movie_Details_No_Date["FileName"] = "/mnt/Download/Bittorrent/{}/{}.mkv".format(File_Name, File_Name)
-        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details_No_Date["FileName"]), KnownValues.Movie_Details_No_Date)
+        self.load_no_date('every which way but loose')
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
 
     def test_FileParser_case_012(self):
-        File_Name = 'Every Which Way But Loose 1978 720P BluRay x264-LCHD'
-        KnownValues.Movie_Details["FileName"] = "/mnt/Download/Bittorrent/{}/{}.mkv".format(File_Name, File_Name)
+        self.load_no_date('EVERY.WHICH.WAY.BUT.LOOSE')
         self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
 
     def test_FileParser_case_013(self):
-        File_Name = 'Every Which Way But Loose (1978) 720P BluRay x264-LCHD'
-        KnownValues.Movie_Details["FileName"] = "/mnt/Download/Bittorrent/{}/{}.mkv".format(File_Name, File_Name)
+        self.load_no_date('Every_Which_Way_But_Loose')
         self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
-
-    def test_FileParser_case_014(self):
-        File_Name = 'Every Which Way But Loose (BDrip 1080p ENG-ITA-GER-SPA) MultiSub x264 bluray (1978)'
-        KnownValues.Movie_Details["FileName"] = "/mnt/Download/Bittorrent/{}/{}.mkv".format(File_Name, File_Name)
-        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
-
-    def test_FileParser_case_015(self):
-        File_Name = 'Every Which Way But Loose [BDrip 1080p ENG-ITA-GER-SPA] MultiSub x264 bluray (1978)'
-        KnownValues.Movie_Details["FileName"] = "/mnt/Download/Bittorrent/{}/{}.mkv".format(File_Name, File_Name)
-        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
-
-    def test_FileParser_case_016(self):
-        File_Name = 'The Clint Eastwood Collection - Every Which Way But Loose (1978) 720P BluRay x264-LCHD'
-        KnownValues.Movie_Details["FileName"] = "/mnt/Download/Bittorrent/{}/{}.mkv".format(File_Name, File_Name)
-        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
-
-    def test_FileParser_case_017(self):
-        File_Name = 'The Clint Eastwood Collection 05 - Every Which Way But Loose (1978) 720P BluRay x264-LCHD'
-        KnownValues.Movie_Details["FileName"] = "/mnt/Download/Bittorrent/{}/{}.mkv".format(File_Name, File_Name)
-        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
-
-    def test_FileParser_case_018(self):
-        File_Name = '1978 - Every Which Way But Loose 720P BluRay x264-LCHD'
-        KnownValues.Movie_Details["FileName"] = "/mnt/Download/Bittorrent/{}/{}.mkv".format(File_Name, File_Name)
-        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
-
-    def test_FileParser_case_019(self):
-        File_Name = 'EVERY_WHICH_WAY_BUT_LOOSE'
-        KnownValues.Movie_Details_No_Date["FileName"] = "/mnt/Download/Bittorrent/{}/{}.mkv".format(File_Name, File_Name)
-        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details_No_Date["FileName"]), KnownValues.Movie_Details_No_Date)
 
     def test_FileParser_case_021(self):
-        File_Name = 'Every.Which.Way.But.Loose.720P.BluRay.x264-LCHD'
-        KnownValues.Movie_Details_No_Date["FileName"] = "/mnt/Download/Bittorrent/{}/{}.mkv".format(File_Name, File_Name)
-        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details_No_Date["FileName"]), KnownValues.Movie_Details_No_Date)
+        self.load_no_date('Every Which Way But Loose 720P BluRay x264-LCHD')
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
 
     def test_FileParser_case_022(self):
-        File_Name = 'Every.Which.Way.But.Loose.1978.720P.BluRay.x264-LCHD'
-        KnownValues.Movie_Details["FileName"] = "/mnt/Download/Bittorrent/{}/{}.mkv".format(File_Name, File_Name)
+        self.load_no_date('Every.Which.Way.But.Loose.720P.BluRay.x264-LCHD')
         self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
 
     def test_FileParser_case_023(self):
-        File_Name = 'Every.Which.Way.But.Loose.(1978).720P.BluRay.x264-LCHD'
-        KnownValues.Movie_Details["FileName"] = "/mnt/Download/Bittorrent/{}/{}.mkv".format(File_Name, File_Name)
-        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
-
-    def test_FileParser_case_024(self):
-        File_Name = 'Every.Which.Way.But.Loose.(BDrip.1080p.ENG-ITA-GER-SPA).MultiSub.x264.bluray.(1978)'
-        KnownValues.Movie_Details["FileName"] = "/mnt/Download/Bittorrent/{}/{}.mkv".format(File_Name, File_Name)
-        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
-
-    def test_FileParser_case_025(self):
-        File_Name = 'Every.Which.Way.But.Loose.[BDrip.1080p.ENG-ITA-GER-SPA].MultiSub.x264.bluray.(1978)'
-        KnownValues.Movie_Details["FileName"] = "/mnt/Download/Bittorrent/{}/{}.mkv".format(File_Name, File_Name)
+        self.load_no_date('Every_Which_Way_But_Loose_720P_BluRay_x264-LCHD')
         self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
 
     def test_FileParser_case_031(self):
-        File_Name = 'Every_Which_Way_But_Loose_720P_BluRay_x264-LCHD'
-        KnownValues.Movie_Details_No_Date["FileName"] = "/mnt/Download/Bittorrent/{}/{}.mkv".format(File_Name, File_Name)
-        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details_No_Date["FileName"]), KnownValues.Movie_Details_No_Date)
+        self.load_date('Every Which Way But Loose 1978 720P BluRay x264-LCHD')
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
 
     def test_FileParser_case_032(self):
-        File_Name = 'Every_Which_Way_But_Loose_1978_720P_BluRay_x264-LCHD'
-        KnownValues.Movie_Details["FileName"] = "/mnt/Download/Bittorrent/{}/{}.mkv".format(File_Name, File_Name)
+        self.load_date('Every.Which.Way.But.Loose.1978.720P.BluRay.x264-LCHD')
         self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
 
     def test_FileParser_case_033(self):
-        File_Name = 'Every_Which_Way_But_Loose_(1978)_720P_BluRay_x264-LCHD'
-        KnownValues.Movie_Details["FileName"] = "/mnt/Download/Bittorrent/{}/{}.mkv".format(File_Name, File_Name)
+        self.load_date('Every_Which_Way_But_Loose_1978_720P_BluRay_x264-LCHD')
         self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
+
+    def test_FileParser_case_041(self):
+        self.load_date('Every Which Way But Loose (1978) 720P BluRay x264-LCHD')
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
+
+    def test_FileParser_case_042(self):
+        self.load_date('Every.Which.Way.But.Loose.(1978).720P.BluRay.x264-LCHD')
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
+
+    def test_FileParser_case_043(self):
+        self.load_date('Every_Which_Way_But_Loose_(1978)_720P_BluRay_x264-LCHD')
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
+
+    def test_FileParser_case_051(self):
+        self.load_date('Every Which Way But Loose (BDrip 1080p ENG-ITA-GER-SPA) MultiSub x264 bluray (1978)')
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
+
+    def test_FileParser_case_052(self):
+        self.load_date('Every.Which.Way.But.Loose.(BDrip.1080p.ENG-ITA-GER-SPA).MultiSub.x264.bluray.(1978)')
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
+
+    def test_FileParser_case_061(self):
+        self.load_date('Every Which Way But Loose [BDrip 1080p ENG-ITA-GER-SPA] MultiSub x264 bluray (1978)')
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
+
+    def test_FileParser_case_062(self):
+        self.load_date('Every.Which.Way.But.Loose.[BDrip.1080p.ENG-ITA-GER-SPA].MultiSub.x264.bluray.(1978)')
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
+
+    def test_FileParser_case_071(self):
+        self.load_date('The Clint Eastwood Collection - Every Which Way But Loose (1978) 720P BluRay x264-LCHD')
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
+
+    def test_FileParser_case_081(self):
+        self.load_date('The Clint Eastwood Collection 05 - Every Which Way But Loose (1978) 720P BluRay x264-LCHD')
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
+
+    def test_FileParser_case_091(self):
+        self.load_date('1978 - Every Which Way But Loose 720P BluRay x264-LCHD')
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
+
+    def test_FileParser_case_101(self):
+        self.load_no_date('Arma Letale 2 - Lethal Weapon 2 [BDRip-1080p-MultiLang-MultiSub-Chapters][RiP By MaX]')
+        KnownValues.Movie_Details['MovieName'] = 'Lethal Weapon 2'
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
+
+    def test_FileParser_case_111(self):
+        self.load_no_date('Miracle on 34th Street (BDrip 1080p ENG-ITA-FRE-GER) Multisub x264 bluray (1994)')
+        KnownValues.Movie_Details['MovieName'] = 'Miracle On 34th Street'
+        KnownValues.Movie_Details['Year'] = '1994'
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
+
+    def test_FileParser_case_121(self):
+        self.load_no_date('A Very Harold & Kumar3D Christmas (2011) x264 1080p DTS & DD 5.1 NL Subs DMT')
+        KnownValues.Movie_Details['MovieName'] = 'A Very Harold & Kumar3D Christmas'
+        KnownValues.Movie_Details['Year'] = '2011'
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
+
+    @unittest.expectedFailure
+    def test_FileParser_case_131(self):
+        self.load_no_date('2001 Odissea nello spazio - 2001 A Space Odyssey [BDRip-1080p-MultiLang-MultiSub-Chapters][RiP By MaX]')
+        KnownValues.Movie_Details['MovieName'] = '2001 A Space Odyssey'
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
+
+    def test_FileParser_case_141(self):
+        self.load_no_date('Drive.720p.BluRay.X264-BLOW')
+        KnownValues.Movie_Details['MovieName'] = 'Drive'
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
+
+    def test_FileParser_case_151(self):
+        self.load_no_date('James Bond 05 - You Only Live Twice (Ultimate Edition)')
+        KnownValues.Movie_Details['MovieName'] = 'You Only Live Twice (Ultimate Edition)'
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
+
+    def test_FileParser_case_161(self):
+        self.load_no_date('Casino.Royale.2006.720p.BRRip.XviD-SHiRK')
+        KnownValues.Movie_Details['MovieName'] = 'Casino Royale'
+        KnownValues.Movie_Details['Year'] = '2006'
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
+
+    def test_FileParser_case_171(self):
+        self.load_no_date('Star.Trek.V.The.Final.Frontier.1989.720p.BluRay.x264-SiNNERS')
+        KnownValues.Movie_Details['MovieName'] = 'Star Trek V The Final Frontier'
+        KnownValues.Movie_Details['Year'] = '1989'
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
+
+    def test_FileParser_case_181(self):
+        self.load_no_date('Caccia a Ottobre Rosso - The Hunt for Red October [BDRip-1080p-MultiLang-MultiSub-Chapters][RiP By MaX]')
+        KnownValues.Movie_Details['MovieName'] = 'The Hunt For Red October'
+        self.assertEqual(self.parser.getFileDetails(KnownValues.Movie_Details["FileName"]), KnownValues.Movie_Details)
+
 
     def theSuite(self):
         suite = unittest.TestLoader().loadTestsFromTestCase(self)

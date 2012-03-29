@@ -99,6 +99,7 @@ class Settings(object):
         Common = self.config['Common']
         self.MediaExt = Common['MediaExt']
         self.MovieGlob = Common['MovieGlob']
+        self.MovieGlob2 = Common['MovieGlob2']
         self.IgnoreGlob = Common['IgnoreGlob']
         self.Predicates = Common['Predicates']
 
