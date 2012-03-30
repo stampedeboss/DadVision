@@ -275,10 +275,14 @@ class Rename(object):
         _directory_details = self.parser.getFileDetails(directory+'.avi')
         _directory_details['FileName'] = directory
 
-        _movie = tmdb.tmdb(_directory_details['MovieName'])
-        _num_of_movies = _movie.getTotal()
+        _num_of_movies = 0 
         _movie_titles = []
-
+        try:
+            _movie = tmdb.tmdb(_directory_details['MovieName'])
+            _num_of_movies = _movie.getTotal()
+        except:
+            pass
+        
         for i in range(0, (_num_of_movies)):
             _movie_titles.append(_movie.getName(i))
 
