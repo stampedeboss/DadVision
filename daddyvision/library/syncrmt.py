@@ -117,6 +117,7 @@ class DaddyvisionNetwork(object):
 
         cmd = ['rsync', '-rptuvhogL{}'.format(self.options.CmdLineDryRun),
                '--progress',
+               '--ignore-existing',
                '--partial-dir=.rsync-partial',
                '--log-file={}'.format(self.log_file),
                '--exclude=lost+found']
@@ -151,6 +152,7 @@ class DaddyvisionNetwork(object):
 
         cmd = ['rsync', '-rptuvhogL{}'.format(self.options.CmdLineDryRun),
                '--progress',
+               '--ignore-existing',
                '--partial-dir=.rsync-partial',
                '--log-file={}'.format(self.log_file),
                '--exclude=lost+found']
@@ -250,7 +252,7 @@ class DaddyvisionNetwork(object):
     def _process_batch(self, directory, file_list, file_names):
         log.trace('_process_batch: {}'.format(file_names))
 
-        cmd = ['rsync', '-rptuvhogLR'.format(self.options.CmdLineDryRun), '--progress', '--partial-dir=.rsync-partial', '--log-file={}'.format(self.log_file)]
+        cmd = ['rsync', '-rptuvhogLR'.format(self.options.CmdLineDryRun), '--progress', '--ignore-existing', '--partial-dir=.rsync-partial', '--log-file={}'.format(self.log_file)]
         cmd.extend(file_list)
         cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt))
         log.verbose(' '.join(cmd))
