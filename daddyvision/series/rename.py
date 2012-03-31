@@ -391,19 +391,17 @@ if __name__ == "__main__":
     log.debug("Parsed arguments: %r" % args)
 
     _config_settings = Settings()
+    rename = Rename(_config_settings)
 
-    _path_name = ''
-    for i in range(len(args)):
-        _path_name = '%s %s'% (_path_name, args[i])
-    _path_name = _path_name.lstrip().rstrip()
-    if len(_path_name) == 0:
+    if len(args) == 0:
         msg = 'Missing Scan Starting Point (Input Directory), Using Default: {}'.format(_config_settings.NewSeriesDir)
         log.info(msg)
-        _path_name = _config_settings.NewSeriesDir
+        args = [_config_settings.NewSeriesDir]
+    for _path_name in args:
+        _path_name = _path_name.lstrip().rstrip()
 
-    if not os.path.exists(_path_name):
-        log.error('Invalid arguments file or path name not found: %s' % _path_name)
-        sys.exit(1)
+        if not os.path.exists(_path_name):
+            log.error('Invalid arguments file or path name not found: %s' % _path_name)
+            sys.exit(1)
 
-    rename = Rename(_config_settings)
-    _new_fq_name = rename.rename(_path_name, options.force, options.forcedelete)
+        rename.rename(_path_name, options.force, options.forcedelete)
