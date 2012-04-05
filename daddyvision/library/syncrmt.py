@@ -6,21 +6,22 @@ Purpose:
 
 '''
 from daddyvision.common import logger
-from daddyvision.common.exceptions import ConfigValueError, SQLError, UnexpectedErrorOccured, InvalidFilename
+from daddyvision.common.exceptions import (ConfigValueError, SQLError,
+    UnexpectedErrorOccured, InvalidFilename)
 from daddyvision.common.options import OptionParser, OptionGroup
 from daddyvision.common.settings import Settings
 from daddyvision.series.fileparser import FileParser
-from subprocess import Popen, call as Call,  check_call, CalledProcessError
+from subprocess import Popen, call as Call, check_call, CalledProcessError
 import logging
 import os
+import psutil
+import re
 import socket
 import sqlite3
 import sys
-import time
-import psutil
 import tempfile
+import time
 import unicodedata
-import re
 
 __pgmname__ = 'syncrmt'
 __version__ = '$Rev$'
@@ -46,7 +47,7 @@ TRACE = 5
 VERBOSE = 15
 printfmt = '%P\n'
 
-def useLibraryLogging(func):
+def use_library_logging(func):
 
     def wrapper(self, *args, **kw):
         # Set the library name in the logger
@@ -68,8 +69,8 @@ class DaddyvisionNetwork(object):
         self.log_file = os.path.join(logger.LogDir, 'rsync_{}.log'.format(self.options.HostName))
         return
 
-    @useLibraryLogging
-    def SyncRMT(self, dir_name=''):
+    @use_library_logging
+    def syncRMT(self, dir_name=''):
 
         self.dir_name = dir_name.rstrip(os.sep)
         if self.dir_name:
@@ -86,23 +87,23 @@ class DaddyvisionNetwork(object):
             sys.exit(0)
 
         if not self.options.dryrun:
-            self.chkStatus()
+            self._chk_status()
  #           time.sleep(0.2)
- #           self.chkStatus()
+ #           self._chk_status()
 
         if not self.options.SeriesRmt and not self.options.MoviesRmt and not self.options.dryrun:
             self._update_xbmc()
             sys.exit(0)
-                
+
         if 'Series' in self.options.content:
-            self.SyncSeries()
+            self.syncSeries()
             if not options.suppress_incremental and os.path.exists(os.path.join(self.options.SymLinks, 'Incrementals')):
-                self.SyncIncrementals(os.path.join(self.options.SymLinks, 'Incrementals'))
+                self.syncIncrementals(os.path.join(self.options.SymLinks, 'Incrementals'))
 
         if 'Movies' in self.options.content:
-            self.SyncMovies()
+            self.syncMovies()
 
-    def SyncSeries(self):
+    def syncSeries(self):
         log.info('Syncing - Series')
 
         _series_delete_exclusions = '/tmp/{}_series_exclude_list'.format(self.options.HostName)
@@ -117,7 +118,6 @@ class DaddyvisionNetwork(object):
 
         cmd = ['rsync', '-rptuvhogL{}'.format(self.options.CmdLineDryRun),
                '--progress',
-               '--ignore-existing',
                '--partial-dir=.rsync-partial',
                '--log-file={}'.format(self.log_file),
                '--exclude=lost+found']
@@ -147,12 +147,11 @@ class DaddyvisionNetwork(object):
                 sys.exit(1)
 
 
-    def SyncMovies(self):
+    def syncMovies(self):
         log.info('Syncing - Movies')
 
         cmd = ['rsync', '-rptuvhogL{}'.format(self.options.CmdLineDryRun),
                '--progress',
-               '--ignore-existing',
                '--partial-dir=.rsync-partial',
                '--log-file={}'.format(self.log_file),
                '--exclude=lost+found']
@@ -179,7 +178,7 @@ class DaddyvisionNetwork(object):
                 self._update_xbmc()
                 sys.exit(1)
 
-    def SyncIncrementals(self, directory):
+    def syncIncrementals(self, directory):
         log.info('Syncing - Incremental Series')
 
         _sync_needed = self._get_list(directory)
@@ -252,7 +251,7 @@ class DaddyvisionNetwork(object):
     def _process_batch(self, directory, file_list, file_names):
         log.trace('_process_batch: {}'.format(file_names))
 
-        cmd = ['rsync', '-rptuvhogLR'.format(self.options.CmdLineDryRun), '--progress', '--ignore-existing', '--partial-dir=.rsync-partial', '--log-file={}'.format(self.log_file)]
+        cmd = ['rsync', '-rptuvhogLR'.format(self.options.CmdLineDryRun), '--progress', '--partial-dir=.rsync-partial', '--log-file={}'.format(self.log_file)]
         cmd.extend(file_list)
         cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt))
         log.verbose(' '.join(cmd))
@@ -260,7 +259,7 @@ class DaddyvisionNetwork(object):
             process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=directory)
             for _file_name in file_names:
                 _series = file_names[_file_name]
-                self.record_download(_series, _file_name)
+                self._record_download(_series, _file_name)
             self._update_xbmc()
         except CalledProcessError, exc:
             log.error("Incremental rsync Command returned with RC=%d, Ending" % (exc.returncode))
@@ -269,7 +268,7 @@ class DaddyvisionNetwork(object):
             else:
                 raise UnexpectedErrorOccured("Incremental rsync Command returned with RC=%d, Ending" % (exc.returncode))
 
-    def record_download(self, series, file_name):
+    def _record_download(self, series, file_name):
         try:
             db = sqlite3.connect(config.DBFile)
             cursor = db.cursor()
@@ -294,7 +293,7 @@ class DaddyvisionNetwork(object):
             except CalledProcessError, exc:
                 log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
 
-    def chkStatus(self):
+    def _chk_status(self):
         time.sleep(0.2)
         pidList = psutil.process_iter()
         for p in pidList:
@@ -328,7 +327,7 @@ class DaddyvisionNetwork(object):
                             log.warn('Previous Session Killed: %s' % p.pid)
                             options.runaction = 'restart'
                             time.sleep(0.1)
-#                            self.chkStatus()
+#                            self._chk_status()
         return
 
     def _add_runtime_options(self):
@@ -355,6 +354,9 @@ class DaddyvisionNetwork(object):
 
         self.options.CmdLineArgs = []
 
+        if self.options.ignore_existing:
+            self.options.CmdLineArgs.append('--ignore-existing')
+
         if self.options.xclude:
             self.options.CmdLineArgs.append('--exclude=*{}*'.format(self.options.xclude))
 
@@ -374,7 +376,7 @@ class DaddyvisionNetwork(object):
 
         return
 
-class localOptions(OptionParser):
+class LocalOptions(OptionParser):
 
     def __init__(self, unit_test=False, **kwargs):
         OptionParser.__init__(self, **kwargs)
@@ -416,6 +418,9 @@ class localOptions(OptionParser):
         group.add_option("-n", "--dry-run", dest="dryrun",
             action="store_true", default=False,
             help="Don't Run Link Create Commands")
+        group.add_option("--ignore-existing", dest='ignore_existing',
+            action="store_true", default=False,
+            help="Use rysnc's --ignore-existing argument")
         group.add_option("--no-video", dest="novideo",
             action="store_true", default=False,
             help="Suppress Video Files, Only Move Support Files/Directories")
@@ -430,7 +435,7 @@ class localOptions(OptionParser):
             help="Exclude files/directories")
         self.add_option_group(group)
 
-        group = OptionGroup(self, "SyncRMT Already Running")
+        group = OptionGroup(self, "syncRMT Already Running")
         group.add_option("-c", "--cancel", dest="runaction",
             action="store_const", const='cancel', default='ask',
             help="Cancel this request and let existing run")
@@ -442,7 +447,7 @@ class localOptions(OptionParser):
 
 if __name__ == '__main__':
 
-    parser = localOptions()
+    parser = LocalOptions()
     options, args = parser.parse_args()
 
     log_level = logging.getLevelName(options.loglevel.upper())
@@ -467,7 +472,7 @@ if __name__ == '__main__':
             sys.exit(1)
         for entry in args:
             syncrmt = DaddyvisionNetwork(options)
-            syncrmt = syncrmt.SyncRMT(entry)
+            syncrmt = syncrmt.syncRMT(entry)
     else:
         syncrmt = DaddyvisionNetwork(options)
-        syncrmt = syncrmt.SyncRMT()
+        syncrmt = syncrmt.syncRMT()

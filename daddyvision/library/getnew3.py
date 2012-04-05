@@ -6,15 +6,12 @@ Purpose:
 
 '''
 from daddyvision.common import logger
-from daddyvision.common.exceptions import ConfigValueError
-from daddyvision.common.options import OptionParser, OptionGroup
+from daddyvision.common.options import OptionParser
 from datetime import date
 from gi.repository import Gtk
-import datetime
 import rpyc
 import logging
 import os
-import sys
 import socket
 
 __pgmname__ = 'getnew'
@@ -39,7 +36,7 @@ host        = socket.gethostname()
 
 conn = rpyc.connect("192.168.9.201", 32489)
 
-class Main_Window():
+class MainWindow():
     def __init__(self):
 
         self.PgmDir = os.path.dirname(__file__)
@@ -90,7 +87,7 @@ class Main_Window():
         self.treeview_model=builder.get_object("datastore")
         self.treeselection = self.treeview.get_selection()
         self.treeselection.set_mode(Gtk.SelectionMode.MULTIPLE)
-        mode = self.treeselection.get_mode()
+#        mode = self.treeselection.get_mode()
 
         self.rb_default_content.set_active(True)
         self.unlock_user_controls()
@@ -207,7 +204,7 @@ class Main_Window():
         self.treeview.grab_focus()
         return
 
-    def insert_row(self, model, allepisodes, incremental, title, date, path):
+    def insert_row(self, model, allepisodes, incremental, title, date_modified, path):
         myiter=model.append(None)
 
         if allepisodes:
@@ -225,7 +222,7 @@ class Main_Window():
         model.set_value(myiter, 2, False)           # Delete Should always be false at load
         model.set_value(myiter, 3, exists)
         model.set_value(myiter, 4, title)
-        model.set_value(myiter, 5, date)
+        model.set_value(myiter, 5, date_modified)
         model.set_value(myiter, 6, path)
         model.set_value(myiter, 7, subscribed)
         return myiter
@@ -262,7 +259,7 @@ class Main_Window():
         subscribed = self.treeview_model.get_value(treeiter, 7)
 
         if self.user == 'michelle':
-                self.treeview_model.set_value(treeiter, 1, False)
+            self.treeview_model.set_value(treeiter, 1, False)
         elif existing:
             if incremental and not subscribed and not delete_req:
                 self.treeview_model.set_value(treeiter, 1, True)
@@ -384,7 +381,7 @@ class Main_Window():
             delete_req = self.treeview_model.get_value(treeiter, 2)
             exists = self.treeview_model.get_value(treeiter, 3)
             title = self.treeview_model.get_value(treeiter, 4)
-            date = self.treeview_model.get_value(treeiter, 5)
+#            date_modified = self.treeview_model.get_value(treeiter, 5)
             path = self.treeview_model.get_value(treeiter, 6)
             subscribed = self.treeview_model.get_value(treeiter, 7)
             treeiter = self.treeview_model.iter_next(treeiter)
@@ -433,7 +430,7 @@ class Main_Window():
                                                'Path' : path
                                                })
 
-        rc = conn.root.UpdateLinks(self.user, Update_Request)
+        conn.root.UpdateLinks(self.user, Update_Request)
         self._get_items()
         self.pull_item()
         self.push_item('Updates Complete')
@@ -485,4 +482,4 @@ if __name__ == "__main__":
     log.debug("Parsed command line options: %s" % (options))
     log.debug("Parsed arguments: %r" % args)
 
-    mw     = Main_Window()
+    mw     = MainWindow()
