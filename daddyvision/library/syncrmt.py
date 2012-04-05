@@ -116,7 +116,7 @@ class DaddyvisionNetwork(object):
             log.error("Find Command for Series Exclusions returned with RC=%d" % (exc.returncode))
             sys.exit(1)
 
-        cmd = ['rsync', '-rptuvhogL{}'.format(self.options.CmdLineDryRun),
+        cmd = ['rsync', '-rptvhogL{}'.format(self.options.CmdLineDryRun),
                '--progress',
                '--partial-dir=.rsync-partial',
                '--log-file={}'.format(self.log_file),
@@ -150,7 +150,7 @@ class DaddyvisionNetwork(object):
     def syncMovies(self):
         log.info('Syncing - Movies')
 
-        cmd = ['rsync', '-rptuvhogL{}'.format(self.options.CmdLineDryRun),
+        cmd = ['rsync', '-rptvhogL{}'.format(self.options.CmdLineDryRun),
                '--progress',
                '--partial-dir=.rsync-partial',
                '--log-file={}'.format(self.log_file),
@@ -251,7 +251,7 @@ class DaddyvisionNetwork(object):
     def _process_batch(self, directory, file_list, file_names):
         log.trace('_process_batch: {}'.format(file_names))
 
-        cmd = ['rsync', '-rptuvhogLR'.format(self.options.CmdLineDryRun), '--progress', '--partial-dir=.rsync-partial', '--log-file={}'.format(self.log_file)]
+        cmd = ['rsync', '-rptvhogLR'.format(self.options.CmdLineDryRun), '--progress', '--partial-dir=.rsync-partial', '--log-file={}'.format(self.log_file)]
         cmd.extend(file_list)
         cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt))
         log.verbose(' '.join(cmd))
@@ -354,6 +354,9 @@ class DaddyvisionNetwork(object):
 
         self.options.CmdLineArgs = []
 
+        if not self.options.no_update:
+            self.options.CmdLineArgs.append('-u')
+
         if self.options.ignore_existing:
             self.options.CmdLineArgs.append('--ignore-existing')
 
@@ -430,6 +433,9 @@ class LocalOptions(OptionParser):
         group.add_option("--suppress", dest="suppress_incremental",
             action="store_true", default=False,
             help="Skip Processing of Incremental Subscriptions")
+        group.add_option("--no-update", dest="no_update",
+            action="store_true", default=False,
+            help="Don't Skip files that are newer on the receiver")
         group.add_option("-x", "--exclude", dest="xclude",
             action="store", type="string", default="",
             help="Exclude files/directories")
