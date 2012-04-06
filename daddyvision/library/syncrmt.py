@@ -372,7 +372,7 @@ class DaddyvisionNetwork(object):
             self.options.CmdLineArgs.append('--checksum')
 
         if self.options.delete:
-            self.options.CmdLineArgs.append('--delete')
+            self.options.CmdLineArgs.append('--delete-before')
 
         if self.options.reverse:
             self.options.suppress_incremental = True
