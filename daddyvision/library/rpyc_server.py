@@ -46,8 +46,8 @@ class MyDaemon(Daemon):
 
 class DaddyVisionService(rpyc.Service):
 
-    def exposed_ListItems(self, user, content_type):
-        return listItems(user, content_type)
+    def exposed_ListItems(self, user, content_type, compress=False):
+        return listItems(user, content_type, compress=False)
 
     def exposed_UpdateLinks(self, user, request):
         return updateLinks(user, request)
