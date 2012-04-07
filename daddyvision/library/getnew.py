@@ -13,6 +13,8 @@ import rpyc
 import logging
 import gtk
 import os
+import pickle
+import zlib
 import sys
 import socket
 
@@ -455,7 +457,9 @@ class Main_Window():
         self.bt_quit.set_sensitive(False)
         while gtk.events_pending():
             gtk.main_iteration_do(False)
-        self.table_entries = conn.root.ListItems(self.user, self.content)
+        self.table_entries = conn.root.ListItems(self.user, self.content, True)
+        self.table_entries = zlib.decompress(self.table_entries)
+        self.table_entries = pickle.loads(self.table_entries)
         self.bt_quit.set_sensitive(True)
         self.load_window()
         self.pull_item()
