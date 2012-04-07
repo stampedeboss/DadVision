@@ -12,6 +12,8 @@ from daddyvision.common.exceptions import UnexpectedErrorOccured
 from datetime import date
 import logging
 import os
+import pickle
+import zlib
 import re
 import sys
 import fnmatch
@@ -42,7 +44,7 @@ VERBOSE = 15
 
 regex_collection = re.compile('^.*Collection:.*$', re.IGNORECASE)
 
-def listItems(user, content_type):
+def listItems(user, content_type, compress=False):
     '''
     return a Dict of Items {Title | [current_status, date, pathname]}
     '''
@@ -77,6 +79,12 @@ def listItems(user, content_type):
             _add_entry(Return_List, content_dir, subscription_dir, incremental_dir, directory)
 
     log.trace('Return: %s' % (Return_List))
+    
+    if compress:
+        _pickled_list = pickle.dumps(Return_List)
+        Return_List = zlib.compress(_pickled_list,9)
+        print len(_pickled_list)
+        print len(Return_List)
 
     return Return_List
 
@@ -156,5 +164,5 @@ if __name__ == '__main__':
     list_returned = listItems('kim', 'Movies')
     print list_returned
 
-    req_add = [{'Action': 'Add', 'Path': '/mnt/DadVision/Movies/Collection: Disney/101 Dalmatians (1961)', 'Type': 'Movies', 'Title': '101 Dalmatians (1961)'}]
-    updateLinks('kim', req_add)
+#    req_add = [{'Action': 'Add', 'Path': '/mnt/DadVision/Movies/Collection: Disney/101 Dalmatians (1961)', 'Type': 'Movies', 'Title': '101 Dalmatians (1961)'}]
+#    updateLinks('kim', req_add)
