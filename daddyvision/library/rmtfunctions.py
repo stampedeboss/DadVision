@@ -44,7 +44,7 @@ VERBOSE = 15
 
 regex_collection = re.compile('^.*Collection:.*$', re.IGNORECASE)
 
-def listItems(user, content_type, compress=False):
+def listItems(user, content_type, compress):
     '''
     return a Dict of Items {Title | [current_status, date, pathname]}
     '''
@@ -79,7 +79,7 @@ def listItems(user, content_type, compress=False):
             _add_entry(Return_List, content_dir, subscription_dir, incremental_dir, directory)
 
     log.trace('Return: %s' % (Return_List))
-    
+
     if compress:
         _pickled_list = pickle.dumps(Return_List)
         Return_List = zlib.compress(_pickled_list,9)
