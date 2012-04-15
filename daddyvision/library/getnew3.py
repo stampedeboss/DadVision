@@ -13,6 +13,8 @@ import rpyc
 import logging
 import os
 import socket
+import pickle
+import zlib
 
 __pgmname__ = 'getnew'
 __version__ = '$Rev$'
@@ -453,7 +455,9 @@ class MainWindow():
         self.bt_quit.set_sensitive(False)
         while Gtk.events_pending():
             Gtk.main_iteration_do(False)
-        self.table_entries = conn.root.ListItems(self.user, self.content)
+        self.table_entries = conn.root.ListItems(self.user, self.content, True)
+        self.table_entries = zlib.decompress(self.table_entries)
+        self.table_entries = pickle.loads(self.table_entries)
         self.bt_quit.set_sensitive(True)
         self.load_window()
         self.pull_item()

@@ -13,10 +13,10 @@ import rpyc
 import logging
 import gtk
 import os
-import pickle
-import zlib
 import sys
 import socket
+import pickle
+import zlib
 
 __pgmname__ = 'getnew'
 __version__ = '$Rev$'
@@ -434,7 +434,7 @@ class Main_Window():
                                                'Path' : path
                                                })
 
-        rc = conn.root.UpdateLinks(self.user, Update_Request)
+        conn.root.UpdateLinks(self.user, Update_Request)
         self._get_items()
         self.pull_item()
         self.push_item('Updates Complete')

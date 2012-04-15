@@ -44,7 +44,7 @@ VERBOSE = 15
 
 regex_collection = re.compile('^.*Collection:.*$', re.IGNORECASE)
 
-def listItems(user, content_type, compress):
+def listItems(user, content_type, compress=False):
     '''
     return a Dict of Items {Title | [current_status, date, pathname]}
     '''
@@ -83,8 +83,6 @@ def listItems(user, content_type, compress):
     if compress:
         _pickled_list = pickle.dumps(Return_List)
         Return_List = zlib.compress(_pickled_list,9)
-        print len(_pickled_list)
-        print len(Return_List)
 
     return Return_List
 
@@ -161,6 +159,10 @@ if __name__ == '__main__':
     log.debug("Parsed command line options: %s" % (options))
     log.debug("Parsed arguments: %r" % args)
 
+    list_returned = listItems('kim', 'Movies', True)
+    print list_returned
+    list_returned = listItems('kim', 'Movies', False)
+    print list_returned
     list_returned = listItems('kim', 'Movies')
     print list_returned
 
