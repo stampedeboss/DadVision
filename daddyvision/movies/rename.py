@@ -211,6 +211,7 @@ class Rename(object):
             else:
                 return
         else:
+            log.warn("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
             return
 
         if 'Trailer' in _file_details:
