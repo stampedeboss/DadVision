@@ -88,20 +88,23 @@ class DaddyvisionNetwork(object):
 
         if not self.options.dryrun:
             self._chk_status()
- #           time.sleep(0.2)
- #           self._chk_status()
-
-        if not self.options.SeriesRmt and not self.options.MoviesRmt and not self.options.dryrun:
-            self._update_xbmc()
-            sys.exit(0)
+            # Streaming System instead of Download
+            if not self.options.SeriesRmt and not self.options.MoviesRmt:
+                self._update_xbmc()
+                sys.exit(0)
 
         if 'Series' in self.options.content:
             self.syncSeries()
+            self._update_xbmc()
             if not options.suppress_incremental and os.path.exists(os.path.join(self.options.SymLinks, 'Incrementals')):
                 self.syncIncrementals(os.path.join(self.options.SymLinks, 'Incrementals'))
+                self._update_xbmc()
 
         if 'Movies' in self.options.content:
             self.syncMovies()
+
+        if not self.options.dryrun:
+            self._update_xbmc()
 
     def syncSeries(self):
         log.info('Syncing - Series')
@@ -135,9 +138,6 @@ class DaddyvisionNetwork(object):
                 cmd.append('{}/'.format(config.SeriesDir))
                 log.verbose(' '.join(cmd))
                 process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=config.SeriesDir)
-
-            if not self.options.dryrun:
-                self._update_xbmc()
         except CalledProcessError, exc:
             if exc.returncode == 255 or exc.returncode == -9:
                 sys.exit(1)
@@ -167,9 +167,6 @@ class DaddyvisionNetwork(object):
 
             log.verbose(' '.join(cmd))
             process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Movies'))
-
-            if not self.options.dryrun:
-                self._update_xbmc()
         except CalledProcessError, exc:
             if exc.returncode == 255 or exc.returncode == -9:
                 sys.exit(1)
@@ -266,6 +263,7 @@ class DaddyvisionNetwork(object):
             if exc.returncode == 255 or exc.returncode == -9:
                 sys.exit(1)
             else:
+                self._update_xbmc()
                 raise UnexpectedErrorOccured("Incremental rsync Command returned with RC=%d, Ending" % (exc.returncode))
 
     def _record_download(self, series, file_name):
@@ -286,12 +284,13 @@ class DaddyvisionNetwork(object):
         return
 
     def _update_xbmc(self):
-        if not self.options.dryrun:
-            cmd = ['xbmc-send', '--host={}'.format(self.options.HostName), '--action=XBMC.UpdateLibrary(video)']
-            try:
-                process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=config.SeriesDir)
-            except CalledProcessError, exc:
-                log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
+        if self.options.dryrun:
+            return
+        cmd = ['xbmc-send', '--host={}'.format(self.options.HostName), '--action=XBMC.UpdateLibrary(video)']
+        try:
+            process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=config.SeriesDir)
+        except CalledProcessError, exc:
+            log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
 
     def _chk_status(self):
         time.sleep(0.2)
