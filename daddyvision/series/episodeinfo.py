@@ -164,7 +164,7 @@ class EpisodeDetails(object):
                                 _sf_obj.write('%s\t%s\n' % (_series_name, _tvdb_id))
                             _sf_obj.close()
                             with open(FlexGetConfig, "a") as _sf_obj:
-                                _sf_obj.write('    - %s\n' % (_series_name))
+                                _sf_obj.write('    - %s\n' % (_series_name.replace(':','')))
                             _sf_obj.close()
                             log.trace('_find_series_id: end update')
                             self.config.ReloadTVDBList()
