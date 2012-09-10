@@ -146,6 +146,8 @@ class DaddyvisionNetwork(object):
                 self._update_xbmc()
                 sys.exit(1)
 
+        return
+
 
     def syncMovies(self):
         log.info('Syncing - Movies')
