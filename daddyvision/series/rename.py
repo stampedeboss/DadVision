@@ -217,9 +217,8 @@ class Rename(object):
                 self.db.close()
                 raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, file_details))
 
-            log.info('Successfully Renamed: CUR NAME: %s' % os.path.basename(file_details['FileName']))
-            log.info('Successfully Renamed: SERIES: %s SEASON %2.2s' % (file_details['SeriesName'], file_details['SeasonNum']))
-            log.info('Successfully Renamed: NEW NAME: %s' % os.path.basename(_new_name))
+            log.info('Successfully Renamed: CURRENT NAME: %s' % os.path.basename(file_details['FileName']))
+            log.info('Successfully Renamed: SERIES: %s  SEASON: %s  FILE: %s' % (file_details['SeriesName'], file_details['SeasonNum'], os.path.basename(_new_name)))
             self.update_required = True
         except OSError, exc:
             log.error("Skipping, Unable to Rename File: %s" % file_details['FileName'])
@@ -244,7 +243,7 @@ class Rename(object):
             if tup != tup_cur:
                 time_epoc = time.mktime(tup)
                 try:
-                    log.info("Updating First Aired: %s %s" % (new_name, _date_aired))
+                    log.info("Updating First Aired: %s" % _date_aired)
                     os.utime(new_name, (time_epoc, time_epoc))
                 except (OSError, IOError), exc:
                     log.error("Skipping, Unable to update time: %s" % new_name)
