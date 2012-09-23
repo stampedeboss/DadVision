@@ -185,12 +185,6 @@ class Rename(object):
                         log.info("Skipping Rename %r, already at destination!" % (os.path.split(file_details['FileName'])[1],))
                         return
 
-        log.info(self.config.ConversionsPatterns['rename_message'] % (file_details['SeriesName'],
-                                                                      file_details['SeasonNum'],
-                                                                      os.path.basename(_new_name),
-                                                                      os.path.basename(file_details['FileName'])
-                                                                     )
-                )
         try:
             _season_folder = os.path.split(_new_name)[0]
             _series_folder = os.path.split(_season_folder)[0]
@@ -223,7 +217,9 @@ class Rename(object):
                 self.db.close()
                 raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, file_details))
 
-            log.info("Successfully Renamed: %s" % _new_name)
+            log.info('Successfully Renamed: CUR NAME: %s' % os.path.basename(file_details['FileName']))
+            log.info('Successfully Renamed: SERIES: %s SEASON %2.2s' % (file_details['SeriesName'], file_details['SeasonNum']))
+            log.info('Successfully Renamed: NEW NAME: %s' % os.path.basename(_new_name))
             self.update_required = True
         except OSError, exc:
             log.error("Skipping, Unable to Rename File: %s" % file_details['FileName'])

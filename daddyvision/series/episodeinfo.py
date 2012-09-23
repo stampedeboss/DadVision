@@ -135,44 +135,43 @@ class EpisodeDetails(object):
 
         _tvdb_id = None
 
+        # Check for Alias
+        try:
+            _alias_name = difflib.get_close_matches(_series_name, self.config.SeriesAliasList,1,cutoff=0.9)
+            _series_name = self.config.SeriesAliasList[_alias_name[0]].rstrip()
+        except IndexError, exc:
+            pass
+
         try:
             _series_name = difflib.get_close_matches(_series_name, self.config.TvdbIdList,1,cutoff=0.8)[0].rstrip()
             _tvdb_id = self.config.TvdbIdList[_series_name]
             log.debug('_find_series_id: Series Found - TVDB ID: {:>8} Name: {}'.format(_tvdb_id, _series_name))
         except IndexError, exc:
+            log.debug('_find_series_id: Series Not Found: %s - Attempting Match Logic' % _series_name)
             try:
-                log.debug('_find_series_id: Series Not Found: %s - Checking Aliases' % _series_name)
-                _alias_name = difflib.get_close_matches(_series_name, self.config.SeriesAliasList,1,cutoff=0.9)
-                _series_name = self.config.SeriesAliasList[_alias_name[0]].rstrip()
-                _series_name = difflib.get_close_matches(_series_name, self.config.TvdbIdList,1,cutoff=0.9)[0].rstrip()
-                _tvdb_id = self.config.TvdbIdList[_series_name]
-                log.debug('_find_series_id: Found Real Name: TVDB ID: {:>8} Name: {}'.format(_tvdb_id, _series_name))
-            except IndexError, exc:
-                log.debug('_find_series_id: Series Not Found: %s - Attempting Match Logic' % _series_name)
-                try:
-                    _matches = tvdb.get_series(_series_name)
-                    for _m in _matches:
-                        _new_name = _m['name']
-                        _new_name = unicodedata.normalize('NFKD', _new_name).encode('ascii','ignore')
-                        _new_name = _new_name.replace("&amp;", "&").replace("/", "_")
-                        if _series_name == _new_name or _series_name.lower() == _new_name.lower():
-                            _tvdb_id = _m['id']
-                            log.debug('_find_series_id: Series Found - TVDB ID: {:>8} Name: {}'.format(_tvdb_id, _series_name))
-                            log.trace('_find_series_id: start update')
-                            self.config.TvdbIdList[_series_name] = _tvdb_id
-                            with open(self.config.TvdbIdFile, "a") as _sf_obj:
-                                _sf_obj.write('%s\t%s\n' % (_series_name, _tvdb_id))
-                            _sf_obj.close()
-                            with open(FlexGetConfig, "a") as _sf_obj:
-                                _sf_obj.write('    - %s\n' % (_series_name.replace(':','')))
-                            _sf_obj.close()
-                            log.trace('_find_series_id: end update')
-                            self.config.ReloadTVDBList()
-                            break
-                except exc:
-                    error_msg = "_find_series_id: Unable to retrieve Series Name Info - %s" % (_series_name)
-                    log.trace(error_msg)
-                    raise DataRetrievalError(error_msg)
+                _matches = tvdb.get_series(_series_name)
+                for _m in _matches:
+                    _new_name = _m['name']
+                    _new_name = unicodedata.normalize('NFKD', _new_name).encode('ascii','ignore')
+                    _new_name = _new_name.replace("&amp;", "&").replace("/", "_")
+                    if _series_name == _new_name or _series_name.lower() == _new_name.lower():
+                        _tvdb_id = _m['id']
+                        log.debug('_find_series_id: Series Found - TVDB ID: {:>8} Name: {}'.format(_tvdb_id, _series_name))
+                        log.trace('_find_series_id: start update')
+                        self.config.TvdbIdList[_series_name] = _tvdb_id
+                        with open(self.config.TvdbIdFile, "a") as _sf_obj:
+                            _sf_obj.write('%s\t%s\n' % (_series_name, _tvdb_id))
+                        _sf_obj.close()
+                        with open(FlexGetConfig, "a") as _sf_obj:
+                            _sf_obj.write('    - %s\n' % (_series_name.replace(':','')))
+                        _sf_obj.close()
+                        log.trace('_find_series_id: end update')
+                        self.config.ReloadTVDBList()
+                        break
+            except exc:
+                error_msg = "_find_series_id: Unable to retrieve Series Name Info - %s" % (_series_name)
+                log.trace(error_msg)
+                raise DataRetrievalError(error_msg)
         return _series_name, _tvdb_id
 
     def _episode_details(self,SeriesDetails):
