@@ -235,29 +235,31 @@ class EpisodeDetails(object):
             raise EpisodeNotFound("_episode_details: No Data Episode Found - %s, ID: %s" % (SeriesDetails['SeriesName'], SeriesDetails['TVDBSeriesID']))
 
     def _retrieve_tvrage_info(self, SeriesDetails):
-        log.warn('_retrieve_tvrage_info: Input Parm: {!s}'.format(SeriesDetails))
+        log.debug('_retrieve_tvrage_info: Input Parm: {!s}'.format(SeriesDetails))
 
         _series_name = SeriesDetails['SeriesName'].rstrip()
 
         try:
             _series = Show(_series_name)
         except:
-            error_msg="_retrieve_tvrage_info: Unable to Locate Series in TVDB or TVRAGE: %s" % (_series_name)
+            error_msg="Series Not Found: _retrieve_tvrage_info: Unable to Locate Series in TVDB or TVRAGE: %s" % (_series_name)
             raise SeriesNotFound(error_msg)
 
         _tvrage_series_name = _series.name
         _how_close = difflib.SequenceMatcher(None, _series_name, _tvrage_series_name).ratio()
         if _how_close < .85:
-            raise SeriesNotFound()
+            error_msg="_retrieve_tvrage_info: Unable to Locate Series in TVDB or TVRAGE: %s" % (_series_name)
+            raise SeriesNotFound(error_msg)
 
+        log.warn('_retrieve_tvrage_info: Using TVRage for Episode Data: %s' % _tvrage_series_name)
         SeriesDetails['EpisodeData'] = []
         if 'EpisodeNums' in SeriesDetails:
             for epno in SeriesDetails['EpisodeNums']:
                 try:
                     _episode = _series.season(SeriesDetails['SeasonNum']).episode(epno)
                 except KeyError:
-                    log.debug("_episode_details: TVDB & TVRAGE No Episode Data Found - %s" % (SeriesDetails['SeriesName']))
-                    raise EpisodeNotFound("_episode_details: TVDB & TVRAGE No Data Episode Found - %s" % (SeriesDetails['SeriesName']))
+                    log.debug("_retrieve_tvrage_info: TVDB & TVRAGE No Episode Data Found - %s" % (SeriesDetails['SeriesName']))
+                    raise EpisodeNotFound("_retrieve_tvrage_info: TVDB & TVRAGE No Data Episode Found - %s" % (SeriesDetails['SeriesName']))
 
                 try:
                     _date_aired = _episode.airdate
