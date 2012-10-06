@@ -41,7 +41,7 @@ def countFiles(pathname, exclude_list=[], types=[]):
 
         for _file in _files:
             ext = os.path.splitext(_file)[1][1:]
-            if not types or ext in types:
+            if not types or ext.lower() in types:
                 _file_count += 1
 
     return _file_count

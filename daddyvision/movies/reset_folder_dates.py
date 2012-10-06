@@ -11,7 +11,7 @@ from daddyvision.common.exceptions import (InvalidPath, InvalidFilename, ConfigN
 from daddyvision.common import logger
 from daddyvision.common.options import OptionParser, OptionGroup
 from daddyvision.common.settings import Settings
-from daddyvision.common.countfiles import countFiles
+#from daddyvision.common.countfiles import countFiles
 from datetime import datetime, date, timedelta
 from logging import INFO, WARNING, ERROR, DEBUG
 import fnmatch
@@ -59,8 +59,8 @@ class MovieLibrary(object):
         log.trace('check: Pathname Requested: {}'.format(pathname))
 
         _files_checked = 0
-        _total_files = countFiles(pathname, exclude_list=(self.config.ExcludeList + self.config.ExcludeScanList), types=self.config.MediaExt)
-
+        _total_files = self.countFiles(pathname)
+        
         log.info("==== Begin Scan: {} ====".format(pathname))
 
         for _root, _dirs, _files in os.walk(os.path.abspath(pathname),followlinks=False):
@@ -74,10 +74,9 @@ class MovieLibrary(object):
                         log.trace('Removing Dir: %s' % _dir)
             for _file in _files:
                 _ext = os.path.splitext(_file)[1][1:]
-                if _ext not in self.config.MediaExt and _ext.lower() not in ['vob', 'iso']:
+                if _ext.lower() not in self.config.MediaExt:
                     continue
-                if _ext.lower() != 'vob':
-                    _files_checked += 1
+                _files_checked += 1
                 _fq_name = os.path.join(_root, _file)
                 _mod_date = os.path.getmtime(_fq_name)
                 if _last_date < _mod_date or _last_date == None:
@@ -87,13 +86,33 @@ class MovieLibrary(object):
             elif _dirs == []:
                 os.utime(_root, None)
 
-        message = 'Files Checked: %2.2f%%   %5d of %5d' % ((_files_checked)/_total_files, (_files_checked), _total_files)
+        message = 'Files Checked: %2.2f%%   %5d of %5d' % (((_files_checked)/_total_files)*100, (_files_checked), _total_files)
         log.info(message)
+
+    def countFiles(self, pathname):
+    
+        if not os.path.exists(pathname) or not os.path.isdir(pathname):
+            raise InvalidPath("Requested pathname does not exist or isn't a directory : {}".format(pathname))
+    
+        _file_count = 0
+    
+        for _root, _dirs, _files in os.walk(pathname, followlinks=False):
+            _dirs_temp = sorted(_dirs)
+            for _dir in _dirs_temp[:]:
+                if self.ignored(_dir):
+                    _dirs.remove(_dir)
+    
+            for _file in _files:
+                ext = os.path.splitext(_file)[1][1:]
+                if ext.lower() in self.config.MediaExt:
+                    _file_count += 1
+    
+        return _file_count
 
     def ignored(self, name):
         """ Check for ignored pathnames.
         """
-        return any(fnmatch.fnmatch(name.lower(), pattern) for pattern in (self.config.ExcludeList + self.config.ExcludeScanList))
+        return any(fnmatch.fnmatch(name.lower(), pattern) for pattern in self.config.ExcludeList)
 
 class localOptions(OptionParser):
 
