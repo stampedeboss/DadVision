@@ -156,7 +156,7 @@ if __name__ == '__main__':
         _path_name = '%s %s'% (_path_name, args[i])
 
     if options.requested_dir == "None":
-        if len(args) > 1:
+        if len(args) > 0:
             options.requested_dir = _path_name
         else:
             log.info('Missing Scan Starting Point (Input Directory), Using Default: %r' % config.MoviesDir)
