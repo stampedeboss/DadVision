@@ -172,7 +172,7 @@ class Rename(object):
 #            if os.path.exists(_new_name) and filecmp.cmp(_new_name, file_details['FileName']):
             if os.path.exists(_new_name):
                 if os.path.split(_new_name)[0] == os.path.split(file_details['FileName'])[0]:
-                    log.info('Updating Inplace: %s ==> %s' % (file_details['FileName'], _new_name))
+                    log.info('File Already Exists, Only Updating Timestamp: %s' % (_new_name))
                     self._update_date(file_details, _new_name)
                     return
                 else:
@@ -182,7 +182,8 @@ class Rename(object):
                         self._del_dir(file_details['FileName'])
                         return
                     elif not self.force:
-                        log.info("Skipping Rename %r, already at destination!" % (os.path.split(file_details['FileName'])[1],))
+#                        log.info("Skipping Rename %r, already at destination!" % (os.path.split(file_details['FileName'])[1],))
+                        log.info("Skipping Rename %r, already at destination!" % _new_name)
                         return
 
         try:
