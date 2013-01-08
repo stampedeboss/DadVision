@@ -262,9 +262,7 @@ class Main_Window():
         existing = self.treeview_model.get_value(treeiter, 3)
         subscribed = self.treeview_model.get_value(treeiter, 7)
 
-        if self.user == 'michelle':
-                self.treeview_model.set_value(treeiter, 1, False)
-        elif existing:
+        if existing:
             if incremental and not subscribed and not delete_req:
                 self.treeview_model.set_value(treeiter, 1, True)
             elif allshows and not delete_req:
