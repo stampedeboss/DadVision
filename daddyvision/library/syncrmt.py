@@ -129,12 +129,18 @@ class DaddyvisionNetwork(object):
                 cmd.append('--exclude-from={}'.format(_series_delete_exclusions))
                 cmd.extend(self.options.CmdLineArgs)
                 cmd.append('{}/Series/{}'.format(self.options.SymLinks, self.dir_name))
-                cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt))
+                if self.options.user == 'local':
+                    cmd.append('{}/'.format(self.options.SeriesRmt))
+                else:
+                    cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt))
                 log.verbose(' '.join(cmd))
                 process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Series'))
             else:
                 cmd.extend(self.options.CmdLineArgs)
-                cmd.append('{}@{}:{}/{}'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt, self.dir_name))
+                if self.options.user == 'local':
+                    cmd.append('{}/{}'.format(self.options.SeriesRmt, self.dir_name))
+                else:
+                    cmd.append('{}@{}:{}/{}'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt, self.dir_name))
                 cmd.append('{}/'.format(config.SeriesDir))
                 log.verbose(' '.join(cmd))
                 process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=config.SeriesDir)
@@ -162,9 +168,15 @@ class DaddyvisionNetwork(object):
         try:
             if not options.reverse:
                 cmd.append('{}/Movies/{}'.format(self.options.SymLinks, self.dir_name))
-                cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.MoviesRmt))
+                if self.options.user == 'local':
+                    cmd.append('{}/'.format(self.options.MoviesRmt))
+                else:
+                    cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.MoviesRmt))
             else:
-                cmd.append('{}@{}:{}/{}'.format(self.options.UserId, self.options.HostName, self.options.MoviesRmt, self.dir_name))
+                if self.options.user == 'local':
+                    cmd.append('{}/{}'.format(self.options.MoviesRmt, self.dir_name))
+                else:
+                    cmd.append('{}@{}:{}/{}'.format(self.options.UserId, self.options.HostName, self.options.MoviesRmt, self.dir_name))
                 cmd.append('{}/Movies/'.format(self.options.SymLinks))
 
             log.verbose(' '.join(cmd))
@@ -252,7 +264,10 @@ class DaddyvisionNetwork(object):
 
         cmd = ['rsync', '-rptvhogLR'.format(self.options.CmdLineDryRun), '--progress', '--partial-dir=.rsync-partial', '--log-file={}'.format(self.log_file)]
         cmd.extend(file_list)
-        cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt))
+        if self.options.user == 'local':
+            cmd.append('{}/'.format(self.options.SeriesRmt))
+        else:
+            cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt))
         log.verbose(' '.join(cmd))
         try:
             process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=directory)
@@ -398,6 +413,9 @@ class LocalOptions(OptionParser):
         group.add_option("-p", "--peterson", dest="user",
             action="store_const", const="ben",
             help="Sync Tigger for Ben and Mac")
+        group.add_option("-l", "--local", dest="user",
+            action="store_const", const="local",
+            help="Sync Tigger for portable drive attached to /mnt/Local")
         self.add_option_group(group)
 
         group = OptionGroup(self, "Media Type")
