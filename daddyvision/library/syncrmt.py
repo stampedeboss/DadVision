@@ -430,9 +430,9 @@ class LocalOptions(OptionParser):
         group.add_option("-m", "--movies", dest="content",
             action="store_const", const=["Movies"],
             help="process Movies")
-#        group.add_option("-i", "--incrementals", dest="content",
-#            action="store_const", const=["Incrementals"],
-#            help="process Incrementals")
+        group.add_option("-i", "--incrementals", dest="content",
+            action="store_const", const=["Incrementals"],
+            help="process Incrementals")
         self.add_option_group(group)
 
         group = OptionGroup(self, "Modifers")
