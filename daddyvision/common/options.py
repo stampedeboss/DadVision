@@ -65,7 +65,7 @@ class CoreOptionParser(OptionParser):
 
         '''
         group = OptionGroup(self, "Logging Levels:")
-        parser.add_option("-i", "--input-directory",
+        parser.add_option("--input-directory",
             dest="requested_dir",
             default="None",
             help="directory to be scanned")

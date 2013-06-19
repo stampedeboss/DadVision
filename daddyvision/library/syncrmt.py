@@ -424,7 +424,7 @@ class LocalOptions(OptionParser):
         self.add_option_group(group)
 
         group = OptionGroup(self, "Media Type")
-        group.add_option("-s", "--series", dest="content", default=["Series", "Movies"],
+        group.add_option("-s", "--series", dest="content", default=["Incrementals","Series", "Movies"],
             action="store_const", const=["Series"],
             help="process Series")
         group.add_option("-m", "--movies", dest="content",
