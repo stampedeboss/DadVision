@@ -94,9 +94,14 @@ class DaddyvisionNetwork(object):
                 sys.exit(0)
 
         if 'Series' in self.options.content:
+            if not options.suppress_incremental and os.path.exists(os.path.join(self.options.SymLinks, 'Incrementals')):
+                self.syncIncrementals(os.path.join(self.options.SymLinks, 'Incrementals'))
+                self._update_xbmc()
             self.syncSeries()
             self._update_xbmc()
-            if not options.suppress_incremental and os.path.exists(os.path.join(self.options.SymLinks, 'Incrementals')):
+
+        if 'Incrementals' in self.options.content:
+            if os.path.exists(os.path.join(self.options.SymLinks, 'Incrementals')):
                 self.syncIncrementals(os.path.join(self.options.SymLinks, 'Incrementals'))
                 self._update_xbmc()
 
@@ -408,26 +413,26 @@ class LocalOptions(OptionParser):
             action="store_const", const="kim",
             help="Sync Goofy for Kim")
         group.add_option("-d", "--eeyore", dest="user",
-            action="store_const", const="michelle",
-            help="Sync Eeyore for Michelle")
+            action="store_const", const="daniel",
+            help="Sync Eeyore for Daniel")
         group.add_option("-p", "--peterson", dest="user",
             action="store_const", const="ben",
             help="Sync Tigger for Ben and Mac")
         group.add_option("-l", "--local", dest="user",
             action="store_const", const="local",
-            help="Sync Tigger for portable drive attached to /mnt/Local")
+            help="Sync Local Michelle on portable drive attached to /mnt/Local")
         self.add_option_group(group)
 
         group = OptionGroup(self, "Media Type")
-        group.add_option("-s", "--series", dest="content", default=[],
+        group.add_option("-s", "--series", dest="content", default=["Series", "Movies"],
             action="store_const", const=["Series"],
             help="process Series")
         group.add_option("-m", "--movies", dest="content",
             action="store_const", const=["Movies"],
             help="process Movies")
-        group.add_option("-b", "--both", dest="content",
-            action="store_const", const=["Series", "Movies"],
-            help="process both Series and Movies")
+        group.add_option("-i", "--incrementals", dest="content",
+            action="store_const", const=["Incrementals"],
+            help="process Incrementals")
         self.add_option_group(group)
 
         group = OptionGroup(self, "Modifers")

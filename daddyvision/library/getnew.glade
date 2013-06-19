@@ -263,7 +263,6 @@ D - Delete subscription</property>
                                 <property name="use_action_appearance">False</property>
                                 <property name="active">True</property>
                                 <property name="draw_indicator">True</property>
-                                <property name="group">rb_default_user</property>
                                 <signal name="toggled" handler="on_rb_aly_toggled" swapped="no"/>
                               </object>
                               <packing>
@@ -281,7 +280,6 @@ D - Delete subscription</property>
                                 <property name="use_action_appearance">False</property>
                                 <property name="active">True</property>
                                 <property name="draw_indicator">True</property>
-                                <property name="group">rb_default_user</property>
                                 <signal name="toggled" handler="on_rb_ben_toggled" swapped="no"/>
                               </object>
                               <packing>
@@ -299,7 +297,6 @@ D - Delete subscription</property>
                                 <property name="use_action_appearance">False</property>
                                 <property name="active">True</property>
                                 <property name="draw_indicator">True</property>
-                                <property name="group">rb_default_user</property>
                                 <signal name="toggled" handler="on_rb_kim_toggled" swapped="no"/>
                               </object>
                               <packing>
@@ -310,20 +307,36 @@ D - Delete subscription</property>
                             </child>
                             <child>
                               <object class="GtkRadioButton" id="rb_michelle">
-                                <property name="label" translatable="yes">Michelle &amp; Daniel</property>
+                                <property name="label" translatable="yes">Michelle</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">False</property>
                                 <property name="use_action_appearance">False</property>
                                 <property name="active">True</property>
                                 <property name="draw_indicator">True</property>
-                                <property name="group">rb_default_user</property>
                                 <signal name="toggled" handler="on_rb_michelle_toggled" swapped="no"/>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
                                 <property name="fill">False</property>
                                 <property name="position">3</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkRadioButton" id="rb_daniel">
+                                <property name="label" translatable="yes">Daniel</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">False</property>
+                                <property name="use_action_appearance">False</property>
+                                <property name="active">True</property>
+                                <property name="draw_indicator">True</property>
+                                <signal name="toggled" handler="on_rb_daniel_toggled" swapped="no"/>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">False</property>
+                                <property name="position">4</property>
                               </packing>
                             </child>
                             <child>
@@ -339,7 +352,7 @@ D - Delete subscription</property>
                               <packing>
                                 <property name="expand">False</property>
                                 <property name="fill">False</property>
-                                <property name="position">4</property>
+                                <property name="position">5</property>
                               </packing>
                             </child>
                           </object>

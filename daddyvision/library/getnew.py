@@ -61,6 +61,7 @@ class Main_Window():
                   "on_rb_ben_toggled" : self.on_rb_ben_toggled,
                   "on_rb_kim_toggled" : self.on_rb_kim_toggled,
                   "on_rb_michelle_toggled" : self.on_rb_michelle_toggled,
+                  "on_rb_daniel_toggled" : self.on_rb_daniel_toggled,
                   "on_rb_series_toggled" : self.on_rb_series_toggled,
                   "on_rb_movies_toggled" : self.on_rb_movies_toggled,
                   "on_bt_save_clicked" : self.bt_save_clicked,
@@ -109,6 +110,7 @@ class Main_Window():
             self.rb_ben.set_sensitive(False)
             self.rb_kim.set_sensitive(False)
             self.rb_michelle.set_sensitive(False)
+            self.rb_daniel.set_sensitive(False)
         elif host == 'pluto':
             self.user = 'ben'
             self.rb_ben.set_active(True)
@@ -116,6 +118,7 @@ class Main_Window():
             self.rb_ben.set_sensitive(True)
             self.rb_kim.set_sensitive(False)
             self.rb_michelle.set_sensitive(False)
+            self.rb_daniel.set_sensitive(False)
         elif host == 'goofy':
             self.user = 'kim'
             self.rb_kim.set_active(True)
@@ -123,13 +126,15 @@ class Main_Window():
             self.rb_ben.set_sensitive(False)
             self.rb_kim.set_sensitive(True)
             self.rb_michelle.set_sensitive(False)
-        elif host == 'sleepy':
-            self.user = 'michelle'
+            self.rb_daniel.set_sensitive(False)
+        elif host == 'eeyore':
+            self.user = 'daniel'
             self.rb_michelle.set_active(True)
             self.rb_aly.set_sensitive(False)
             self.rb_ben.set_sensitive(False)
             self.rb_kim.set_sensitive(False)
             self.rb_michelle.set_sensitive(True)
+            self.rb_daniel.set_sensitive(True)
         else:
             if self.user == 'aly':
                 self.rb_aly.set_active(True)
@@ -139,6 +144,8 @@ class Main_Window():
                 self.rb_kim.set_active(True)
             elif self.user == 'michelle':
                 self.rb_michelle.set_active(True)
+            elif self.user == 'daniel':
+                self.rb_daniel.set_active(True)
             else:
                 self.rb_default_user.set_active(True)
 
@@ -146,6 +153,7 @@ class Main_Window():
             self.rb_ben.set_sensitive(True)
             self.rb_kim.set_sensitive(True)
             self.rb_michelle.set_sensitive(True)
+            self.rb_daniel.set_sensitive(True)
 
         self.rb_series.set_sensitive(True)
         self.rb_movies.set_sensitive(True)
@@ -171,6 +179,8 @@ class Main_Window():
         self.rb_aly.set_sensitive(False)
         self.rb_ben.set_sensitive(False)
         self.rb_kim.set_sensitive(False)
+        self.rb_michelle.set_sensitive(False)
+        self.rb_daniel.set_sensitive(False)
         self.rb_series.set_sensitive(False)
         self.rb_movies.set_sensitive(False)
 
@@ -329,6 +339,14 @@ class Main_Window():
         rb_michelle_status = ("OFF", "ON")[widget.get_active()]
         if rb_michelle_status == "ON":
             self.user = 'michelle'
+            if self.content:
+                self._get_items()
+        return
+
+    def on_rb_daniel_toggled(self, widget, data=None):
+        rb_daniel_status = ("OFF", "ON")[widget.get_active()]
+        if rb_daniel_status == "ON":
+            self.user = 'daniel'
             if self.content:
                 self._get_items()
         return
