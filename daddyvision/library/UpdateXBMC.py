@@ -87,7 +87,7 @@ class MyDaemon(Daemon):
 
             pHandler = PackageHandler()
             watchManager = pyinotify.WatchManager()
-            mask	 = IN_CREATE | IN_MOVED_TO
+            mask     = IN_CREATE | IN_MOVED_TO
             handler = EventHandler(pHandler)
             notifier = pyinotify.Notifier(watchManager, handler)
             log.debug('Notifier Created')
@@ -166,7 +166,7 @@ class PackageHandler(object):
     def _run_update(self, user):
         log.debug('_run_update: {}'.format(user))
         if user in self.user_profiles:
-            cmd = ['syncrmt', '-{}br'.format(self.user_profiles[user]['Identifier'])]
+            cmd = ['syncrmt', '-{}r'.format(self.user_profiles[user]['Identifier'])]
             subprocess.Popen(cmd, stdin=None, stdout=None, stderr=None)
         else:
             raise ConfigValueError('Configuration File Error, User not fully configured ')

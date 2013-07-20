@@ -60,8 +60,8 @@ class Settings(object):
         self.SubscriptionDir = Library['SubscriptionDir']
         self.IncrementalsDir = Library['IncrementalsDir']
 
-        self.NewMoviesDir = os.path.join(self.NewDir, os.path.split(self.MoviesDir)[1].rstrip(os.sep))
-        self.NewSeriesDir = os.path.join(self.NewDir, os.path.split(self.SeriesDir)[1].rstrip(os.sep))
+        self.NewMoviesDir = os.path.join(self.MoviesDir, self.NewDir)
+        self.NewSeriesDir = os.path.join(self.SeriesDir, self.NewDir)
 
         if not os.path.exists(self.SeriesDir):
             log.error("Path Not Found: %s" % self.SeriesDir)
