@@ -45,11 +45,11 @@ class MyDaemon(Daemon):
     def run(self):
 
         while True:
-            if not os.path.exists(config.WatchDir):
-                log.error("Path Not Found: %s" % config.WatchDir)
-                raise ConfigValueError("Configuration Issue Watch Directory Not Found: %s" % config.WatchDir)
+            if not os.path.exists(config.DownloadDir):
+                log.error("Path Not Found: %s" % config.DownloadDir)
+                raise ConfigValueError("Configuration Issue Watch Directory Not Found: %s" % config.DownloadDir)
 
-            log.debug('Found watch directory: %s' % config.WatchDir)
+            log.debug('Found watch directory: %s' % config.DownloadDir)
 
             pHandler = PackageHandler()
             watchManager  = pyinotify.WatchManager()
@@ -57,8 +57,8 @@ class MyDaemon(Daemon):
             handler = EventHandler(pHandler)
             notifier= pyinotify.Notifier(watchManager, handler)
             log.debug('Notifier Created')
-            watchDir1 = watchManager.add_watch(config.WatchDir, mask, rec=True)
-            log.info('Watching Directory: %s' % config.WatchDir)
+            DownloadDir1 = watchManager.add_watch(config.DownloadDir, mask, rec=True)
+            log.info('Watching Directory: %s' % config.DownloadDir)
             if options.loglevel not in ['DEBUG', 'TRACE']:
                 try:
                     notifier.loop()
@@ -94,7 +94,7 @@ class PackageHandler(object):
 
     def NewDownload(self, pathname):
         self.distribute.ProcessPathName(pathname)
-        
+
 if __name__ == "__main__":
 
     parser = OptionParser()
@@ -120,7 +120,7 @@ if __name__ == "__main__":
     options.clean_up_name = True
     options.ignore = True
     options.content = ""
-    
+
     if options.loglevel != 'DEBUG' and options.loglevel != 'TRACE':
         if len(args) != 1 or (args[0].lower() != 'start' and args[0].lower() != 'stop' and args[0].lower() != 'restart'):
             parser.error('Invalid or missing arguments')

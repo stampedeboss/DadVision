@@ -28,7 +28,7 @@ __maintainer__ = "AJ Reynolds"
 __email__ = "stampedeboss@gmail.com"
 __status__ = "Development"
 
-ConfigDir   = os.path.join(os.path.expanduser('~'),".config", "xbmcsupt")
+ConfigDir   = os.path.join("/usr/local/etc", "daddyvision")
 ConfigFile  = os.path.join(ConfigDir, '{}.cfg'.format(__pgmname__))
 
 log = logging.getLogger('settings')
@@ -57,9 +57,9 @@ class Settings(object):
         self.NewDir = Library['NewDir']
         self.DownloadDir = Library['DownloadDir']
         self.NonVideoDir = Library['NonVideoDir']
-        self.SubscriptionDir = Library['SubscriptionDir']
         self.IncrementalsDir = Library['IncrementalsDir']
 
+        self.SubscriptionDir = os.path.join(ConfigDir ,Library['SubscriptionDir'])
         self.NewMoviesDir = os.path.join(self.MoviesDir, self.NewDir)
         self.NewSeriesDir = os.path.join(self.SeriesDir, self.NewDir)
 
@@ -88,14 +88,6 @@ class Settings(object):
             log.error("Invalid Config Entries, Ending")
             raise ConfigValueError("Path Not Found: %s" % self.NonVideoDir)
 
-        RunTime = self.config['DownloadMonitor']
-        self.WatchDir = os.path.expanduser(RunTime['WatchDir'])
-
-        if not os.path.exists(self.WatchDir):
-            log.error("Path Not Found: %s" % self.WatchDir)
-            log.error("Invalid Config Entries, Ending")
-            raise ConfigValueError("Path Not Found: %s" % self.WatchDir)
-
         Common = self.config['Common']
         self.MediaExt = Common['MediaExt']
         self.MovieGlob = Common['MovieGlob']
@@ -104,11 +96,12 @@ class Settings(object):
         self.Predicates = Common['Predicates']
 
         self.TvdbIdList = {}
-        self.TvdbIdFile = os.path.expanduser(Common['TvdbIdFile'])
+        self.TvdbIdFile = os.path.join(ConfigDir, Common['TvdbIdFile'])
+        touch(os.path.join(os.path.join(ConfigDir), 'Series_Aliases'))
         self.ReloadTVDBList()
 
         self.SeriesAliasList = {}
-        self.SeriesAliasFile = os.path.expanduser(Common['SeriesAliasFile'])
+        self.SeriesAliasFile = os.path.join(ConfigDir, Common['SeriesAliasFile'])
         if os.path.exists(self.SeriesAliasFile):
             with open(self.SeriesAliasFile, "r") as _alias_file_obj:
                 for _line in _alias_file_obj.readlines():
@@ -119,14 +112,14 @@ class Settings(object):
             _alias_file_obj.close()
 
         self.ExcludeList = []
-        exclude_file = os.path.expanduser(Common['ExcludeFile'])
+        exclude_file = os.path.join(ConfigDir, Common['ExcludeFile'])
         if os.path.exists(exclude_file):
             with open(exclude_file, "r") as exclude_file_obj:
                 for line in exclude_file_obj.readlines():
                     self.ExcludeList.append(line.rstrip("\n"))
 
         self.ExcludeScanList = []
-        ExcludeScanFile = os.path.expanduser(Common['ExcludeScanFile'])
+        ExcludeScanFile = os.path.join(ConfigDir, Common['ExcludeScanFile'])
         if os.path.exists(ExcludeScanFile):
             with open(ExcludeScanFile, "r") as exclude_file_obj:
                 for line in exclude_file_obj.readlines():
@@ -135,7 +128,7 @@ class Settings(object):
 #        log.debug('Exclude List: LOADED')
 
         self.SpecialHandlingList = []
-        spl_hand_file = os.path.expanduser(Common['SplHandFile'])
+        spl_hand_file = os.path.join(ConfigDir, Common['SplHandFile'])
         if os.path.exists(spl_hand_file):
             with open(spl_hand_file, "r") as splhand_file_obj:
                 for show_name in splhand_file_obj.readlines():
@@ -143,7 +136,7 @@ class Settings(object):
 #                log.debug('Special Handling: LOADED')
 
         self.EpisodeAdjList = []
-        _episode_adj_file = os.path.expanduser(Common['EpisodeAdjFile'])
+        _episode_adj_file = os.path.join(ConfigDir, Common['EpisodeAdjFile'])
         if os.path.exists(_episode_adj_file):
             with open(_episode_adj_file, "r") as _episode_adj_file_obj:
                 for _line in _episode_adj_file_obj.readlines():
@@ -270,15 +263,11 @@ class Settings(object):
         config['Library'] = {}
         config['Library']['SeriesDir'] = get_dir(os.path.join(_base_dir, "DadVision/Series"), "Series")
         config['Library']['MoviesDir'] = get_dir(os.path.join(_base_dir, "DadVision/Movies"), "Movies")
-        config['Library']['NewDir'] = get_dir(os.path.join(_base_dir, "DadVision/New"), "New")
-        config['Library']['NonVideoDir'] = get_dir(os.path.join(_base_dir, "Downloads/Unpacked"), "Unknown Unpack")
         config['Library']['DownloadDir'] = get_dir(os.path.join(_base_dir, "Downloads/Bittorrent"), "Downloads")
-        config['Library']['SubscriptionDir'] = get_dir(os.path.join(_base_dir, "Links"), "Subscription Files")
-
-        dir_name = raw_input("Enter Subdirectory for Incremental Files (%s): " % 'Incrementals').lstrip(os.sep)
-        if not dir_name:
-            dir_name = 'Incrementals'
-        config['Library']['IncrementalsDir'] = dir_name
+        config['Library']['NonVideoDir'] = get_dir(os.path.join(_base_dir, "Downloads/Unpacked"), "Unknown Unpack")
+        config['Library']['NewDir'] = "New"
+        config['Library']['SubscriptionDir'] = "Links"
+        config['Library']['IncrementalsDir'] = "Incrementals"
 
         config['Common'] = {}
         config['Common']['MediaExt'] = ['avi', 'bup', 'core', 'divx', 'ifo', 'img', 'iso',
@@ -305,26 +294,12 @@ class Settings(object):
                                                   ]
         config['Common']['Predicates'] = ['The', 'A', 'An']
 
-        config['Common']['TvdbIdFile'] = os.path.join(ConfigDir, 'Series_TvdbId')
-        touch(os.path.join(ConfigDir, 'Series_TvdbId'))
-
-        config['Common']['SeriesAliasFile'] = os.path.join(ConfigDir, 'Series_Aliases')
-        touch(os.path.join(os.path.join(ConfigDir), 'Series_Aliases'))
-
-        config['Common']['SplHandFile']   = os.path.join(ConfigDir, 'Series_Special_Handling')
-        touch(os.path.join(ConfigDir, 'Series_Special_Handling'))
-
-        config['Common']['ExcludeFile']   = os.path.join(ConfigDir, 'Series_Excludes')
-        touch(os.path.join(ConfigDir, 'Series_Excludes'))
-
-        config['Common']['ExcludeScanFile'] = os.path.join(ConfigDir, 'Series_Excluded_From_Scans')
-        touch(os.path.join(ConfigDir, 'Series_Excluded_From_Scans'))
-
-        config['Common']['EpisodeAdjFile']   = os.path.join(ConfigDir, 'Series_Episode_Adjustments')
-        touch(os.path.join(ConfigDir, 'Series_Episode_Adjustments'))
-
-        config['DownloadMonitor'] = {}
-        config['DownloadMonitor']['WatchDir'] = get_dir(os.path.join('/mnt', 'Downloads/Bittorrent'), "DownloadMonitor Watch Folder")
+        config['Common']['TvdbIdFile']      = 'Series_TvdbId'
+        config['Common']['SeriesAliasFile'] = 'Series_Aliases'
+        config['Common']['SplHandFile']     = 'Series_Special_Handling'
+        config['Common']['ExcludeFile']     = 'Series_Excludes'
+        config['Common']['ExcludeScanFile'] = 'Series_Excluded_From_Scans'
+        config['Common']['EpisodeAdjFile']  = 'Series_Episode_Adjustments'
 
         config['Conversions'] = {}
         # Formats for renaming files
@@ -417,7 +392,6 @@ if __name__ == '__main__':
     log.info('NewMoviesDir: {}'.format(config.NewMoviesDir))
     log.info('NonVideoDir: {}'.format(config.NonVideoDir))
     log.info('SubscriptionDir: {}'.format(config.SubscriptionDir))
-    log.info('WatchDir: {}'.format(config.WatchDir))
     log.info('TvdbIdList: {}'.format(config.TvdbIdList))
     log.info('EpisodeAdjList: {}'.format(config.EpisodeAdjList))
     log.info('MediaExt: {}'.format(config.MediaExt))
