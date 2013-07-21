@@ -65,11 +65,14 @@ def listItems(user, content_type, compress=False):
         raise UnexpectedErrorOccured('Invalid Content Type Requested: %s' % (content_type))
 
     for directory in os.listdir(os.path.abspath(content_dir)):
-        if ignored(directory):
+        if ignored(directory) or os.path.isfile(os.path.join(content_dir, directory)):
             log.trace("Skipping: %s" % directory)
             continue
         if regex_collection.search(directory):
-            _prefix = directory.split(':', 1)[1].lstrip()
+            #  No Prefix for Collection on Movies Title
+            _prefix = ''
+            #  Use Prefix for Collection on Movies Title
+#            _prefix = directory.split(':', 1)[1].lstrip()
             for collection_directory in os.listdir(os.path.abspath(os.path.join(content_dir, directory))):
                 if ignored(collection_directory):
                     log.trace("Skipping: %s" % collection_directory)
