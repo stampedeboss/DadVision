@@ -69,15 +69,15 @@ def listItems(user, content_type, compress=False):
             log.trace("Skipping: %s" % directory)
             continue
         if regex_collection.search(directory):
-            #  No Prefix for Collection on Movies Title
-            _prefix = ''
-            #  Use Prefix for Collection on Movies Title
-#            _prefix = directory.split(':', 1)[1].lstrip()
+            _prefix = directory.split(':', 1)[1].lstrip()
             for collection_directory in os.listdir(os.path.abspath(os.path.join(content_dir, directory))):
                 if ignored(collection_directory):
                     log.trace("Skipping: %s" % collection_directory)
                     continue
-                _add_entry(Return_List, os.path.join(content_dir, directory), subscription_dir, incremental_dir, collection_directory, prefix='{}: '.format(_prefix))
+                #  No Prefix for Collection on Movies Title
+                _add_entry(Return_List, os.path.join(content_dir, directory), subscription_dir, incremental_dir, collection_directory)
+                #  Use Prefix for Collection on Movies Title
+#                _add_entry(Return_List, os.path.join(content_dir, directory), subscription_dir, incremental_dir, collection_directory, prefix='{}: '.format(_prefix))
         else:
             _add_entry(Return_List, content_dir, subscription_dir, incremental_dir, directory)
 
