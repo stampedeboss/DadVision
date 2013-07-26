@@ -93,17 +93,17 @@ class DaddyvisionNetwork(object):
                 self._update_xbmc()
                 sys.exit(0)
 
-        if 'Series' in self.options.content:
-            if not options.suppress_incremental and os.path.exists(os.path.join(self.options.SymLinks, 'Incrementals')):
-                self.syncIncrementals(os.path.join(self.options.SymLinks, 'Incrementals'))
-                self._update_xbmc()
-            self.syncSeries()
-            self._update_xbmc()
-
         if 'Incrementals' in self.options.content:
             if os.path.exists(os.path.join(self.options.SymLinks, 'Incrementals')):
                 self.syncIncrementals(os.path.join(self.options.SymLinks, 'Incrementals'))
                 self._update_xbmc()
+
+        if 'Series' in self.options.content:
+#            if not options.suppress_incremental and os.path.exists(os.path.join(self.options.SymLinks, 'Incrementals')):
+#                self.syncIncrementals(os.path.join(self.options.SymLinks, 'Incrementals'))
+#                self._update_xbmc()
+            self.syncSeries()
+            self._update_xbmc()
 
         if 'Movies' in self.options.content:
             self.syncMovies()
