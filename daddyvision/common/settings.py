@@ -286,6 +286,14 @@ class Settings(object):
                                          "french", "english", "spanish", "ita ", "italia", "hindi", "german",
                                          "eng","swesub", 'blu-ray', 'dvd-r', 'fulldvd', 'multi', 'dts',
                                           ]
+        config['Common']['MovieGlob2'] = ['*1080*', '*720*', '*480*', '*x264*', '*h264*', '*ac3*', '*ac-3*', 
+                                          '*bluray*', 'proper', '*repack*', '*dvdr*', '*brrip*', '*bdrip*', 
+                                          '*hdtv*', '*ntsc*', '*pal*', '*r5*', '*screener*', '*xvid*', '*divx*', 
+                                          '*scr', '*hq*', '*pdv*', '*dvd*', '*ppvrip*', '*pdtv*', '*cam*', 
+                                          '*telesync*', '*telecine*', '*workprint*', '*vhs*', '*vcd*', '*webrip*', 
+                                          'ws', 'nl', '*nlt*', 'cn', 'tc', '*extratorrent*', '*2lions*', '*vostfr*', 
+                                          '*fxm*', 'sub', 'subs', '*swesub*', '*blu-ray*', '*fulldvd*', '*dts*', '*bdip*'
+                                          ]
         config['Common']['IgnoreGlob'] = ['*subs*', '*subpack*', '*sample*', '*.sfv', '*.srt',
                                                   '*.idx', '*.swp', '*.tmp', '*.bak', '*.nfo', '*.txt',
                                                   '*.doc', '*.docx', '*.jpg', '*.png', '*.com', '*.mds',
