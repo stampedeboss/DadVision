@@ -2,8 +2,15 @@
 # -*- coding: UTF-8 -*-
 """
 Purpose:
-        Configuration and Run-time settings for the XBMC Support Programs
+  Configuration and Run-time settings for the XBMC Support Programs
 
+  Created by AJ Reynolds on %s.
+  Copyright 2013 AJ Reynolds. All rights reserved.
+  
+  Licensed under the GPL License
+  
+  Distributed on an "AS IS" basis without warranties
+  or conditions of any kind, either express or implied.
 """
 
 from configobj import ConfigObj
@@ -16,22 +23,22 @@ import re
 import sys
 import time
 
-__pgmname__ = 'settings'
-__version__ = '$Rev$'
+__pgmname__ =   'settings'
+__version__ =   '$Rev$'
 
-__author__ = "AJ Reynolds"
-__copyright__ = "Copyright 2011, AJ Reynolds"
-__credits__ = []
-__license__ = "GPL"
+__author__ =    "@author: AJ Reynolds"
+__copyright__ = "@copyright: 2013, AJ Reynolds"
+__license__ =   "@license: GPL"
+__credits__ =   []
 
 __maintainer__ = "AJ Reynolds"
-__email__ = "stampedeboss@gmail.com"
-__status__ = "Development"
+__email__ =     "@contact: stampedeboss@gmail.com"
+__status__ =    "Development"
 
-ConfigDir   = os.path.join("/usr/local/etc", "daddyvision")
+ConfigDir   = os.path.join(os.sep, "usr", "local", "etc", "daddyvision")
 ConfigFile  = os.path.join(ConfigDir, '{}.cfg'.format(__pgmname__))
 
-log = logging.getLogger('settings')
+log = logging.getLogger(__pgmname__)
 
 class Settings(object):
     '''
@@ -97,7 +104,6 @@ class Settings(object):
 
         self.TvdbIdList = {}
         self.TvdbIdFile = os.path.join(ConfigDir, Common['TvdbIdFile'])
-        touch(os.path.join(os.path.join(ConfigDir), 'Series_Aliases'))
         self.ReloadTVDBList()
 
         self.SeriesAliasList = {}
@@ -110,30 +116,36 @@ class Settings(object):
                         self.SeriesAliasList[_series_alias_entry[0]] = _series_alias_entry[1]
 #                log.debug('Series Alias: LOADED')
             _alias_file_obj.close()
+        else:
+            touch(self.SeriesAliasFile)
+
 
         self.ExcludeList = []
-        exclude_file = os.path.join(ConfigDir, Common['ExcludeFile'])
-        if os.path.exists(exclude_file):
-            with open(exclude_file, "r") as exclude_file_obj:
-                for line in exclude_file_obj.readlines():
+        _exclude_file = os.path.join(ConfigDir, Common['ExcludeFile'])
+        if os.path.exists(_exclude_file):
+            with open(_exclude_file, "r") as _exclude_file_obj:
+                for line in _exclude_file_obj.readlines():
                     self.ExcludeList.append(line.rstrip("\n"))
+        else:
+            touch(_exclude_file)
 
         self.ExcludeScanList = []
-        ExcludeScanFile = os.path.join(ConfigDir, Common['ExcludeScanFile'])
-        if os.path.exists(ExcludeScanFile):
-            with open(ExcludeScanFile, "r") as exclude_file_obj:
-                for line in exclude_file_obj.readlines():
+        _exclude_scan_file = os.path.join(ConfigDir, Common['ExcludeScanFile'])
+        if os.path.exists(_exclude_scan_file):
+            with open(_exclude_scan_file, "r") as _exclude_file_obj:
+                for line in _exclude_file_obj.readlines():
                     self.ExcludeScanList.append(line.rstrip("\n"))
-
-#        log.debug('Exclude List: LOADED')
+        else:
+            touch(_exclude_scan_file)
 
         self.SpecialHandlingList = []
-        spl_hand_file = os.path.join(ConfigDir, Common['SplHandFile'])
-        if os.path.exists(spl_hand_file):
-            with open(spl_hand_file, "r") as splhand_file_obj:
-                for show_name in splhand_file_obj.readlines():
+        _spl_hand_file = os.path.join(ConfigDir, Common['SplHandFile'])
+        if os.path.exists(_spl_hand_file):
+            with open(_spl_hand_file, "r") as _splhand_file_obj:
+                for show_name in _splhand_file_obj.readlines():
                     self.SpecialHandlingList.append(show_name.rstrip("\n"))
-#                log.debug('Special Handling: LOADED')
+        else:
+            touch(_spl_hand_file)
 
         self.EpisodeAdjList = []
         _episode_adj_file = os.path.join(ConfigDir, Common['EpisodeAdjFile'])
@@ -149,6 +161,8 @@ class Settings(object):
                                              'AdjSeason' : int(_adjustment[4]),
                                              'AdjEpisode' : int(_adjustment[5])}
                         self.EpisodeAdjList.append(_adjustment_entry)
+        else:
+            touch(_episode_adj_file)
 #                log.debug('Episode Adjustment: LOADED')
 
         self.ConversionsPatterns = self.config['Conversions']
@@ -171,7 +185,8 @@ class Settings(object):
             TvdbIdFile_obj.close()
 #            log.debug('TVDB IDs: LOADED')
         else:
-            log.warn("TVDB Series IDs File Missing: " % self.TvdbIdFile)
+            touch(self.TvdbIdFile)
+            log.warn("TVDB Series IDs File Missing, New One Created: %s" % self.TvdbIdFile)
         return 0
 
     def GetSubscribers(self, req_profile=None):
@@ -258,16 +273,28 @@ class Settings(object):
         config = ConfigObj(unrepr = True, interpolation = False)
         config.filename = ConfigFile
 
-        _base_dir = get_dir('/mnt', "Base Directory for Libraries")
+        _base_dir = get_dir(os.path.join(os.sep,'srv'), "Base Directory for Libraries")
 
         config['Library'] = {}
-        config['Library']['SeriesDir'] = get_dir(os.path.join(_base_dir, "DadVision/Series"), "Series")
-        config['Library']['MoviesDir'] = get_dir(os.path.join(_base_dir, "DadVision/Movies"), "Movies")
-        config['Library']['DownloadDir'] = get_dir(os.path.join(_base_dir, "Downloads/Bittorrent"), "Downloads")
-        config['Library']['NonVideoDir'] = get_dir(os.path.join(_base_dir, "Downloads/Unpacked"), "Unknown Unpack")
+
         config['Library']['NewDir'] = "New"
         config['Library']['SubscriptionDir'] = "Links"
         config['Library']['IncrementalsDir'] = "Incrementals"
+        
+        config['Library']['DownloadDir'] = get_dir(os.path.join(_base_dir, "Downloads", "Bittorrent"), "Downloads")
+        config['Library']['NonVideoDir'] = get_dir(os.path.join(_base_dir, "Downloads", "Unpacked"), "Unknown Unpack")
+
+        _series_dir = get_dir(os.path.join(_base_dir, "DadVision", "Series"), "Series")
+        _movies_dir = get_dir(os.path.join(_base_dir, "DadVision", "Movies"), "Movies")
+        config['Library']['SeriesDir'] = _series_dir
+        config['Library']['MoviesDir'] = _movies_dir
+
+        if not os.path.exists(os.path.join(_series_dir, 'New')):
+            _create_dir("Series - New", os.path.join(_series_dir, 'New'))
+        if not os.path.exists(os.path.join(_movies_dir, 'New')):
+            _create_dir("Movies - New", os.path.join(_movies_dir, 'New'))
+        if not os.path.exists(os.path.join(ConfigDir , "Links")):
+            _create_dir("Subscriptions", os.path.join(ConfigDir , "Links"))
 
         config['Common'] = {}
         config['Common']['MediaExt'] = ['avi', 'bup', 'core', 'divx', 'ifo', 'img', 'iso',
@@ -351,25 +378,29 @@ def get_dir(dir_name_d, message):
             dir_name = dir_name_d
         if os.path.exists(os.path.expanduser(dir_name)):
             return dir_name
-        while not os.path.exists(os.path.expanduser(dir_name)):
-            action = raw_input("%s Directory: %s - Not Found,  Ignore/Re-Enter/Create/Abort? (I/R/C/A): " % (message, dir_name)).lower()[0]
-            log.debug("ROUTINE: get_dir loop %s %s %s" % (action, message, dir_name_d))
-            if len(action) < 1:
+        _create_dir(message, dir_name)
+        return dir_name
+
+def _create_dir(message, dir_name):
+    while not os.path.exists(os.path.expanduser(dir_name)):
+        action = raw_input("%s Directory: %s - Not Found,  Ignore/Re-Enter/Create/Abort? (I/R/C/A): " % (message, dir_name)).lower()[0]
+        log.debug("ROUTINE: _create_get_dir loop %s %s %s" % (action, message, dir_name))
+        if len(action) < 1:
+            continue
+        elif action[0].lower() == 'a':
+            raise UserAbort
+        elif action[0].lower() == 'i':
+            return dir_name
+        elif action[0].lower() == 'c':
+            try:
+                os.makedirs(os.path.expanduser(dir_name))
+                return dir_name
+            except OSError, exc:
+                log.error("Unable to Create Directory: %s, %s: " % (dir_name, exc))
                 continue
-            elif action[0].lower() == 'a':
-                raise UserAbort
-            elif action[0].lower() == 'i':
-                return dir_name
-            elif action[0].lower() == 'c':
-                try:
-                    os.makedirs(os.path.expanduser(dir_name))
-                    return dir_name
-                except OSError, exc:
-                    log.error("Unable to Create Directory: %s, %s: " % (dir_name, exc))
-                    continue
-            elif action[0] == 'r':
-                dir_name = get_dir(dir_name_d, message)
-                return dir_name
+        elif action[0] == 'r':
+            dir_name = get_dir(dir_name, message)
+            return dir_name
 
 def touch(path):
     now = time.time()
