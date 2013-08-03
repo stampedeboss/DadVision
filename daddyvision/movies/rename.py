@@ -7,98 +7,31 @@ Purpose:
 Program to rename movies files
 
 """
-from daddyvision.common.chkvideo import chkVideoFile
-from daddyvision.common.options import OptionParser, OptionGroup
-from daddyvision.common.exceptions import InvalidFilename
-from daddyvision.movies.fileparser import FileParser
 from daddyvision.common import logger
-from fuzzywuzzy import process
-import re
-import os
-import sys
+from daddyvision.common.chkvideo import chkVideoFile
+from daddyvision.common.exceptions import InvalidFilename
+from daddyvision.common.options import OptionParser, OptionGroup
+from daddyvision.movies.fileparser import FileParser
+from fuzzywuzzy import fuzz
 import filecmp
 import fnmatch
 import logging
+import os
+import re
+import sys
 import tmdb
 
-'''
-import tmdb
+__pgmname__     = 'rename'
+__version__     = '$Rev$'
 
-    tmdb.configure('587c13e576f991c0a653f783b290a065')
-    movie = tmdb.search("Fight Club")
-    #movie[0].keys()
-    movie[0]["rating"]
-    or
-    movie = tmdb.tmdb("Fight Club")
-    rating = movie.getRating()
-    language = movie.getLanguage()
+__author__      = "@author: AJ Reynolds"
+__copyright__   = "@copyright: Copyright 2011, AJ Reynolds"
+__license__     = "@license: GPL"
+__email__       = "@contact: stampedeboss@gmail.com"
 
-    imdb lookup:
-    import tmdb
-    imdb_movie = tmdb.imdb(title="Fight Club") # title = "Fight Club" or id=tt30330 ->imdb_idb
-    rating = imdb_movie.getRating()
-    runtime = imdb_movie.getRuntime()
-
-tmdb.tmdb methods:
-    > getRating()
-    > getVotes()
-    > getName()
-    > getLanguage()
-    > getCertification()
-    > getUrl()
-    > getOverview()
-    > getPopularity()
-    > getOriginalName()
-    > getLastModified()
-    > getImdbId()
-    > getReleased()
-    > getScore()
-    > getAdult()
-    > getVersion()
-    > getTranslated()
-    > getType()
-    > getId()
-    > getAlternativeName()
-    > getPoster()
-    > getBackdrop()
-
-tmdb.imdb methods
-    > getRuntime()
-    > getCategories()
-    > getRating()
-    > getVotes()
-    > getName()
-    > getLanguage()
-    > getCertification()
-    > getUrl()
-    > getOverview()
-    > getPopularity()
-    > getOriginalName()
-    > getLastModified()
-    > getImdbId()
-    > getReleased()
-    > getAdult()
-    > getVersion()
-    > getTranslated()
-    > getType()
-    > getId()
-    > getAlternativeName()
-    > getPoster()
-    > getBackdrop()
-'''
-
-
-__author__ = "AJ Reynolds"
-__copyright__ = "Copyright 2011, AJ Reynolds"
-__credits__ = []
-__license__ = "GPL"
-
-__pgmname__ = 'rename'
-__version__ = '$Rev$'
-
-__maintainer__ = "AJ Reynolds"
-__email__ = "stampedeboss@gmail.com"
-__status__ = "Development"
+__maintainer__  = "AJ Reynolds"
+__status__      = "Development"
+__credits__     = []
 
 log = logging.getLogger(__pgmname__)
 
@@ -193,27 +126,8 @@ class Rename(object):
     def _rename_file(self, _file_details):
         log.trace("_rename_file method: pathname:{!s}".format(_file_details))
 
-        _movie = tmdb.tmdb(_file_details['MovieName'])
-
-        _num_of_movies = _movie.getTotal()
-        _movie_titles = []
-
-        for i in range(0, (_num_of_movies)):
-            _movie_titles.append(_movie.getName(i))
-
-        if _num_of_movies > 0:
-            _choice = process.extractOne(_file_details['MovieName'], _movie_titles)
-            if _choice[1] > 85:
-                _file_details['MovieName'] = _choice[0]
-                if 'Year' not in _file_details:
-                    _index = _movie_titles.index(_choice[0])
-                    _file_details['Year'] = int(_movie.getReleased(_index)[0:4])
-            else:
-                return
-        else:
-            log.warn("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
-            return
-
+        _file_details = self._get_tmdb_info(_file_details)
+               
         if 'Trailer' in _file_details:
             _trailer = '-trailer'
         else:
@@ -268,34 +182,14 @@ class Rename(object):
             log.error("Unexpected error: %s" % exc)
 
         return _fq_new_file_name
-
+    
     def _rename_directory(self, directory):
         log.trace("_rename_directory method: pathname:{!s}".format(directory))
 
         _directory_details = self.parser.getFileDetails(directory+'.avi')
         _directory_details['FileName'] = directory
 
-        _num_of_movies = 0 
-        _movie_titles = []
-        try:
-            _movie = tmdb.tmdb(_directory_details['MovieName'])
-            _num_of_movies = _movie.getTotal()
-        except:
-            pass
-        
-        for i in range(0, (_num_of_movies)):
-            _movie_titles.append(_movie.getName(i))
-
-        if _num_of_movies > 0:
-            _choice = process.extractOne(_directory_details['MovieName'], _movie_titles)
-            if _choice[1] > 85:
-                _index = _movie_titles.index(_choice[0])
-                _directory_details['MovieName'] = _choice[_index]
-                _released = _movie.getReleased(_index)
-                if _released:
-                    _directory_details['Year'] = int(_released[0:4])
-        else:
-            pass
+        _directory_details = self._get_tmdb_info(_directory_details)
 
         if 'Year' in _directory_details:
             _new_dir = '%s (%s)' % (_directory_details['MovieName'], _directory_details['Year'])
@@ -324,15 +218,31 @@ class Rename(object):
 
         return None
 
+    def _get_tmdb_info(self, _file_details):
+        
+        _movies = tmdb.Movies(_file_details['MovieName'])
+        
+        for _movie in _movies.iter_results():
+            if fuzz.ratio(_movie["title"], _file_details['MovieName']) > 85:
+                break
+        if _movie:
+            _file_details['MovieName'] = _movie["title"]
+            if _movie["release_date"]:
+                _file_details['Year'] = str(_movie["release_date"][0:4])
+            return _file_details
+        else:
+            log.warn("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
+            return _file_details
+
     def _ignored(self, name):
         """ Check for ignored pathnames.
         """
         return any(fnmatch.fnmatch(name.lower(), pattern) for pattern in self.config.ExcludeList)
 
-    def _del_dir(self, pathname, file=True):
+    def _del_dir(self, pathname, is_file=True):
         log.trace("_del_dir: pathname:{!s}".format(pathname))
 
-        if file:
+        if is_file:
             _cur_dir = os.path.split(pathname)[0]
         else:
             _cur_dir = pathname
