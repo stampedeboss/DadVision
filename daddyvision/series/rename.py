@@ -192,12 +192,12 @@ class Rename(object):
             if not os.path.exists(_season_folder):
                 os.makedirs(_season_folder)
                 os.chmod(_season_folder, 0775)
-                os.chown(_season_folder, 1000, 100)
+#                os.chown(_season_folder, 1000, 100)
                 os.chmod(_series_folder, 0775)
-                os.chown(_series_folder, 1000, 100)
+#                os.chown(_series_folder, 1000, 100)
             os.rename(file_details['FileName'], _new_name)
             os.chmod(_new_name, 0664)
-            os.chown(_new_name, 1000, 100)
+#            os.chown(_new_name, 1000, 100)
 
             try:
                 self.db = sqlite3.connect(self.config.DBFile)

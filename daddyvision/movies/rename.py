@@ -257,11 +257,10 @@ class Rename(object):
         try:
             if not os.path.exists(os.path.split(_fq_new_file_name)[0]):
                 os.makedirs(os.path.split(_fq_new_file_name)[0])
-                os.chown(os.path.split(_fq_new_file_name)[0], 1000, 100)
-                os.chown(os.path.split(_fq_new_file_name)[0], 1000, 100)
+#                os.chown(os.path.split(_fq_new_file_name)[0], 1000, 100)
             os.rename(_file_details['FileName'], _fq_new_file_name)
             os.chmod(_fq_new_file_name, 0664)
-            os.chown(_fq_new_file_name, 1000, 100)
+#            os.chown(_fq_new_file_name, 1000, 100)
             log.info("Successfully Renamed: %s" % _fq_new_file_name)
             self._del_dir(_file_details['FileName'])
         except OSError, exc:
