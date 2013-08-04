@@ -143,8 +143,10 @@ class DaddyvisionNetwork(object):
             else:
                 cmd.extend(self.options.CmdLineArgs)
                 if self.options.user == 'local':
+                    cmd.append('--ignore-existing')
                     cmd.append('{}/{}'.format(self.options.SeriesRmt, self.dir_name))
                 else:
+                    cmd.append('--ignore-existing')
                     cmd.append('{}@{}:{}/{}'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt, self.dir_name))
                 cmd.append('{}/'.format(config.SeriesDir))
                 log.verbose(' '.join(cmd))
