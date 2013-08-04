@@ -23,17 +23,17 @@ import tempfile
 import time
 import unicodedata
 
-__pgmname__ = 'syncrmt'
-__version__ = '$Rev$'
+__pgmname__     = 'syncrmt'
+__version__     = '$Rev$'
 
-__author__ = "AJ Reynolds"
-__copyright__ = "Copyright 2011, AJ Reynolds"
-__credits__ = []
-__license__ = "GPL"
+__author__      = "@author: AJ Reynolds"
+__copyright__   = "@copyright: Copyright 2011, AJ Reynolds"
+__email__       = "@contact: stampedeboss@gmail.com"
+__license__     = "@license: GPL"
 
-__maintainer__ = "AJ Reynolds"
-__email__ = "stampedeboss@gmail.com"
-__status__ = "Development"
+__maintainer__  = "AJ Reynolds"
+__status__      = "Development"
+__credits__     = []
 
 TRACE = 5
 VERBOSE = 15
@@ -181,10 +181,12 @@ class DaddyvisionNetwork(object):
                     cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.MoviesRmt))
             else:
                 if self.options.user == 'local':
+                    cmd.append('--ignore-existing')
                     cmd.append('{}/{}'.format(self.options.MoviesRmt, self.dir_name))
                 else:
+                    cmd.append('--ignore-existing')
                     cmd.append('{}@{}:{}/{}'.format(self.options.UserId, self.options.HostName, self.options.MoviesRmt, self.dir_name))
-                cmd.append('{}/Movies/'.format(self.options.SymLinks))
+                    cmd.append('{}/'.format(config.MoviesDir))
 
             log.verbose(' '.join(cmd))
             process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=os.path.join(self.options.SymLinks, 'Movies'))
