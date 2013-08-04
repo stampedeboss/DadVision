@@ -143,10 +143,8 @@ class DaddyvisionNetwork(object):
             else:
                 cmd.extend(self.options.CmdLineArgs)
                 if self.options.user == 'local':
-                    cmd.append('--ignore-existing')
                     cmd.append('{}/{}'.format(self.options.SeriesRmt, self.dir_name))
                 else:
-                    cmd.append('--ignore-existing')
                     cmd.append('{}@{}:{}/{}'.format(self.options.UserId, self.options.HostName, self.options.SeriesRmt, self.dir_name))
                 cmd.append('{}/'.format(config.SeriesDir))
                 log.verbose(' '.join(cmd))
@@ -181,10 +179,8 @@ class DaddyvisionNetwork(object):
                     cmd.append('{}@{}:{}/'.format(self.options.UserId, self.options.HostName, self.options.MoviesRmt))
             else:
                 if self.options.user == 'local':
-                    cmd.append('--ignore-existing')
                     cmd.append('{}/{}'.format(self.options.MoviesRmt, self.dir_name))
                 else:
-                    cmd.append('--ignore-existing')
                     cmd.append('{}@{}:{}/{}'.format(self.options.UserId, self.options.HostName, self.options.MoviesRmt, self.dir_name))
                     cmd.append('{}/'.format(config.MoviesDir))
 
@@ -379,7 +375,7 @@ class DaddyvisionNetwork(object):
 
         self.options.CmdLineArgs = []
 
-        if not self.options.no_update:
+        if self.options.no_update:
             self.options.CmdLineArgs.append('-u')
 
         if self.options.ignore_existing:
@@ -451,7 +447,7 @@ class LocalOptions(OptionParser):
             help="Don't Run Link Create Commands")
         group.add_option("--ignore-existing", dest='ignore_existing',
             action="store_true", default=False,
-            help="Use rysnc's --ignore-existing argument")
+            help="Skip updating files that exist on receiver")
         group.add_option("--no-video", dest="novideo",
             action="store_true", default=False,
             help="Suppress Video Files, Only Move Support Files/Directories")
@@ -461,9 +457,9 @@ class LocalOptions(OptionParser):
         group.add_option("--suppress", dest="suppress_incremental",
             action="store_true", default=False,
             help="Skip Processing of Incremental Subscriptions")
-        group.add_option("--no-update", dest="no_update",
+        group.add_option("-u", "--update", dest="no_update",
             action="store_true", default=False,
-            help="Don't Skip files that are newer on the receiver")
+            help="Skip files that are newer on the receiver")
         group.add_option("-x", "--exclude", dest="xclude",
             action="store", type="string", default="",
             help="Exclude files/directories")
