@@ -7,20 +7,26 @@ if [ "$HostName" = "grumpy" ]
 		case $1 in
 			tigger)
 				HostName='tigger'
-				sudo rm /mnt/Links/aly/lastboot
-				sudo touch /mnt/Links/aly/lastboot
+				sudo rm /usr/local/etc/daddyvision/Links/aly/lastboot
+				sudo touch /usr/local/etc/daddyvision/Links/aly/lastboot
 				exit 0
 			;;
 			goofy)
 				HostName='goofy'
-				sudo rm /mnt/Links/kim/lastboot
-				sudo touch /mnt/Links/kim/lastboot
+				sudo rm /usr/local/etc/daddyvision/Links/kim/lastboot
+				sudo touch /usr/local/etc/daddyvision/Links/kim/lastboot
+				exit 0
+			;;
+			eeyore)
+				HostName='eeyore'
+				sudo rm /usr/local/etc/daddyvision/Links/ben/lastboot
+				sudo touch /usr/local/etc/daddyvision/Links/ben/lastboot
 				exit 0
 			;;
 			pluto)
 				HostName='pluto'
-				sudo rm /mnt/Links/ben/lastboot
-				sudo touch /mnt/Links/ben/lastboot
+				sudo rm /usr/local/etc/daddyvision/Links/ben/lastboot
+				sudo touch /usr/local/etc/daddyvision/Links/ben/lastboot
 				exit 0
 			;;
 				*)
@@ -32,18 +38,24 @@ fi
 
 case $HostName in
 	tigger)
-		sudo ssh 192.168.9.201 rm /mnt/Links/aly/lastboot
-		sudo ssh 192.168.9.201 touch /mnt/Links/aly/lastboot
+		sudo ssh 192.168.9.201 rm /usr/local/etc/daddyvision/Links/aly/lastboot
+		sudo ssh 192.168.9.201 touch /usr/local/etc/daddyvision/Links/aly/lastboot
 		;;
 	goofy)
-		sudo ssh 192.168.9.201 rm /mnt/Links/kim/lastboot
-		sudo ssh 192.168.9.201 touch /mnt/Links/kim/lastboot
+		sudo ssh 192.168.9.201 rm /usr/local/etc/daddyvision/Links/kim/lastboot
+		sudo ssh 192.168.9.201 touch /usr/local/etc/daddyvision/Links/kim/lastboot
+		;;
+	eeyore)
+		sudo ssh 192.168.9.201 rm /usr/local/etc/daddyvision/Links/daniel/lastboot
+		sudo ssh 192.168.9.201 touch /usr/local/etc/daddyvision/Links/daniel/lastboot
 		;;
 	pluto)
-		sudo ssh 192.168.9.201 rm /mnt/Links/ben/lastboot
-		sudo ssh 192.168.9.201 touch /mnt/Links/ben/lastboot
+		sudo ssh 192.168.9.201 rm /usr/local/etc/daddyvision/Links/ben/lastboot
+		sudo ssh 192.168.9.201 touch /usr/local/etc/daddyvision/Links/ben/lastboot
 		;;
 	*)
 		echo 'UNKNOWN HOSTNAME'
 esac
+
+
 exit 0
