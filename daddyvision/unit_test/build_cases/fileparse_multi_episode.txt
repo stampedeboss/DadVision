@@ -1,0 +1,60 @@
+# Multi-Episode S##E##E##
+/mnt/Download/Bittorrent/Covert Affairs S1E01e02
+/mnt/Download/Bittorrent/Covert Affairs S01E01e02
+/mnt/Download/Bittorrent/Covert Affairs S1E001e002
+/mnt/Download/Bittorrent/Covert Affairs S01E001e002
+# Multi-Episode S##E##-E##
+/mnt/Download/Bittorrent/Covert Affairs S1E01-e02
+/mnt/Download/Bittorrent/Covert Affairs S01E01-e02
+/mnt/Download/Bittorrent/Covert Affairs S1E001-e002
+/mnt/Download/Bittorrent/Covert Affairs S01E001-e002
+# Multi-Episode S##E##-##
+/mnt/Download/Bittorrent/Covert Affairs S1E01-02
+/mnt/Download/Bittorrent/Covert Affairs S01E01-02
+/mnt/Download/Bittorrent/Covert Affairs S1E001-002
+/mnt/Download/Bittorrent/Covert Affairs S01E001-002
+# Multi-Episode S##E## S##E##
+/mnt/Download/Bittorrent/Covert Affairs S1E01 s1e02
+/mnt/Download/Bittorrent/Covert Affairs S01E01 s01e02
+/mnt/Download/Bittorrent/Covert Affairs S1E001 s1e002
+/mnt/Download/Bittorrent/Covert Affairs S01E001 s01e002
+# Multi-Episode ##x##x##
+/mnt/Download/Bittorrent/Covert Affairs 1x01x02
+/mnt/Download/Bittorrent/Covert Affairs 01x01x02
+/mnt/Download/Bittorrent/Covert Affairs 1x001x002
+/mnt/Download/Bittorrent/Covert Affairs 01x001x002
+# Multi-Episode ##x##-x##
+/mnt/Download/Bittorrent/Covert Affairs 1x01-x02
+/mnt/Download/Bittorrent/Covert Affairs 01x01-x02
+/mnt/Download/Bittorrent/Covert Affairs 1x001-x002
+/mnt/Download/Bittorrent/Covert Affairs 01x001-x002
+# Multi-Episode ##x##-##
+/mnt/Download/Bittorrent/Covert Affairs 1x01-02
+/mnt/Download/Bittorrent/Covert Affairs 01x01-02
+/mnt/Download/Bittorrent/Covert Affairs 1x001-002
+/mnt/Download/Bittorrent/Covert Affairs 01x001-002
+# Multi-Episode ##x## ##x##
+/mnt/Download/Bittorrent/Covert Affairs 1x01 1x02
+/mnt/Download/Bittorrent/Covert Affairs 01x01 01x02
+/mnt/Download/Bittorrent/Covert Affairs 1x001 1x002
+/mnt/Download/Bittorrent/Covert Affairs 01x001 01x002
+# Multi-Episode ####-##
+/mnt/Download/Bittorrent/Covert Affairs 101-02
+/mnt/Download/Bittorrent/Covert Affairs 0101-02
+/mnt/Download/Bittorrent/Covert Affairs 1001-002
+/mnt/Download/Bittorrent/Covert Affairs 01001-002
+# Multi-Episode #### ####
+/mnt/Download/Bittorrent/Covert Affairs 101 102
+/mnt/Download/Bittorrent/Covert Affairs 0101 0102
+/mnt/Download/Bittorrent/Covert Affairs 1001 1002
+/mnt/Download/Bittorrent/Covert Affairs 01001 01002
+# Multi-Episode [####-##]
+/mnt/Download/Bittorrent/Covert Affairs [101-02]
+/mnt/Download/Bittorrent/Covert Affairs [0101-02]
+/mnt/Download/Bittorrent/Covert Affairs [1001-002]
+/mnt/Download/Bittorrent/Covert Affairs [01001-002]
+# Multi-Episode [#### ####]
+/mnt/Download/Bittorrent/Covert Affairs [101] [102]
+/mnt/Download/Bittorrent/Covert Affairs [0101] [0102]
+/mnt/Download/Bittorrent/Covert Affairs [1001] [1002]
+/mnt/Download/Bittorrent/Covert Affairs [01001] [01002]
