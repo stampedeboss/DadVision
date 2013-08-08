@@ -127,7 +127,7 @@ class Rename(object):
         log.trace("_rename_file method: pathname:{!s}".format(_file_details))
 
         _file_details = self._get_tmdb_info(_file_details)
-               
+
         if 'Trailer' in _file_details:
             _trailer = '-trailer'
         else:
@@ -182,7 +182,7 @@ class Rename(object):
             log.error("Unexpected error: %s" % exc)
 
         return _fq_new_file_name
-    
+
     def _rename_directory(self, directory):
         log.trace("_rename_directory method: pathname:{!s}".format(directory))
 
@@ -219,9 +219,11 @@ class Rename(object):
         return None
 
     def _get_tmdb_info(self, _file_details):
-        
+
         _movies = tmdb.Movies(_file_details['MovieName'])
-        
+
+        _movie = None
+
         for _movie in _movies.iter_results():
             if fuzz.ratio(_movie["title"], _file_details['MovieName']) > 85:
                 break
