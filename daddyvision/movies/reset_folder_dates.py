@@ -7,7 +7,7 @@ Purpose:
 
 '''
 from __future__ import division
-from daddyvision.common.exceptions import (InvalidPath, InvalidFilename, ConfigNotFound, ConfigValueError)
+from daddyvision.common.exceptions import InvalidPath
 from daddyvision.common import logger
 from daddyvision.common.options import OptionParser, OptionGroup
 from daddyvision.common.settings import Settings
@@ -23,13 +23,13 @@ __pgmname__     = 'reset_folder_dates'
 __version__     = '$Rev$'
 
 __author__      = "@author: AJ Reynolds"
-__copyright__   = "@copyright: Copyright 2011, AJ Reynolds"
+__copyright__   = "@copyright: 2013, AJ Reynolds"
+__credits__     = []
 __license__     = "@license: GPL"
-__email__       = "@contact: stampedeboss@gmail.com"
 
 __maintainer__  = "AJ Reynolds"
+__email__       = "@contact: stampedeboss@gmail.com"
 __status__      = "Development"
-__credits__     = []
 
 TRACE = 5
 VERBOSE = 15
@@ -37,9 +37,6 @@ VERBOSE = 15
 log = logging.getLogger(__pgmname__)
 
 logger.initialize()
-
-TRACE = 5
-VERBOSE = 15
 
 class MovieLibrary(object):
     '''

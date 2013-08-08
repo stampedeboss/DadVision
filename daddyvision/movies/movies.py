@@ -16,17 +16,17 @@ import logging
 import os
 import sys
 
-__pgmname__ = 'daddyvision.movies.movies'
-__version__ = '$Rev$'
+__pgmname__     = 'movies.movies'
+__version__     = '$Rev$'
 
-__author__ = "AJ Reynolds"
-__copyright__ = "Copyright 2011, AJ Reynolds"
-__credits__ = []
-__license__ = "GPL"
+__author__      = "@author: AJ Reynolds"
+__copyright__   = "@copyright: 2013, AJ Reynolds"
+__credits__     = []
+__license__     = "@license: GPL"
 
-__maintainer__ = "AJ Reynolds"
-__email__ = "stampedeboss@gmail.com"
-__status__ = "Development"
+__maintainer__  = "AJ Reynolds"
+__email__       = "@contact: stampedeboss@gmail.com"
+__status__      = "Development"
 
 TRACE = 5
 VERBOSE = 15
