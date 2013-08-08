@@ -9,7 +9,7 @@ Program to rename movies files
 """
 from daddyvision.common import logger
 from daddyvision.common.chkvideo import chkVideoFile
-from daddyvision.common.exceptions import InvalidFilename
+from daddyvision.common import exceptions
 from daddyvision.common.options import OptionParser, OptionGroup
 from daddyvision.movies.fileparser import FileParser
 from fuzzywuzzy import fuzz
@@ -74,7 +74,10 @@ class Rename(object):
                     log.error('File Failed Video Check: {}'.format(pathname))
                     return
             _file_details = self.parser.getFileDetails(pathname)
-            self._rename_file(_file_details)
+            try:
+                self._rename_file(_file_details)
+            except exceptions.DataRetrievalError:
+                pass
 
         elif os.path.isdir(pathname):
             for _root, _dirs, _files in os.walk(os.path.abspath(pathname),followlinks=False):
@@ -103,7 +106,7 @@ class Rename(object):
                                     log.error('File Failed Video Check: {}'.format(_path_name))
                                     return
                             _fq_new_file_name = self._rename_file(_file_details)
-                    except InvalidFilename:
+                    except exceptions.InvalidFilename, exceptions.DatabaseError:
                         pass
 
         if self.regex_NewDir.match(pathname):
@@ -234,6 +237,7 @@ class Rename(object):
             return _file_details
         else:
             log.warn("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
+            raise exceptions.DataRetrievalError("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
             return _file_details
 
     def _ignored(self, name):
