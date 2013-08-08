@@ -7,34 +7,32 @@ cmd_options -- Command Line Options Handler for DaddyVision
 
 import sys
 import os
-from daddyvision.common.exceptions import (ConfigValueError, UserAbort,
-    UnexpectedErrorOccured, InvalidArgumentType)
 from argparse import ArgumentParser, SUPPRESS
 from argparse import RawDescriptionHelpFormatter
 
-__pgmname__ = os.path.basename(sys.argv[0])
-__version__ = '$Rev: 160 $'
+__pgmname__     = os.path.basename(sys.argv[0])
+__version__     = '$Rev: 160 $'
 
-__author__ = "@author: AJ Reynolds"
-__copyright__ = "@copyright: 2013, AJ Reynolds"
-__credits__ = []
-__license__ = "@license: GPL"
+__author__      = "@author: AJ Reynolds"
+__copyright__   = "@copyright: 2013, AJ Reynolds"
+__license__     = "@license: GPL"
 
-__maintainer__ = "AJ Reynolds"
-__email__ = "@contact: stampedeboss@gmail.com"
-__status__ = "Development"
+__maintainer__  = "AJ Reynolds"
+__email__       = "@contact: stampedeboss@gmail.com"
+__status__      = "Development"
+__credits__     = []
 
-__date__ = '2013-07-25'
-__updated__ = '2013-07-25'
+__date__        = '2013-07-25'
+__updated__     = '2013-07-25'
 
 program_version_message = '%%(prog)s %s (%s)' % (__version__, __updated__)
 program_license = '''
 
   Created by AJ Reynolds on %s.
   Copyright 2013 AJ Reynolds. All rights reserved.
-  
+
   Licensed under the GPL License
-  
+
   Distributed on an "AS IS" basis without warranties
   or conditions of any kind, either express or implied.
 
@@ -73,7 +71,7 @@ class CmdOptions(object):
 
 
 if __name__ == "__main__":
-    
+
     opt = CmdOptions(sys.argv)
     print opt
     #sys.exit(main())
