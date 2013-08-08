@@ -60,16 +60,10 @@ class DictKeyError(BaseDaddyVisionException):
     """
     pass
 
-class DataRetrievalError(BaseDaddyVisionException):
-    """Raised when an error (such as a network problem) prevents SeriesInfo
-    from being able to retrieve data such as episode name
-    """
-
 class InvalidArgumentType(BaseDaddyVisionException):
     """Raised when an argument is not expected type of object
     """
     pass
-
 
 # Configuration Exceptions
 class BaseConfigError(BaseDaddyVisionException):
@@ -94,6 +88,16 @@ class RegxSelectionError(BaseConfigError):
     pass
 
 #Data Retrieval Exceptions
+class DataRetrievalError(BaseDaddyVisionException):
+    """Raised when an error (such as a network problem) prevents SeriesInfo
+    from being able to retrieve data such as episode name
+    """
+
+class MovieNotFound(DataRetrievalError):
+    """Raised when the movie cannot be found in TMDB
+    """
+    pass
+
 class SeriesNotFound(DataRetrievalError):
     """Raised when a series cannot be found
     """
@@ -129,5 +133,3 @@ class SQLError(DatabaseError):
     """Raised if the record already exists on an Insert
     """
     pass
-
-
