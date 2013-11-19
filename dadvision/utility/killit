@@ -1,0 +1,2 @@
+#!/bin/bash
+ps -e | grep xbmc | awk '{ print "kill -kill " $1 }' | /bin/sh

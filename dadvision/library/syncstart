@@ -1,0 +1,61 @@
+#!/bin/bash
+
+HostName=`hostname`
+
+if [ "$HostName" = "grumpy" ]
+	then
+		case $1 in
+			tigger)
+				HostName='tigger'
+				sudo rm /usr/local/etc/daddyvision/Links/aly/lastboot
+				sudo touch /usr/local/etc/daddyvision/Links/aly/lastboot
+				exit 0
+			;;
+			goofy)
+				HostName='goofy'
+				sudo rm /usr/local/etc/daddyvision/Links/kim/lastboot
+				sudo touch /usr/local/etc/daddyvision/Links/kim/lastboot
+				exit 0
+			;;
+			eeyore)
+				HostName='eeyore'
+				sudo rm /usr/local/etc/daddyvision/Links/ben/lastboot
+				sudo touch /usr/local/etc/daddyvision/Links/ben/lastboot
+				exit 0
+			;;
+			pluto)
+				HostName='pluto'
+				sudo rm /usr/local/etc/daddyvision/Links/ben/lastboot
+				sudo touch /usr/local/etc/daddyvision/Links/ben/lastboot
+				exit 0
+			;;
+				*)
+				echo "ERROR: Running on Grumpy"
+				echo "ERROR: Remote Host Name Required (tigger|goofy|pluto)"
+				exit 1
+		esac
+fi
+
+case $HostName in
+	tigger)
+		sudo ssh 192.168.9.201 rm /usr/local/etc/daddyvision/Links/aly/lastboot
+		sudo ssh 192.168.9.201 touch /usr/local/etc/daddyvision/Links/aly/lastboot
+		;;
+	goofy)
+		sudo ssh 192.168.9.201 rm /usr/local/etc/daddyvision/Links/kim/lastboot
+		sudo ssh 192.168.9.201 touch /usr/local/etc/daddyvision/Links/kim/lastboot
+		;;
+	eeyore)
+		sudo ssh 192.168.9.201 rm /usr/local/etc/daddyvision/Links/daniel/lastboot
+		sudo ssh 192.168.9.201 touch /usr/local/etc/daddyvision/Links/daniel/lastboot
+		;;
+	pluto)
+		sudo ssh 192.168.9.201 rm /usr/local/etc/daddyvision/Links/ben/lastboot
+		sudo ssh 192.168.9.201 touch /usr/local/etc/daddyvision/Links/ben/lastboot
+		;;
+	*)
+		echo 'UNKNOWN HOSTNAME'
+esac
+
+
+exit 0
