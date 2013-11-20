@@ -7,36 +7,40 @@ Purpose:
 
 """
 from __future__ import division
-from library import Library
-from common import logger
-from common.exceptions import (RegxSelectionError,
+from daddyvision.common import logger
+from daddyvision.common.exceptions import (RegxSelectionError,
     InvalidArgumentType, InvalidPath, InvalidFilename, ConfigNotFound,
-    ConfigValueError, DataRetrievalError, SeriesNotFound,
+    ConfigValueError, DictKeyError, DataRetrievalError, SeriesNotFound,
     SeasonNotFound, EpisodeNotFound)
-from common.countfiles import countFiles
-from serieslibrary.episodeinfo import EpisodeDetails
-from serieslibrary.fileparser import FileParser
+from daddyvision.common.options import OptionParser, OptionGroup
+from daddyvision.common.settings import Settings
+from daddyvision.common.countfiles import countFiles
+from daddyvision.series.episodeinfo import EpisodeDetails
+from daddyvision.series.fileparser import FileParser
 from datetime import datetime, date, timedelta
-import gtk
+from logging import INFO, WARNING, ERROR, DEBUG
+import filecmp
 import fnmatch
+import gtk
 import logging
 import os
 import re
 import sys
+import time
 import unicodedata
-#import gtk.glade
+# import gtk.glade
 
-__pgmname__     = 'serieslibrary.check'
-__version__     = '$Rev$'
+__author__ = "AJ Reynolds"
+__copyright__ = "Copyright 2011, AJ Reynolds"
+__credits__ = []
+__license__ = "GPL"
 
-__author__      = "@author: AJ Reynolds"
-__email__       = "@contact: stampedeboss@gmail.com"
-__copyright__   = "@copyright: Copyright 2011, AJ Reynolds"
-__license__     = "@license: GPL"
+__pgmname__ = 'series'
+__version__ = '$Rev$'
 
-__maintainer__  = "@organization: AJ Reynolds"
-__status__      = "@status: Development"
-__credits__     = []
+__maintainer__ = "AJ Reynolds"
+__email__ = "stampedeboss@gmail.com"
+__status__ = "Development"
 
 log = logging.getLogger(__pgmname__)
 
@@ -44,7 +48,7 @@ class MainWindow():
 
     def __init__(self, config, options):
         log.trace('MainWindow - __init__')
-        
+
         self.options = options
 
         _pgm_dir = os.path.dirname(__file__)
@@ -65,19 +69,19 @@ class MainWindow():
         self.bt_execute = builder.get_object("bt_execute")
         self.bt_quit = builder.get_object("bt_quit")
 
-        #Initialize Log TextView
-        self.txtview_log=builder.get_object("txtview_log")
-        self.txtbuf_log=builder.get_object('txtbuf_log')
+        # Initialize Log TextView
+        self.txtview_log = builder.get_object("txtview_log")
+        self.txtbuf_log = builder.get_object('txtbuf_log')
 
-        #Initialize our Treeview
-        self.tview_series=builder.get_object("tview_series")
-        self.tview_series_model=builder.get_object("tstore_series")
+        # Initialize our Treeview
+        self.tview_series = builder.get_object("tview_series")
+        self.tview_series_model = builder.get_object("tstore_series")
         self.tselection_series = self.tview_series.get_selection()
         self.tselection_series.set_mode(gtk.SELECTION_MULTIPLE)
         mode = self.tselection_series.get_mode()
         self.tview_series.set_hover_expand(False)
 
-        self.library = SeriesLibrary(self, config, options)
+        self.library = Series(self, config, options)
         self.requested_dir = options.requested_dir
         self.fc_dir.set_current_folder(self.requested_dir)
 
@@ -87,7 +91,7 @@ class MainWindow():
 
     def insert_row(self, parent, series, issue=' ', season=' ', episode=' ', title=' ', air_date=' '):
         log.trace('insert_row: Series: {} Status: {} '.format(series, issue))
-        myiter=self.tview_series_model.append(parent, None)
+        myiter = self.tview_series_model.append(parent, None)
         self.tview_series_model.set_value(myiter, 0, series)
         self.tview_series_model.set_value(myiter, 1, issue)
         self.tview_series_model.set_value(myiter, 2, season)
@@ -113,7 +117,7 @@ class MainWindow():
             self.options.no_excludes = False
         return
 
-    def quit(self,obj):
+    def quit(self, obj):
         log.trace('quit: ending')
         gtk.main_quit()
 
@@ -144,19 +148,19 @@ class MainWindow():
             log.info(msg)
             self.txtbuf_log.insert(iter, message)
             mark = buffer.create_mark("end", buffer.get_end_iter(), False)
-            self.txtview_log.scroll_to_mark(mark, 0.05, True, 0.0,1.0)
+            self.txtview_log.scroll_to_mark(mark, 0.05, True, 0.0, 1.0)
         while gtk.events_pending():
             gtk.main_iteration_do(False)
         return
 
 
-class SeriesLibrary(Library):
+class Series(object):
 
-    def __init__(self, mw=None):
-        log.trace('SeriesLibrary - __init__')
+    def __init__(self, mw, config, options):
+        log.trace('library.Series - __init__')
 
-        super(SeriesLibrary, self).__init__()
-
+        self.config = config
+        self.options = options
         self.mw = mw
         self.episodeinfo = EpisodeDetails()
         self.fileparser = FileParser()
@@ -181,7 +185,7 @@ class SeriesLibrary(Library):
 
         self.mw.write_log_entry("==== Begin Scan: {} ====".format(pathname), INFO)
 
-        for _root, _dirs, _files in os.walk(os.path.abspath(pathname),followlinks=True):
+        for _root, _dirs, _files in os.walk(os.path.abspath(pathname), followlinks=True):
             if _dirs != None:
                 _dirs.sort()
                 _dirs_temp = sorted(_dirs)
@@ -203,7 +207,7 @@ class SeriesLibrary(Library):
                         continue
 
                     if FileDetails['SeriesName'] != _last_series:
-                        message = 'Files Checked: %2.2f%%   %5d of %5d   Current Series: %s' % ((_files_checked-1)/_total_files, (_files_checked-1), _total_files, _last_series)
+                        message = 'Files Checked: %2.2f%%   %5d of %5d   Current Series: %s' % ((_files_checked - 1) / _total_files, (_files_checked - 1), _total_files, _last_series)
                         self.mw.write_log_entry(message)
                         if _series_details:
                             self.checkMissing(_episode_list, _series_details)
@@ -221,11 +225,11 @@ class SeriesLibrary(Library):
                     _last_ep_no = FileDetails['EpisodeNums']
                     _last_ext = FileDetails['Ext']
 
-        message = 'Files Checked: %2.2f%%   %5d of %5d   Current Series: %s' % ((_files_checked)/_total_files, (_files_checked), _total_files, _last_series)
+        message = 'Files Checked: %2.2f%%   %5d of %5d   Current Series: %s' % ((_files_checked) / _total_files, (_files_checked), _total_files, _last_series)
         self.mw.write_log_entry(message)
         self.checkMissing(_episode_list, _series_details)
         self.mw.tview_series.collapse_all()
-        self.mw.tview_series.scroll_to_point(0,0)
+        self.mw.tview_series.scroll_to_point(0, 0)
         while gtk.events_pending():
             gtk.main_iteration_do(False)
 
@@ -311,7 +315,7 @@ class SeriesLibrary(Library):
                 dups_series = mw.insert_row(mw.treest_series_model, DUPS,
                                         " ",
                                         " ",
-                                        seriesname,"SEASON", "KEEPING", "REMOVING", "NEW NAME")
+                                        seriesname, "SEASON", "KEEPING", "REMOVING", "NEW NAME")
             last_dups = seriesname
 
         action = 'DRY RUN'
@@ -412,7 +416,7 @@ class SeriesLibrary(Library):
                                                 'airdate'        : item['airdate']}]
         log.debug("epdata: %s" % epdata)
         if 'episodedata' in epdata:
-            epdata['epname'] = formatEpisodeName(epdata['episodedata'], join_with = FileNames['multiep_join_name_with'])
+            epdata['epname'] = formatEpisodeName(epdata['episodedata'], join_with=FileNames['multiep_join_name_with'])
             if epdata['epname'] == epname:
                 message = "%-15s Season %-2s  Keeping: %-40s Removing: %s" % (seriesname, season, fname, lastfname)
                 log.info(message)
@@ -550,7 +554,7 @@ if __name__ == "__main__":
 
     _path_name = ''
     for i in range(len(args)):
-        _path_name = '%s %s'% (_path_name, args[i])
+        _path_name = '%s %s' % (_path_name, args[i])
 
     if options.requested_dir == "None":
         if len(args) > 1:

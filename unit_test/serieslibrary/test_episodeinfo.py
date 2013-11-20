@@ -1,5 +1,5 @@
 from library import Library
-from serieslibrary.episodeinfo import EpisodeDetails
+from library.series.episodeinfo import EpisodeDetails
 from common.exceptions import InvalidArgumentType, DictKeyError, DataRetrievalError
 from common.exceptions import SeriesNotFound, EpisodeNotFound, EpisodeNameNotFound
 from common import logger
@@ -14,7 +14,7 @@ VERBOSE = 15
 class KnownValues(unittest.TestCase):
     SeriesData = {'SeriesName' : 'Suits'}
     Suits_Data = {'TVDBSeriesID': '247808'}
-    
+
 class EpisodeDetailsExceptions(unittest.TestCase):
 
     def setUp(self):
@@ -23,7 +23,7 @@ class EpisodeDetailsExceptions(unittest.TestCase):
 
         self.library = EpisodeDetails()
 #        args = self.library.options.parser.parse_args(["/usr/local/bin/episode.py", "--tvdb", "--error"])
- 
+
 #    @unittest.expectedFailure
     def test_EpisodeDetails_exception_case_000(self):
         self.assertEqual(self.library.getDetails({'SeriesName' : "Suits"}), KnownValues.Suits_Data['TVDBSeriesID'])
@@ -44,7 +44,7 @@ class EpisodeDetailsExceptions(unittest.TestCase):
         return suite
 
 if __name__ == '__main__':
-    
+
     library = EpisodeDetails()
     args = library.options.parser.parse_args(["/usr/local/bin/episode.py", "--tvdb", "--error"])
 

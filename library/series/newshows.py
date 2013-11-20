@@ -21,7 +21,7 @@ import sys
 import tempfile
 import time
 
-__pgmname__ = 'serieslibrary.newshows'
+__pgmname__ = 'library.series.newshows'
 __version__ = '@version: $Rev$'
 
 __author__ = "@author: AJ Reynolds"

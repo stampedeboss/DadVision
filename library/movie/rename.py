@@ -6,7 +6,7 @@ Program to rename files associated with Movie Content
 
 """
 from library import Library
-from movielibrary.fileparser import FileParser
+from library.movie.fileparser import FileParser
 from common import logger
 from common.chkvideo import chkVideoFile
 from common.exceptions import InvalidPath, InvalidFilename, UnexpectedErrorOccured, MovieNotFound
@@ -20,7 +20,7 @@ import sys
 import tmdb
 import shutil
 
-__pgmname__ = 'movielibrary.rename'
+__pgmname__ = 'library.movie.rename'
 __version__ = '$Rev$'
 
 __author__ = "@author: AJ Reynolds"

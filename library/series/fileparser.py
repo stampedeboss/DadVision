@@ -19,7 +19,7 @@ import logging
 import os
 import re
 
-__pgmname__ = 'serieslibrary.fileparser'
+__pgmname__ = 'library.series.fileparser'
 __version__ = '$Rev$'
 
 __author__ = "@author: AJ Reynolds"

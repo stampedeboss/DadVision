@@ -1,6 +1,6 @@
 
 from library import Library
-from serieslibrary.fileparser import FileParser
+from library.series.fileparser import FileParser
 from common import exceptions
 from common import logger
 from logging import INFO, WARNING, ERROR, DEBUG

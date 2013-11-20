@@ -13,7 +13,7 @@ import logging
 import os
 import sys
 
-__pgmname__ = 'movielibrary.check'
+__pgmname__ = 'library.movie.check'
 __version__ = '@version: $Rev$'
 
 __author__ = "@author: AJ Reynolds"

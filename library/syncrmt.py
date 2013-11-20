@@ -9,7 +9,7 @@ from library import Library
 from common import logger
 from common.exceptions import (ConfigValueError, SQLError,
     UnexpectedErrorOccured, InvalidFilename)
-from serieslibrary.fileparser import FileParser
+from library.series.fileparser import FileParser
 from subprocess import Popen, call as Call, check_call, CalledProcessError
 import logging
 import os

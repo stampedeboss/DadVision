@@ -10,8 +10,8 @@ from common import logger
 from common.exceptions import (BaseDaddyVisionException,
     DataRetrievalError, EpisodeNotFound, SeriesNotFound, InvalidFilename,
     RegxSelectionError, ConfigValueError)
-from movielibrary.rename import RenameMovie
-from serieslibrary.rename import RenameSeries
+from library.movie.rename import RenameMovie
+from library.series.rename import RenameSeries
 
 from subprocess import Popen, PIPE
 import filecmp
@@ -23,7 +23,7 @@ import shutil
 import subprocess
 import sys
 
-__pgmname__ = 'utilities.distribute'
+__pgmname__ = 'library.distribute'
 __version__ = '@version: $Rev$'
 
 __author__ = "@author: AJ Reynolds"

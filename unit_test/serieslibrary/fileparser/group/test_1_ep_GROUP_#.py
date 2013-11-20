@@ -1,4 +1,4 @@
-from serieslibrary.fileparser import FileParser
+from library.series.fileparser import FileParser
 from common import exceptions
 from common import logger
 from logging import INFO, WARNING, ERROR, DEBUG
@@ -27,7 +27,7 @@ class FileParserSingleEps(unittest.TestCase):
 #        logger.start(level=ERROR)
 
         self.library = FileParser()
-            
+
         args = self.library.options.parser.parse_args('--error')
 
 

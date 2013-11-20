@@ -21,7 +21,7 @@ import unicodedata
 import tvdb
 from tvrage.api import Show, ShowNotFound
 
-__pgmname__ = 'serieslibrary.episodeinfo'
+__pgmname__ = 'library.series.episodeinfo'
 __version__ = '@version: $Rev$'
 
 __author__ = "@author: AJ Reynolds"

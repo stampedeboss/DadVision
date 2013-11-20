@@ -1,4 +1,4 @@
-from movielibrary.fileparser import FileParser
+from library.movie.fileparser import FileParser
 from common import exceptions
 from common import logger
 from logging import INFO, WARNING, ERROR, DEBUG
@@ -28,7 +28,7 @@ class FileParserMovies(unittest.TestCase):
     #   logger.start(level=ERROR)
 
         self.library = FileParser()
-            
+
     '''
         Test Cases:
             Movie Title ...
@@ -196,6 +196,6 @@ class FileParserMovies(unittest.TestCase):
 if __name__ == '__main__':
 
     Library.args = self.library.options.parser.parse_args('--error')
-    
+
     suite = FileParserMovies.theSuite()
     unittest.TextTestRunner(verbosity=2).run(suite)

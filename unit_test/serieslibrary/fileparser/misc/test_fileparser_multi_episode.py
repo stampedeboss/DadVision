@@ -1,5 +1,5 @@
 from library import Library
-from serieslibrary.fileparser import FileParser
+from library.series.fileparser import FileParser
 from common import exceptions
 from common import logger
 from logging import INFO, WARNING, ERROR, DEBUG
@@ -24,7 +24,7 @@ class FileParserMultiEps(unittest.TestCase):
 
         TRACE = 5
         VERBOSE = 15
-        
+
         logger.initialize(unit_test=True, level=ERROR)
 #        logger.start(level=ERROR)
 
@@ -254,7 +254,7 @@ class FileParserMultiEps(unittest.TestCase):
 
     def theSuite(self):
         suite = unittest.TestLoader().loadTestsFromTestCase(self)
-        return suite        
+        return suite
 
 if __name__ == '__main__':
 #    suite = unittest.TestLoader().loadTestsFromTestCase(FileParserMultiEps)

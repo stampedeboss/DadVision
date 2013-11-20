@@ -13,8 +13,8 @@ from common.exceptions import (DataRetrievalError, EpisodeNotFound,
     SeriesNotFound, DuplicateFilesFound, InvalidFilename, RegxSelectionError,
     ConfigValueError, UnexpectedErrorOccured, DuplicateRecord)
 from common.chkvideo import chkVideoFile
-from serieslibrary.fileparser import FileParser
-from serieslibrary.episodeinfo import EpisodeDetails
+from library.series.fileparser import FileParser
+from library.series.episodeinfo import EpisodeDetails
 from common.cmdoptions import CmdOptions
 import datetime
 import filecmp
@@ -27,7 +27,7 @@ import time
 import unicodedata
 import sqlite3
 
-__pgmname__ = 'serieslibrary.rename'
+__pgmname__ = 'library.series.rename'
 __version__ = '$Rev$'
 
 __author__ = "@author: AJ Reynolds"
