@@ -56,7 +56,7 @@ sudo ln -s /usr/local/lib/python2.7/dist-packages/dadvision/utilities/startdelug
 sudo ln -s /usr/local/lib/python2.7/dist-packages/dadvision/utilities/startmonitor	    startmonitor
 sudo ln -s /usr/local/lib/python2.7/dist-packages/dadvision/utilities/X11VNC-Start.py       X11VNC-Start
 # GRUMPY ONLY
-#sudo ln -s /usr/local/lib/python2.7/dist-packages/dadvision/library/rpyc_server.py 	    rpyc_server
-#sudo ln -s /usr/local/lib/python2.7/dist-packages/dadvision/library/syncrmt.py 		    syncrmt
-#sudo ln -s /usr/local/lib/python2.7/dist-packages/dadvision/utilities/syncstart.py	    syncstart
-#sudo ln -s /usr/local/lib/python2.7/dist-packages/dadvision/library/UpdateXBMC.py 	    UpdateXBMC
+sudo ln -s /usr/local/lib/python2.7/dist-packages/dadvision/library/rpyc_server.py 	    rpyc_server
+sudo ln -s /usr/local/lib/python2.7/dist-packages/dadvision/library/syncrmt.py 		    syncrmt
+sudo ln -s /usr/local/lib/python2.7/dist-packages/dadvision/utilities/syncstart		    syncstart
+sudo ln -s /usr/local/lib/python2.7/dist-packages/dadvision/utilities/UpdateXBMC.py 	    UpdateXBMC
