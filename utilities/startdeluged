@@ -1,0 +1,12 @@
+#!/bin/bash
+#test to see if an instance of irexec is already running
+if ps -ef|grep -v grep|grep -v startdeluged | grep deluged
+then
+# do nothing
+echo "deluged already running"
+else
+# start deluged
+echo "starting deluged"
+deluged -L warn  -l /srv/log/deluge.log
+fi
+

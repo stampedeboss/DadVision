@@ -1,0 +1,12 @@
+#!/bin/bash
+#test to see if an instance of irexec is already running
+if ps -ef|grep -v grep|grep -v startmonitor | grep  DownloadMonitor
+then
+# do nothing
+echo "DownloadMonitor already running"
+else
+# start DownloadMonitor
+echo "starting DownloadMonitor"
+DownloadMonitor start
+fi
+
