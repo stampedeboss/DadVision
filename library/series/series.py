@@ -7,16 +7,16 @@ Purpose:
 
 """
 from __future__ import division
-from daddyvision.common import logger
-from daddyvision.common.exceptions import (RegxSelectionError,
+from daddyvision.common.options import OptionParser, OptionGroup
+from common import logger
+from common.exceptions import (RegxSelectionError,
     InvalidArgumentType, InvalidPath, InvalidFilename, ConfigNotFound,
     ConfigValueError, DictKeyError, DataRetrievalError, SeriesNotFound,
     SeasonNotFound, EpisodeNotFound)
-from daddyvision.common.options import OptionParser, OptionGroup
-from daddyvision.common.settings import Settings
-from daddyvision.common.countfiles import countFiles
-from daddyvision.series.episodeinfo import EpisodeDetails
-from daddyvision.series.fileparser import FileParser
+from common.settings import Settings
+from common.countfiles import countFiles
+from library.series.episodeinfo import EpisodeDetails
+from library.series.fileparser import FileParser
 from datetime import datetime, date, timedelta
 from logging import INFO, WARNING, ERROR, DEBUG
 import filecmp

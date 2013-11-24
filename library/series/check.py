@@ -17,6 +17,7 @@ from common.countfiles import countFiles
 from library.series.episodeinfo import EpisodeDetails
 from library.series.fileparser import FileParser
 from datetime import datetime, date, timedelta
+from logging import INFO, WARNING, ERROR, DEBUG
 import gtk
 import fnmatch
 import logging
