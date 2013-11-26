@@ -91,14 +91,16 @@ class Settings(object):
             raise ConfigValueError("Path Not Found: %s" % self.MoviesDir)
 
         if not os.path.exists(self.NewSeriesDir):
-            log.error("Path Not Found: %s" % self.NewSeriesDir)
-            log.error("Invalid Config Entries, Ending")
-            raise ConfigValueError("Path Not Found: %s" % self.NewSeriesDir)
+            touch(self.NewSeriesDir)
+#            log.error("Path Not Found: %s" % self.NewSeriesDir)
+#            log.error("Invalid Config Entries, Ending")
+#            raise ConfigValueError("Path Not Found: %s" % self.NewSeriesDir)
 
         if not os.path.exists(self.NewMoviesDir):
-            log.error("Path Not Found: %s" % self.NewMoviesDir)
-            log.error("Invalid Config Entries, Ending")
-            raise ConfigValueError("Path Not Found: %s" % self.NewMoviesDir)
+            touch(self.NewMoviesDir)
+#            log.error("Path Not Found: %s" % self.NewMoviesDir)
+#            log.error("Invalid Config Entries, Ending")
+#            raise ConfigValueError("Path Not Found: %s" % self.NewMoviesDir)
 
         if not os.path.exists(self.NonVideoDir):
             log.error("Path Not Found: %s" % self.NonVideoDir)
