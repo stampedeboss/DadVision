@@ -40,35 +40,6 @@ TEMP_LOC = "/home/aj/newshows"
 MB = 1024 ** 2
 GB = 1024 ** 3
 
-_tv_parse = re.compile(
-            '''
-            ^(/srv/DadVision/Series/)             # Directory
-            (?P<series>.*)                        # Series Name
-            (/Season.)                            # Season Literal
-            (?P<season>[0-9]+)                    # Season Number (##)
-            (/E)                                  # Episode Literal
-            (?P<epno1>[0-9][0-9]+)                # Starting Episode Number (##)
-            [\.\- \/]?                            # Sep 1
-            (E)?                                  # Optional Episode Literal
-            (?P<epno2>[0-9][0-9]+)?               # Ending Episode Number (##)
-            (?P<epname>.*)                        # Title
-            \.(?P<ext>....?)$                     # extension
-            ''', re.X | re.I)
-_links_parse = re.compile(
-            '''
-            ^(/srv/Links/.*/Series/)              # Directory
-            (?P<series>.*)                        # Series Name
-            (/Season.)                            # Season Literal
-            (?P<season>[0-9]+)                    # Season Number (##)
-            (/E)                                  # Episode Literal
-            (?P<epno1>[0-9][0-9]+)                # Starting Episode Number (##)
-            [\.\- \/]?                            # Sep 1
-            (E)?                                  # Optional Episode Literal
-            (?P<epno2>[0-9][0-9]+)?               # Ending Episode Number (##)
-            (?P<epname>.*)                        # Title
-            \.(?P<ext>....?)$                     # extension
-            ''', re.X | re.I)
-
 class NewShows(Library):
 
     def __init__(self):
@@ -77,16 +48,16 @@ class NewShows(Library):
 
         group1 = self.options.parser.add_argument_group("Users", description=None)
         group1.add_argument("-a", "--aly", dest="user", default='',
-             action="store_const", const="aly",
+             action="store_const", const="tigger",
              help="Display the Newshows for Aly")
         group1.add_argument("-k", "--kim", dest="user",
-             action="store_const", const="kim",
+             action="store_const", const="goofy",
              help="Display the Newshows for Kim")
         group1.add_argument("-m", "--michelle", dest="user",
-             action="store_const", const="michelle",
+             action="store_const", const="eeyore",
              help="Display the Newshows for Michelle")
         group1.add_argument("-p", "--peterson", dest="user",
-             action="store_const", const="ben",
+             action="store_const", const="pluto",
              help="Display the Newshows for Ben")
 
         group2 = self.options.parser.add_argument_group("Directories", description=None)
@@ -131,14 +102,51 @@ class NewShows(Library):
 
     def BuildList(self):
         PRINT_OPTS = ['-printf', '%p@%Ty%Tm%Td-%TH%TM-%TS@%s\n']
+        _tv_parse = re.compile(
+            '''
+            ^({}/)             			  # Directory
+            (?P<series>.*)                        # Series Name
+            (/Season.)                            # Season Literal
+            (?P<season>[0-9]+)                    # Season Number (##)
+            (/E)                                  # Episode Literal
+            (?P<epno1>[0-9][0-9]+)                # Starting Episode Number (##)
+            [\.\- \/]?                            # Sep 1
+            (E)?                                  # Optional Episode Literal
+            (?P<epno2>[0-9][0-9]+)?               # Ending Episode Number (##)
+            (?P<epname>.*)                        # Title
+            \.(?P<ext>....?)$                     # extension
+            '''.format(library.settings.SeriesDir), re.X | re.I)
+
+        _links_parse = re.compile(
+            '''
+            ^(/srv/Links/.*/Series/)              # Directory
+            (?P<series>.*)                        # Series Name
+            (/Season.)                            # Season Literal
+            (?P<season>[0-9]+)                    # Season Number (##)
+            (/E)                                  # Episode Literal
+            (?P<epno1>[0-9][0-9]+)                # Starting Episode Number (##)
+            [\.\- \/]?                            # Sep 1
+            (E)?                                  # Optional Episode Literal
+            (?P<epno2>[0-9][0-9]+)?               # Ending Episode Number (##)
+            (?P<epname>.*)                        # Title
+            \.(?P<ext>....?)$                     # extension
+            ''', re.X | re.I)
 
         _find_cmd = ['find',
                      self.args.InputDir,
                      '-ignore_readdir_race',
-                     '-daystart',
-                     '-follow',
                      '-maxdepth',
                      '10',
+                     '-path',
+                     library.settings.NewSeriesDir,
+                     '-prune',
+                     '-o',
+                     '-path',
+                     '/mnt/DadVision/Series/lost+found',
+                     '-prune',
+                     '-o',
+                     '-daystart',
+                     '-follow',
                      '-type',
                      'f'
                      ]

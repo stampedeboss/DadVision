@@ -67,16 +67,15 @@ class Settings(object):
 
         self.config = ConfigObj(ConfigFile, unrepr=True, interpolation=False)
 
+        Library = self.config['Library']
+        self.NewDir = Library['NewDir']
+
         HostName = self.config[host]
         self.SeriesDir = HostName['SeriesDir']
         self.MoviesDir = HostName['MovieDir']
         self.DownloadDir = HostName['DownloadDir']
         self.NonVideoDir = HostName['NonVideoDir']
-
-        Library = self.config['Library']
-        self.NewDir = Library['NewDir']
-        self.IncrementalsDir = Library['IncrementalsDir']
-        self.SubscriptionDir = os.path.join(ConfigDir , Library['SubscriptionDir'])
+        self.SubscriptionDir = HostName['SubscriptionDir']
         self.NewMoviesDir = os.path.join(self.MoviesDir, self.NewDir)
         self.NewSeriesDir = os.path.join(self.SeriesDir, self.NewDir)
 
@@ -85,22 +84,16 @@ class Settings(object):
             log.error("Invalid Config Entries, Ending")
             raise ConfigValueError("Path Not Found: %s" % self.SeriesDir)
 
+        if not os.path.exists(self.NewSeriesDir):
+            touch(self.NewSeriesDir)
+
         if not os.path.exists(self.MoviesDir):
             log.error("Path Not Found: %s" % self.MoviesDir)
             log.error("Invalid Config Entries, Ending")
             raise ConfigValueError("Path Not Found: %s" % self.MoviesDir)
 
-        if not os.path.exists(self.NewSeriesDir):
-            touch(self.NewSeriesDir)
-#            log.error("Path Not Found: %s" % self.NewSeriesDir)
-#            log.error("Invalid Config Entries, Ending")
-#            raise ConfigValueError("Path Not Found: %s" % self.NewSeriesDir)
-
         if not os.path.exists(self.NewMoviesDir):
             touch(self.NewMoviesDir)
-#            log.error("Path Not Found: %s" % self.NewMoviesDir)
-#            log.error("Invalid Config Entries, Ending")
-#            raise ConfigValueError("Path Not Found: %s" % self.NewMoviesDir)
 
         if not os.path.exists(self.NonVideoDir):
             log.error("Path Not Found: %s" % self.NonVideoDir)
