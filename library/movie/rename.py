@@ -171,11 +171,13 @@ class RenameMovie(Library):
 
     def _get_tmdb_info(self, _file_details):
 
+        _movie = []
         _movies = tmdb.Movies(_file_details['MovieName'])
 
         for _movie in _movies.iter_results():
             if fuzz.ratio(_movie["title"], _file_details['MovieName']) > 85:
                 break
+
         if _movie:
             _file_details['MovieName'] = _movie["title"]
             if _movie["release_date"]:
@@ -205,7 +207,7 @@ class RenameMovie(Library):
         return _fq_new_file_name
 
     def _check_for_existing(self, _fq_new_file_name, _file_details):
-        log.trace("_check_for_existing method: filename: {} pathname:{!s}".format(_fq_new_file_name, _file_details))
+        #log.trace("_check_for_existing method: filename: {} pathname:{!s}".format(_fq_new_file_name, _file_details))
 
         if not os.path.exists(_fq_new_file_name):
             return True
