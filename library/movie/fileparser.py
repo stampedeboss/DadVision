@@ -135,9 +135,15 @@ class FileParser(Library):
         _movie_name = " ".join(_title)
         _movie_name = _movie_name.replace("3d", "3D")
 
+        _movie_name = re.sub("(^|\s)(\S)", self._repl_func, _movie_name)
+
         log.trace('{}: Movie Name: {}'.format(self.LogHeader, _movie_name.strip()))
 
         return _movie_name.strip()
+
+    def _repl_func(self, m):
+        """process regular expression match groups for word upper-casing problem"""
+        return m.group(1) + m.group(2).upper()
 
     def GetRegx(self):
         log.trace("FileParse: GetRegx")

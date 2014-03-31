@@ -71,6 +71,9 @@ class Distribute(Library):
         dist2.add_argument("--no-ignore", dest="ignore",
             action="store_false", default=True,
             help="Process all files, Ignore nothing")
+        dist2.add_argument("--no-movies", dest="suppress_movies",
+            action="store_true", default=False,
+            help="Do Not Process Movie files")
 
         self.rename_series = RenameSeries()
         self.rename_movies = RenameMovie()
@@ -115,6 +118,8 @@ class Distribute(Library):
                     RegxSelectionError, ConfigValueError), msg:
                 log.error(msg)
         elif self.type == "Movie":
+            if self.args.suppress_movies:
+               log.info('Skipping Movie')
             try:
                 self.rename_movies.renameMovie(_tgt_rename)
             except:
@@ -186,6 +191,11 @@ class Distribute(Library):
             log.verbose("Ignoring %r!" % (srcfile,))
             return
 
+        if self.type == "Movie":
+            if self.args.suppress_movies:
+               log.verbose("Ignoring %r!" % (srcfile,))
+               return
+
         destfile = os.path.join(destdir, os.path.basename(srcfile))
         if os.path.exists(destfile) and filecmp.cmp(destfile, srcfile):
             log.info("Skipped: Already at Destination - %s" % (os.path.basename(srcfile)))
@@ -230,6 +240,11 @@ class Distribute(Library):
                     log.verbose("Ignoring %r" % os.path.join(_root, _dir_name)[len(src_dir):])
                     _dir_names.remove(_dir_name)
 
+            if dest_dir == self.settings.NewMoviesDir:
+                if self.args.suppress_movies:
+                   log.verbose('Skipping Movie: %s' % src_dir)
+                   continue
+
             # Build Directory Structure
             _sub_dir = _root[len(os.path.split(src_dir)[0]):].lstrip(os.sep)
 #            _sub_dir = os.path.split(_root.rstrip(os.sep))[1]
@@ -259,13 +274,9 @@ class Distribute(Library):
             for _file in _file_list:
                 _file = os.path.join(_root, _file)
                 self._distribute_file(_file, dest_dir)
-#                self._distribute_file(_file, os.path.join(dest_dir, _root[len(src_dir):]))
 
-#        self.RAR_RE = re.compile(r"\.([rR][aA][rR]|[rR]\d{2,3})$")
-#        self.RAR_PART_RE = re.compile(r"\.part\d{2,3}\.rar$")
-            # handle RARed files
+            # skip RAR parts, except the first one
             for _file in _rar_list:
-                # skip RAR parts, except the first one
                 if self.RAR_PART_RE.search(_file.lower()) \
                         and not (_file.lower().endswith(".part01.rar") \
                                  or _file.lower().endswith(".part001.rar")):

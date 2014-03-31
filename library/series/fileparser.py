@@ -144,6 +144,8 @@ class FileParser(Library, dict):
         if _suffix:
             _series_name = '%s (%s)' % (_suffix.group('SeriesName'), _suffix.group('Year').upper())
 
+        _series_name = re.sub("(^|\s)(\S)", self._repl_func, _series_name)
+
         log.trace('{}: Series Name: {}'.format(self.LogHeader, _series_name.strip()))
 
         return _series_name.strip()
@@ -204,6 +206,11 @@ class FileParser(Library, dict):
         else:
             log.debug()
             raise InvalidFilename('FileParser: {}: No Season / Episode Numbers or Date Aired in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
+
+    def _repl_func(self, m):
+        """process regular expression match groups for word upper-casing problem"""
+        return m.group(1) + m.group(2).upper()
+
 
     def GetRegx(self):
 

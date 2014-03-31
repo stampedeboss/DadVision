@@ -64,7 +64,7 @@ class RenameSeries(Library):
         rename_group.add_argument("--force-rename", dest="force_rename",
             action="store_true", default=False,
             help="Force Renames for Files That Already Exist")
-        rename_group.add_argument("--force-delete", dest="force_delete",
+        rename_group.add_argument("--force-delete", "--fd", dest="force_delete",
             action="store_true", default=False,
             help="Force Deletes for Files That Already Exist")
         rename_group.add_argument("--ignore_excludes", dest="ignore_excludes",
