@@ -148,6 +148,8 @@ class FileParser(Library):
     def GetRegx(self):
         log.trace("FileParse: GetRegx")
 
+#Rush 2013 1080p Bluray DTS x264 - HaVeN_HD.mkv
+
         RegxParse = []
         RegxParse.append(re.compile(
             '''                                     # RegEx 1  YEAR First
@@ -161,7 +163,7 @@ class FileParser(Library):
             re.X | re.I))
 
         RegxParse.append(re.compile(
-            '''                                     # RegEx 2  COLLECTION NAME
+            '''                                     # RegEx 2  COLLECTION NAME Beginning and Year
             ^(.*?[\._ ]\-[\._ ])
             (?P<MovieName>.*)
             [/\._ \-]
@@ -175,7 +177,20 @@ class FileParser(Library):
             re.X | re.I))
 
         RegxParse.append(re.compile(
-            '''                                     # RegEx 2  COLLECTION NAME
+            '''                                     # RegEx 3  COLLECTION NAME END and Year
+            ^(?P<MovieName>.*)
+            [/\._ \-][\(\[]?
+            (?P<Year>(19|20|21)[0-9][0-9])[\)\]]?
+            [/\._ \-]?
+            (?P<Keywords>.+)?
+            ([\._ ]\-[\._ ])
+            (?P<Group>.+)?
+            \.(?P<Ext>....?)$
+            ''',
+            re.X | re.I))
+
+        RegxParse.append(re.compile(
+            '''                                     # RegEx 4  COLLECTION NAME
             ^(.*?[\._ ]\-[\._ ])
             (?P<MovieName>.*)
             [/\._ \-]?
@@ -185,7 +200,7 @@ class FileParser(Library):
             re.X | re.I))
 
         RegxParse.append(re.compile(
-            '''                                     # RegEx 3  GROUP NAME
+            '''                                     # RegEx 5  GROUP NAME
             ^[({.*})?|(\[.*\])]
             [\._ \-]?[\._ \-][\._ \-]?              # Optional Sep 1-3
             (?P<MovieName>.*?)
@@ -198,7 +213,7 @@ class FileParser(Library):
             re.X | re.I))
 
         RegxParse.append(re.compile(
-            '''                                      # RegEx 4  YEAR
+            '''                                     # RegEx 6  YEAR
             (?P<MovieName>.*?)
             [\._ \-][\(\[]?
             (?P<Year>(19|20)[0-9][0-9])
@@ -209,17 +224,17 @@ class FileParser(Library):
             re.X | re.I))
 
         RegxParse.append(re.compile(
-            '''                                     # RegEx 5  TRAILER
-            ^(?P<MovieName>.*?)                      # Movie Name
+            '''                                     # RegEx 7  TRAILER
+            ^(?P<MovieName>.*?)                     # Movie Name
             [/\._ \-]?                              # Sep 1
-            (?P<Trailer>.trailer)                  # trailer indicator
+            (?P<Trailer>.trailer)                   # trailer indicator
             \.(?P<Ext>....?)$                       # extension
             ''',
             re.X | re.I))
 
         RegxParse.append(re.compile(
-            '''                                     # RegEx 6  ALL OTHERS
-            ^(?P<MovieName>.*?)                      # Movie Name
+            '''                                     # RegEx 8  ALL OTHERS
+            ^(?P<MovieName>.*?)                     # Movie Name
             \.(?P<Ext>....?)$                       # extension
             ''',
             re.X | re.I))
