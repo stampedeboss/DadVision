@@ -82,7 +82,16 @@ class RenameMovie(Library):
 
         pathname = os.path.abspath(pathname)
 
-        if os.path.isdir(pathname):
+        if os.path.isfile(pathname):
+            log.debug("-----------------------------------------------")
+            log.debug("Movie Directory: %s" % os.path.split(pathname)[0])
+            log.debug("Movie Filename:  %s" % os.path.split(pathname)[1])
+            try:
+                self._rename_file(pathname)
+            except (MovieNotFound, InvalidFilename, UnexpectedErrorOccured):
+                pass
+
+        elif os.path.isdir(pathname):
             log.debug("-----------------------------------------------")
             log.debug("Movie Directory: %s" % pathname)
             for _root, _dirs, _files in os.walk(os.path.abspath(pathname), followlinks=False):
@@ -93,9 +102,8 @@ class RenameMovie(Library):
                         if self.regex_NewMoviesDir.match(_dir):
                             log.debug("Rename Deleting Directory Due to Excludes: %r" % os.path.join(_root, _dir))
                             self._del_dir(_dir, Tree=True)
-                        else:
-                            log.debug("Rename Ignoring Directory Due to Excludes: Ignoring %r" % os.path.join(_root, _dir))
                         _dirs.remove(_dir)
+
                     if _dir == 'VIDEO_TS':
                         self._rename_directory(_root)
                         _dirs.remove(_dir)
@@ -110,45 +118,48 @@ class RenameMovie(Library):
                                 os.remove(_path_name)
                             except InvalidFilename, UnexpectedErrorOccured:
                                 pass
-                            continue
+                        continue
 
-                    if os.path.splitext(_path_name)[1][1:] in self.settings.MediaExt:
-                        if self.args.check_video:
-                            if chkVideoFile(_path_name):
-                                log.error('File Failed Video Check: {}'.format(pathname))
-                                return
-                        try:
-                            _file_details = self.fileparser.getFileDetails(_path_name)
-                            self._rename_file(_file_details)
-                        except InvalidFilename, UnexpectedErrorOccured:
-                            pass
-        elif os.path.isfile(pathname):
-            log.debug("-----------------------------------------------")
-            log.debug("Movie Directory: %s" % os.path.split(pathname)[0])
-            log.debug("Movie Filename:  %s" % os.path.split(pathname)[1])
-            if self.args.check_video:
-                if chkVideoFile(pathname):
-                    log.error('File Failed Video Check: {}'.format(pathname))
-                    return
-            try:
-                _file_details = self.fileparser.getFileDetails(pathname)
-                _fq_new_file_name = self._rename_file(_file_details)
-            except InvalidFilename, UnexpectedErrorOccured:
-                pass
+                    try:
+                        self._rename_file(_path_name)
+                    except (MovieNotFound, InvalidFilename, UnexpectedErrorOccured):
+                        pass
 
         if len(os.listdir(pathname)) == 0:
             self._del_dir(pathname, MovieDir=False)
         else:
             self._del_dir(pathname)
 
-        log.info('Run Complete')
         return None
 
-    def _rename_file(self, _file_details):
-        log.trace("_rename_file method: pathname:{!s}".format(_file_details))
+    def _rename_file(self, pathname):
+        log.trace("_rename_file method: pathname:{!s}".format(pathname))
+
+        _ext = os.path.splitext(pathname)[1][1:]
+        if not _ext in self.settings.MediaExt:
+            return
+
+        if self.args.check_video:
+            if chkVideoFile(pathname):
+                log.error('File Failed Video Check: {}'.format(pathname))
+                return
 
         try:
-            _file_details = self._get_tmdb_info(_file_details)
+            _file_details = self.fileparser.getFileDetails(pathname)
+            try:
+                _file_details = self._get_tmdb_info(_file_details)
+            except MovieNotFound:
+                _dir_name = os.path.dirname(pathname) + '.' +_ext
+                _directory_details = self.fileparser.getFileDetails(_dir_name)
+                try:
+                    _file_details['MovieName'] = _directory_details['MovieName']
+                except KeyError:
+                    raise                
+                try:
+                    _file_details['Year'] = _directory_details['Year']
+                except KeyError:
+                    pass                
+                _file_details = self._get_tmdb_info(_file_details)
             _fq_new_file_name = self._get_new_filename(_file_details)
 
             if self._check_for_existing(_fq_new_file_name, _file_details):
@@ -165,7 +176,7 @@ class RenameMovie(Library):
                     log.error("Skipping, Unable to Rename File: %s" % _file_details['FileName'])
                     log.error("Unexpected error: %s" % exc)
                     raise UnexpectedErrorOccured("Unexpected error: %s" % exc)
-        except MovieNotFound:
+        except (MovieNotFound, InvalidFilename, UnexpectedErrorOccured):
             pass
         return
 
@@ -178,7 +189,7 @@ class RenameMovie(Library):
             if fuzz.ratio(_movie["title"], _file_details['MovieName']) > 85:
                 break
 
-        if _movie:
+        if _movie and fuzz.ratio(_movie["title"], _file_details['MovieName']) > 85:
             _file_details['MovieName'] = _movie["title"]
             if _movie["release_date"]:
                 _file_details['Year'] = str(_movie["release_date"][0:4])
