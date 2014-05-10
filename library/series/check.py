@@ -8,24 +8,23 @@ Purpose:
 """
 from __future__ import division
 from library import Library
-from common import logger
+from common.countfiles import countFiles
+from common.cmdoptions import CmdOptions
 from common.exceptions import (RegxSelectionError,
     InvalidArgumentType, InvalidPath, InvalidFilename, ConfigNotFound,
     ConfigValueError, DataRetrievalError, SeriesNotFound,
     SeasonNotFound, EpisodeNotFound)
-from common.countfiles import countFiles
+from common import logger
 from library.series.episodeinfo import EpisodeDetails
 from library.series.fileparser import FileParser
 from datetime import datetime, date, timedelta
 from logging import INFO, WARNING, ERROR, DEBUG
-import gtk
 import fnmatch
 import logging
 import os
 import re
 import sys
 import unicodedata
-# import gtk.glade
 
 __pgmname__ = 'library.series.check'
 __version__ = '$Rev$'
@@ -41,128 +40,31 @@ __credits__ = []
 
 log = logging.getLogger(__pgmname__)
 
-class MainWindow():
+class CheckSeries(Library):
 
-    def __init__(self, config, options):
-        log.trace('MainWindow - __init__')
+    def __init__(self):
+        log.trace('__init__ method: Started')
 
-        self.options = options
+        super(CheckSeries, self).__init__()
 
-        _pgm_dir = os.path.dirname(__file__)
-        builder = gtk.Builder()
-        builder.add_from_file(os.path.join(_pgm_dir, '%s.glade' % (__pgmname__)))
-        events = { "on_main_window_destroy" : self.quit,
-                   "on_bt_close_clicked" : self.quit,
-                   "on_fc_dir_file_set" : self.on_fc_dir_file_set,
-                   "on_cb_ignore_excludes_toggled" : self.on_cb_ignore_excludes_toggled,
-                   "on_bt_ok_clicked" : self.bt_ok_clicked
-                  }
-        builder.connect_signals(events)
+        check_group1= self.options.parser.add_argument_group("Series Unique Options", description=None)
+        check_group1.add_argument("-x", "--no-excludes", dest="no_excludes",
+            action="store_true", default=False,
+            help="Ignore Exclude File")
+        check_group1.add_argument("-r", "--remove", dest="remove",
+            action="store_true", default=False,
+            help="remove files (keep MKV over AVI, delete non-video files)")
+        check_group1.add_argument("-d", "--days", dest="age_limit",
+            action="store", type=int, default=90,
+            help="Limit check back x number of days, default 30")
+        check_group1.add_argument("-f", "--no-age-limit-requested", dest="age_limit",
+            action="store_const", const=99999,
+            help="Full Check")
 
-        self.wMain = builder.get_object("main_window")
-        self.fc_dir = builder.get_object("fc_dir")
-        self.cb_ignore_excludes = builder.get_object("cb_ignore_excludes")
-        self.sb_days = builder.get_object("sb_days")
-        self.bt_execute = builder.get_object("bt_execute")
-        self.bt_quit = builder.get_object("bt_quit")
-
-        # Initialize Log TextView
-        self.txtview_log = builder.get_object("txtview_log")
-        self.txtbuf_log = builder.get_object('txtbuf_log')
-
-        # Initialize our Treeview
-        self.tview_series = builder.get_object("tview_series")
-        self.tview_series_model = builder.get_object("tstore_series")
-        self.tselection_series = self.tview_series.get_selection()
-        self.tselection_series.set_mode(gtk.SELECTION_MULTIPLE)
-        mode = self.tselection_series.get_mode()
-        self.tview_series.set_hover_expand(False)
-
-        self.library = Series(self, config, options)
-        self.requested_dir = options.requested_dir
-        self.fc_dir.set_current_folder(self.requested_dir)
-
-        self.wMain.show()
-        gtk.main()
-        return
-
-    def insert_row(self, parent, series, issue=' ', season=' ', episode=' ', title=' ', air_date=' '):
-        log.trace('insert_row: Series: {} Status: {} '.format(series, issue))
-        myiter = self.tview_series_model.append(parent, None)
-        self.tview_series_model.set_value(myiter, 0, series)
-        self.tview_series_model.set_value(myiter, 1, issue)
-        self.tview_series_model.set_value(myiter, 2, season)
-        self.tview_series_model.set_value(myiter, 3, episode)
-        self.tview_series_model.set_value(myiter, 4, title)
-        self.tview_series_model.set_value(myiter, 5, air_date)
-        self.tview_series.expand_all()
-        path = self.tview_series_model.get_path(myiter)
-        self.tview_series.scroll_to_cell(path)
-        while gtk.events_pending():
-            gtk.main_iteration_do(False)
-        return myiter
-
-    def on_fc_dir_file_set(self, obj):
-        self.requested_dir = self.fc_dir.get_current_folder()
-        return
-
-    def on_cb_ignore_excludes_toggled(self, widget):
-        cb_ignore_excludes_status = ("OFF", "ON")[widget.get_active()]
-        if cb_ignore_excludes_status == "ON":
-            self.options.no_excludes = True
-        else:
-            self.options.no_excludes = False
-        return
-
-    def quit(self, obj):
-        log.trace('quit: ending')
-        gtk.main_quit()
-
-    def bt_ok_clicked(self, obj):
-        log.trace('bt_ok_clicked: obj: {}'.format(obj))
-        self.bt_execute.set_sensitive(False)
-#        self.bt_quit.set_sensitive(False)
-        while gtk.events_pending():
-            gtk.main_iteration_do(False)
-        self.library.check(self.requested_dir)
-
-    def write_log_entry(self, msg, level=INFO, enter="\n"):
-        log.trace('write_log_entry: Level: {}  Message: {}'.format(level, msg))
-        message = msg + enter
-        buffer = self.txtbuf_log
-        iter = buffer.get_end_iter()
-        if level == WARNING:
-            log.warn(msg)
-            tag = buffer.create_tag()
-            tag.set_property("foreground", 'red')
-            self.txtbuf_log.insert_with_tags(buffer.get_end_iter(), message, tag)
-        elif level == ERROR:
-            log.error(msg)
-            tag = buffer.create_tag()
-            tag.set_property("foreground", 'red')
-            self.txtbuf_log.insert_with_tags(buffer.get_end_iter(), message, tag)
-        else:
-            log.info(msg)
-            self.txtbuf_log.insert(iter, message)
-            mark = buffer.create_mark("end", buffer.get_end_iter(), False)
-            self.txtview_log.scroll_to_mark(mark, 0.05, True, 0.0, 1.0)
-        while gtk.events_pending():
-            gtk.main_iteration_do(False)
-        return
-
-
-class Series(Library):
-
-    def __init__(self, mw=None):
-        log.trace('Library.Series - __init__')
-
-        super(Series, self).__init__()
-
-        self.mw = mw
         self.episodeinfo = EpisodeDetails()
-        self.fileparser = FileParser()
-        if self.options.no_excludes:
-            config.ExcludeScanList = []
+        self.parser = FileParser()
+
+        return
 
     def check(self, pathname):
         log.trace('check: Pathname Requested: {}'.format(pathname))
@@ -178,11 +80,13 @@ class Series(Library):
         _files_checked = 0
         _last_dups = ' '
 
-        _total_files = countFiles(pathname, exclude_list=(config.ExcludeList + config.ExcludeScanList), types=config.MediaExt)
+        _total_files = countFiles(pathname, 
+                                  exclude_list=(self.settings.ExcludeList + self.settings.ExcludeScanList),
+                                  types=self.settings.MediaExt)
 
-        self.mw.write_log_entry("==== Begin Scan: {} ====".format(pathname), INFO)
+        self.write_log_entry("==== Begin Scan: {} ====".format(pathname), INFO)
 
-        for _root, _dirs, _files in os.walk(os.path.abspath(pathname), followlinks=True):
+        for _root, _dirs, _files in os.walk(os.path.abspath(pathname), followlinks=False):
             if _dirs != None:
                 _dirs.sort()
                 _dirs_temp = sorted(_dirs)
@@ -191,57 +95,56 @@ class Series(Library):
                         _dirs.remove(_dir)
                         log.trace('Removing Dir: %s' % _dir)
                 _files.sort()
-                for _file in _files:
-                    if os.path.splitext(_file)[1][1:] in self.config.MediaExt:
-                        _files_checked += 1
-                        _fq_name = os.path.join(_root, _file)
-                        try:
-                            FileDetails = self.fileparser.getFileDetails(_fq_name)
-                        except (InvalidFilename, RegxSelectionError, SeasonNotFound), msg:
-                            self.mw.write_log_entry('Skipping - Unable to Parse: {}'.format(msg), ERROR)
-                            continue
-                    else:
-                        continue
 
-                    if FileDetails['SeriesName'] != _last_series:
-                        message = 'Files Checked: %2.2f%%   %5d of %5d   Current Series: %s' % ((_files_checked - 1) / _total_files, (_files_checked - 1), _total_files, _last_series)
-                        self.mw.write_log_entry(message)
-                        if _series_details:
-                            self.checkMissing(_episode_list, _series_details)
-                        _series_details = self.getSeries(FileDetails['SeriesName'])
-                        _episode_list = []
-#                    elif FileDetails['SeasonNum'] == _last_season and FileDetails['EpisodeNums'] == _last_ep_no:
-#                        log.trace('Possible Dups: %s - %s' % (_last_file, _file))
-#                        _last_dups = self.handle_dup(None, _last_dups, _series_details, FileDetails, _last_ext, _fq_name, _last_fq_name, _file, _last_file)
+            for _file in _files:
+                if not os.path.splitext(_file)[1][1:] in self.settings.MediaExt:
+                    continue
 
-                    _episode_list.append(FileDetails)
-                    _last_file = _file
-                    _last_fq_name = _fq_name
-                    _last_series = FileDetails['SeriesName']
-                    _last_season = FileDetails['SeasonNum']
-                    _last_ep_no = FileDetails['EpisodeNums']
-                    _last_ext = FileDetails['Ext']
+                try:
+                    _fq_name = os.path.join(_root, _file)
+                    FileDetails = self.parser.getFileDetails(_fq_name)
+                except (InvalidFilename, RegxSelectionError, SeasonNotFound), msg:
+                    self.write_log_entry('Skipping - Unable to Parse: {}'.format(msg), ERROR)
+                    continue
 
-        message = 'Files Checked: %2.2f%%   %5d of %5d   Current Series: %s' % ((_files_checked) / _total_files, (_files_checked), _total_files, _last_series)
-        self.mw.write_log_entry(message)
+                if FileDetails['SeriesName'] != _last_series:
+                    if _series_details:
+                        self.checkMissing(_episode_list, _series_details)
+                    _series_details = self.getSeries(FileDetails['SeriesName'])
+                    _episode_list = []
+
+                    message = 'Files Checked: %2.2f%%  Current Series: %s' % ((_files_checked - 1) / _total_files,
+                                                                              _last_series)
+                    self.write_log_entry(message)
+
+                _files_checked += 1
+                _episode_list.append(FileDetails)
+                _last_file = _file
+                _last_fq_name = _fq_name
+                _last_series = FileDetails['SeriesName']
+                _last_season = FileDetails['SeasonNum']
+                _last_ep_no = FileDetails['EpisodeNums']
+                _last_ext = FileDetails['Ext']
+
+        message = 'Files Checked: %2.2f%% Current Series: %s' % (_files_checked / _total_files, 
+                                                                 _last_series)
+        self.write_log_entry(message)
         self.checkMissing(_episode_list, _series_details)
-        self.mw.tview_series.collapse_all()
-        self.mw.tview_series.scroll_to_point(0, 0)
-        while gtk.events_pending():
-            gtk.main_iteration_do(False)
 
     def processDups(self, dups):
         pass
 
     def getSeries(self, seriesname):
         log.trace('getSeries: Series Name: %s' % (seriesname))
+
         try:
             _series_details = {'SeriesName': seriesname}
             _series_details = self.episodeinfo.getDetails(_series_details)
         except (SeriesNotFound, InvalidArgumentType, InvalidPath, InvalidFilename,
             ConfigNotFound, ConfigValueError, DataRetrievalError) as errormsg:
             log.warn(errormsg)
-            log.error("Skipping series: %s" % (seriesname))
+            log.warn("Skipping series: %s" % (seriesname))
+
             return None
         return _series_details
 
@@ -249,7 +152,7 @@ class Series(Library):
         log.debug('checkMissing - episode_list: {} series_details: {}'.format(episode_list, series_details))
 
         missing = []
-        date_boundry = date.today() - timedelta(days=self.options.age_limit)
+        date_boundry = date.today() - timedelta(days=self.args.age_limit)
 
         for series_entry in series_details['EpisodeData']:
             found_series = False
@@ -277,8 +180,7 @@ class Series(Library):
 
         if len(missing) > 0:
             message = "Missing %i episode(s) - SERIES: %-25.25s" % (len(missing), series_details['SeriesName'])
-            self.mw.write_log_entry(message, WARNING)
-            missing_series = self.mw.insert_row(None, series_details['SeriesName'])
+            self.write_log_entry(message, ERROR)
 
         last_season = ''
         for _entry in missing:
@@ -288,16 +190,12 @@ class Series(Library):
                 _date_aired = _entry['DateAired'].date()
             else:
                 _date_aired = "Unknown"
-            if len(missing) > 5:
-                if last_season != _entry['SeasonNum']:
-                    missing_season = self.mw.insert_row(missing_series, " ", "Missing", _season_num)
-                missing_episode = self.mw.insert_row(missing_season, " ", "Missing", _season_num, _ep_no,
-                                                                                    _entry['EpisodeTitle'].replace("&amp;", "&"),
-                                                                                    _date_aired)
-            else:
-                missing_season = self.mw.insert_row(missing_series, " ", "Missing", _season_num, _ep_no,
-                                                                                                     _entry['EpisodeTitle'].replace("&amp;", "&"),
-                                                                                                     _date_aired)
+            message = "         Season: {}  Episode: {}  Aired: {} Title: {}".format(_season_num, 
+                                                                           _ep_no,
+                                                                           _date_aired,
+                                                                           _entry['EpisodeTitle'].replace("&amp;", "&"))
+            self.write_log_entry(message, ERROR)
+
             last_season = _entry['SeasonNum']
 
     def handle_dup(self, DUPS, last_dups, seriesdata, series_dir, seriesname, season, fmt_epno, epno, epname, ext, lastext, fqname, lastfqname, fname, lastfname):
@@ -308,7 +206,7 @@ class Series(Library):
         fmt_dups = '%-8.8s %-8.8s SERIES: %-25.25s SEA: %2.2s KEEPING: %-35.35s REMOVING: %-35.35s %s'
 
         if last_dups != seriesname:
-            if not options.nogui:
+            if not self.args.nogui:
                 dups_series = mw.insert_row(mw.treest_series_model, DUPS,
                                         " ",
                                         " ",
@@ -320,75 +218,45 @@ class Series(Library):
         if ext != lastext:
             message = 'Two Files Found: %s and %s - \t File: %s' % (lastext, ext, os.path.splitext(fqname)[0])
             log.info(message)
-            if not options.nogui:
-                mw.log(message)
             if ext not in media_ext:
-                if options.remove:
+                if self.args.remove:
                     action = 'REMOVED '
                     os.remove(fqname)
-            if options.nogui:
-                log.warn(fmt_dups % ("DUPS-",
-                                    action,
-                                    seriesname,
-                                    season,
-                                    lastext,
-                                    ext,
-                                    " "))
-            else:
-                dups_episode = mw.insert_row(mw.treest_series_model, dups_series,
-                                            action,
-                                            " ",
-                                            " ",
-                                            season,
-                                            lastfname,
-                                            fname)
+            log.warn(fmt_dups % ("DUPS-",
+                                action,
+                                seriesname,
+                                season,
+                                lastext,
+                                ext,
+                                " "))
             return last_dups
+
         elif lastext not in media_ext:
-            if options.remove:
+            if self.args.remove:
                 action = 'REMOVED '
                 os.remove(lastfqname)
-            if options.nogui:
-                log.warn(fmt_dups % ("DUPS-",
-                        action,
-                        seriesname,
-                        season,
-                        ext,
-                        lastext,
-                        " "))
-            else:
-                message = 'Auto Removing: %s' % lastfqname
-                log.info(message)
-                mw.log(message)
-                dups_episode = mw.insert_row(mw.treest_series_model, dups_series,
-                                    action,
-                                    " ",
-                                    " ",
-                                    season,
-                                    fname,
-                                    lastfname)
+            log.warn(fmt_dups % ("DUPS-",
+                     action,
+                     seriesname,
+                     season,
+                     ext,
+                     lastext,
+                     " "))
             return last_dups
+
         elif lastext == 'avi' and ext == 'mkv':
-            if options.remove:
+            if self.args.remove:
                 action = 'REMOVED '
                 os.remove(lastfqname)
-            if options.nogui:
-                log.warn(fmt_dups % ("DUPS-",
-                                    action,
-                                    seriesname,
-                                    season,
-                                    ext,
-                                    lastext,
-                                    " "))
-            else:
-                dups_episode = mw.insert_row(mw.treest_series_model, dups_series,
-                                            action,
-                                            " ",
-                                            " ",
-                                            season,
-                                            fname,
-                                            lastfname)
-                return last_dups
+            log.warn(fmt_dups % ("DUPS-",
+                                 action,
+                                 seriesname,
+                                 season,
+                                 ext,
+                                 lastext,
+                                 " "))
             return last_dups
+
         # Possible Dup found
         epdata = {
                 'base_dir' : series_dir,
@@ -417,48 +285,26 @@ class Series(Library):
             if epdata['epname'] == epname:
                 message = "%-15s Season %-2s  Keeping: %-40s Removing: %s" % (seriesname, season, fname, lastfname)
                 log.info(message)
-                if not options.nogui:
-                    mw.log(message)
-                if options.remove:
+                if self.args.remove:
                     try:
                         os.remove(lastfqname)
                         action = 'REMOVED '
                     except OSError, exc:
                         log.warning('Delete Failed: %s' % exc)
-                if not options.nogui:
-                    dups_episode = mw.insert_row(mw.treest_series_model, dups_series,
-                                                action,
-                                                " ",
-                                                " ",
-                                                season,
-                                                fname,
-                                                lastfname)
         elif epdata['epname'] == lastepname:
             message = "%-15s Season %-2s  Keeping: %-40s Removing: %s" % (seriesname, season, lastfname, fname)
             log.info(message)
-            if not options.nogui:
-                mw.log(message)
-            if options.remove:
+            if self.args.remove:
                 try:
                     os.remove(fqname)
                     action = 'REMOVED '
                 except OSError, exc:
                     log.warning('Delete Failed: %s' % exc)
-            if not options.nogui:
-                dups_episode = mw.insert_row(mw.treest_series_model, dups_series,
-                                            action,
-                                            " ",
-                                            " ",
-                                            season,
-                                            lastfname,
-                                            fname)
             else:
                 new_name = FileNames['std_epname'] % epdata
                 message = "%-15s Season %-2s Renaming: %-40s Removing %-40s New Name: %-40s" % (seriesname, season, lastfname, fname, new_name)
                 log.info(message)
-                if not options.nogui:
-                    mw.log(message)
-                if options.remove:
+                if self.args.remove:
                     new_name = FileNames['std_fqn'] % epdata
                     try:
                         os.rename(lastfqname, new_name)
@@ -469,99 +315,71 @@ class Series(Library):
                         action = 'REMOVED '
                     except OSError, exc:
                         log.warning('Rename Failed: %s' % exc)
-                if not options.nogui:
-                    dups_episode = mw.insert_row(mw.treest_series_model, dups_series,
-                                            action,
-                                            " ",
-                                            " ",
-                                            season,
-                                            lastfname,
-                                            fname,
-                                            new_name)
         else:
             message = "Possible Dup: UNKNOWN\t%s\t%s" % (lastfqname, fqname)
             log.info(message)
-            if not options.nogui:
-                mw.log(message)
             message = 'NO ACTION: Unable to determine proper name:'
             log.info(message)
-            if not options.nogui:
-                mw.log(message)
 
+    def write_log_entry(self, msg, level=INFO):
+        log.trace('write_log_entry: Level: {}  Message: {}'.format(level, msg))
+        if level == WARNING:
+            log.warn(msg)
+        elif level == ERROR:
+            log.error(msg)
+        else:
+            log.info(msg)
+        return
 
     def ignored(self, name):
         """ Check for ignored pathnames.
         """
-        exclude = self.config.ExcludeList + self.config.ExcludeScanList
-        return any(fnmatch.fnmatch(name.lower(), pattern) for pattern in (self.config.ExcludeList + self.config.ExcludeScanList))
+        exclude = self.settings.ExcludeList + self.settings.ExcludeScanList
+        return any(fnmatch.fnmatch(name.lower(), pattern) for pattern in (self.settings.ExcludeList + self.settings.ExcludeScanList))
+
 
 class GetOutOfLoop(Exception):
     pass
 
-class localOptions(OptionParser):
-
-    def __init__(self, unit_test=False, **kwargs):
-        OptionParser.__init__(self, **kwargs)
-
-        group = OptionGroup(self, "Series Unique Options:")
-        group.add_option("-i", "--input-directory",
-            dest="requested_dir",
-            default="None",
-            help="directory to be scanned")
-
-        group.add_option("-x", "--no-excludes", dest="no_excludes",
-            action="store_true", default=False,
-            help="Ignore Exclude File")
-
-        group.add_option("-r", "--remove", dest="remove",
-            action="store_true", default=False,
-            help="remove files (keep MKV over AVI, delete non-video files)")
-
-        group.add_option("-d", "--days", dest="age_limit",
-            action="store", type=int, default=90,
-            help="Limit check back x number of days, default 30")
-
-        group.add_option("-f", "--no-age-limit-requested", dest="age_limit",
-            action="store_const", const=99999,
-            help="Full Check")
-        self.add_option_group(group)
-
 
 if __name__ == "__main__":
 
-    config = Settings()
-    logger.initialize()
-    parser = localOptions()
-    options, args = parser.parse_args()
+    from library import Library
+    from logging import INFO, WARNING, ERROR, DEBUG
 
-    log_level = logging.getLevelName(options.loglevel.upper())
-    log_file = os.path.expanduser(options.logfile)
+    logger.initialize()
+
+    library = CheckSeries()
+
+    Library.args = library.options.parser.parse_args(sys.argv[1:])
+    log.debug("Parsed command line: {!s}".format(library.args))
+
+    log_level = logging.getLevelName(library.args.loglevel.upper())
+
+    if library.args.logfile == 'daddyvision.log':
+        log_file = '{}.log'.format(__pgmname__)
+    else:
+        log_file = os.path.expanduser(library.args.logfile)
 
     # If an absolute path is not specified, use the default directory.
     if not os.path.isabs(log_file):
         log_file = os.path.join(logger.LogDir, log_file)
 
-    if log_level == 'INFO':
-        log_level = "ERROR"
+    logger.start(log_file, log_level, timed=True)
 
-    logger.start(log_file, log_level)
+    if library.args.no_excludes:
+        library.settings.ExcludeScanList = []
 
-    log.debug("Parsed command line options: {!s}".format(options))
-    log.debug("Parsed arguments: %r" % args)
+    if len(library.args.library) == 0:
+        msg = 'Missing Scan Starting Point (Input Directory), Using Default: {}'.format(library.settings.SeriesDir)
+        log.info(msg)
+        library.args.library = [library.settings.SeriesDir]
 
-    _path_name = ''
-    for i in range(len(args)):
-        _path_name = '%s %s' % (_path_name, args[i])
-
-    if options.requested_dir == "None":
-        if len(args) > 1:
-            options.requested_dir = _path_name
+    for _lib_path in library.args.library:
+        if os.path.exists(_lib_path):
+            library.check(_lib_path)
         else:
-            log.info('Missing Scan Starting Point (Input Directory), Using Default: %r' % config.SeriesDir)
-            options.requested_dir = config.SeriesDir
+            log.warn('Skipping Rename: Unable to find File/Directory: {}'.format(_lib_path))
 
-    if not os.path.exists(options.requested_dir):
-        log.error('Invalid arguments file or path name not found: %s' % options.requested_dir)
-        sys.exit(1)
 
-    mw = MainWindow(config, options)
+
