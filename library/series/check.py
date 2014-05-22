@@ -19,6 +19,9 @@ from library.series.episodeinfo import EpisodeDetails
 from library.series.fileparser import FileParser
 from datetime import datetime, date, timedelta
 from logging import INFO, WARNING, ERROR, DEBUG
+from pytvdbapi import api
+from pytvdbapi.error import TVDBAttributeError, TVDBIndexError, TVDBValueError, TVDBIdError, BadData
+import difflib
 import fnmatch
 import logging
 import os
@@ -51,6 +54,9 @@ class CheckSeries(Library):
         check_group1.add_argument("-x", "--no-excludes", dest="no_excludes",
             action="store_true", default=False,
             help="Ignore Exclude File")
+        check_group1.add_argument("-s", "--include-specials", dest="specials",
+            action="store_true", default=False,
+            help="remove files (keep MKV over AVI, delete non-video files)")
         check_group1.add_argument("-r", "--remove", dest="remove",
             action="store_true", default=False,
             help="remove files (keep MKV over AVI, delete non-video files)")
@@ -63,78 +69,93 @@ class CheckSeries(Library):
 
         self.episodeinfo = EpisodeDetails()
         self.parser = FileParser()
+        self.db = api.TVDB("959D8E76B796A1FB")
 
+        self.regex_season = re.compile('^(?:Season).(?P<SeasonNum>[0-9]+)$', re.I)
+        self.regex_episode = re.compile('^(?:E)(?P<EpisodeNum>[0-9][0-9]+)[\.\- ]*(?:E)?(?P<EpisodeNum2>[0-9][0-9]+)?(?P<EpisodeName>.+)?\.(?P<Ext>.+?)$', re.I)
+        
         return
 
     def check(self, pathname):
         log.trace('check: Pathname Requested: {}'.format(pathname))
 
+        pathname = os.path.abspath(pathname)
         _series_details = []
-        _episode_list = []
-        _last_file = None
-        _last_fq_name = None
-        _last_series = ' '
-        _last_season = None
-        _last_ep_no = None
-        _last_ext = None
-        _files_checked = 0
-        _last_dups = ' '
-
-        _total_files = countFiles(pathname, 
-                                  exclude_list=(self.settings.ExcludeList + self.settings.ExcludeScanList),
-                                  types=self.settings.MediaExt)
 
         self.write_log_entry("==== Begin Scan: {} ====".format(pathname), INFO)
 
-        for _root, _dirs, _files in os.walk(os.path.abspath(pathname), followlinks=False):
-            if _dirs != None:
-                _dirs.sort()
-                _dirs_temp = sorted(_dirs)
-                for _dir in _dirs_temp:
-                    if self.ignored(_dir):
-                        _dirs.remove(_dir)
-                        log.trace('Removing Dir: %s' % _dir)
-                _files.sort()
+        _series = self.getListSeries(pathname)
+        for _show in _series:
+            _episode_list = []
+	    _seasons = []
+            try:
+                _series_details = self.getSeriesInfo(_show)
+            except (TVDBIdError, BadData), message:
+                log.error('Invalid Entry in TVDBID File: {} {}'.format(_show, message))
+                raise ConfigValueError('Invalid Entry in TVDBID File: {} {}'.format(_show, message))
 
-            for _file in _files:
-                if not os.path.splitext(_file)[1][1:] in self.settings.MediaExt:
-                    continue
+            if not _series_details:
+                continue
 
-                try:
-                    _fq_name = os.path.join(_root, _file)
-                    FileDetails = self.parser.getFileDetails(_fq_name)
-                except (InvalidFilename, RegxSelectionError, SeasonNotFound), msg:
-                    self.write_log_entry('Skipping - Unable to Parse: {}'.format(msg), ERROR)
-                    continue
+            _seasons = os.listdir(os.path.join(self.settings.SeriesDir,_show))
+            for _season in _seasons:
+                _parsed_details = self.regex_season.match(_season)
+                if not _parsed_details:
+                   continue
 
-                if FileDetails['SeriesName'] != _last_series:
-                    if _series_details:
-                        self.checkMissing(_episode_list, _series_details)
-                    _series_details = self.getSeries(FileDetails['SeriesName'])
-                    _episode_list = []
+                self.Show_Details = {}
+                self.Show_Details['SeasonNum'] = int(_parsed_details.group('SeasonNum'))
+                _epno_list = []
 
-                    message = 'Files Checked: %2.2f%%  Current Series: %s' % ((_files_checked - 1) / _total_files,
-                                                                              _last_series)
-                    self.write_log_entry(message)
+                _episodes = os.listdir(os.path.join(self.settings.SeriesDir,_show, _season))
+                for _episode in _episodes:
+                    if not os.path.splitext(_episode)[1][1:] in self.settings.MediaExt:
+                        continue
 
-                _files_checked += 1
-                _episode_list.append(FileDetails)
-                _last_file = _file
-                _last_fq_name = _fq_name
-                _last_series = FileDetails['SeriesName']
-                _last_season = FileDetails['SeasonNum']
-                _last_ep_no = FileDetails['EpisodeNums']
-                _last_ext = FileDetails['Ext']
+                    _parsed_details = self.regex_episode.match(_episode)
+                    if not _parsed_details:
+                        continue
 
-        message = 'Files Checked: %2.2f%% Current Series: %s' % (_files_checked / _total_files, 
-                                                                 _last_series)
-        self.write_log_entry(message)
-        self.checkMissing(_episode_list, _series_details)
+                    _epno = [int(_parsed_details.group('EpisodeNum'))]
+                    _epno_list.append(int(_parsed_details.group('EpisodeNum')))
 
-    def processDups(self, dups):
-        pass
+                    if _parsed_details.group('EpisodeNum2'):
+                        _epno.append(int(_parsed_details.group('EpisodeNum2')))
+                        _epno_list.append(int(_parsed_details.group('EpisodeNum2')))
 
-    def getSeries(self, seriesname):
+                self.Show_Details['EpisodeNums'] = _epno_list
+                _episode_list.append(self.Show_Details)
+
+            log.debug(_episode_list)
+            self.checkMissing(_series_details, _episode_list)
+
+	sys.exit()
+
+    def getListSeries(self, pathname):
+
+	_prefix = os.path.commonprefix([pathname, self.settings.SeriesDir])
+        if not _prefix == self.settings.SeriesDir:
+            raise
+        elif not os.path.abspath(pathname) == self.settings.SeriesDir:
+            return [os.path.basename(pathname)]
+
+        _series = os.listdir(os.path.abspath(pathname))
+        _series.sort()
+        _series_temp = sorted(_series)
+        for _show in _series_temp:
+            if self.ignored(_show) or _show == "New":
+                _series.remove(_show)
+                log.trace('Removing Series: %s' % _show)
+
+        for _show in _series:
+            _matches = difflib.get_close_matches(_show, _series, 2, cutoff=0.9)
+            if len(_matches) > 1:
+            	log.error('Possible Duplicate Directories: {} - {}'.format(_matches[0], _matches[1]))
+
+        return _series
+
+
+    def getSeriesInfo(self, seriesname):
         log.trace('getSeries: Series Name: %s' % (seriesname))
 
         try:
@@ -144,59 +165,83 @@ class CheckSeries(Library):
             ConfigNotFound, ConfigValueError, DataRetrievalError) as errormsg:
             log.warn(errormsg)
             log.warn("Skipping series: %s" % (seriesname))
-
             return None
+
+        log.debug(_series_details)
         return _series_details
 
-    def checkMissing(self, episode_list, series_details):
-        log.debug('checkMissing - episode_list: {} series_details: {}'.format(episode_list, series_details))
+    def checkMissing(self, series_details, episode_list):
+        log.debug('checkMissing - series_details: {} episode_list: {}'.format(series_details, episode_list))
+        #{'SeasonNum': 10, 'DateAired': datetime.date(2013, 12, 5), 'EpisodeTitle': u'Man on the Moon', 'EpisodeNum': 11}
 
         missing = []
+        _seasons_found = {}
         date_boundry = date.today() - timedelta(days=self.args.age_limit)
 
         for series_entry in series_details['EpisodeData']:
-            found_series = False
-            if series_entry['SeasonNum'] == 0:
-                continue
-#            year, month, day = time.strptime(series_entry['DateAired'], "%Y-%m-%d %H:%M:%S")[:3]
             if series_entry['DateAired']:
-                if series_entry['DateAired'].date() < date_boundry or series_entry['DateAired'].date() >= datetime.today().date():
+                if series_entry['DateAired'] < date_boundry or series_entry['DateAired'] >= datetime.today().date():
                     continue
             else:
                 continue
+            if not self.args.specials and series_entry['SeasonNum'] == 0:
+                continue
+
+            found_episode = False
             try:
                 for episode_entry in episode_list:
                     if series_entry['SeasonNum'] == episode_entry['SeasonNum'] and series_entry['EpisodeNum'] in episode_entry['EpisodeNums']:
-                        found_series = True
+                        found_episode = True
+
+                        if not series_details['SeriesName'] in _seasons_found:
+                            _seasons_found[series_details['SeriesName']] = [series_entry['SeasonNum']]
+                        elif series_details['SeriesName'] in _seasons_found:
+                            if not series_entry['SeasonNum'] in _seasons_found[series_details['SeriesName']]:
+                                _seasons_found[series_details['SeriesName']].append(series_entry['SeasonNum'])
+
                         if len(episode_entry['EpisodeNums']) > 1:
+                            log.debug('Matched: Season {} Episode {}'.format(series_entry['SeasonNum'], series_entry['EpisodeNum']))
                             episode_entry['EpisodeNums'].remove(series_entry['EpisodeNum'])
                         else:
                             episode_list.remove(episode_entry)
                         raise GetOutOfLoop
             except GetOutOfLoop:
                 continue
-            if not found_series:
+
+            if not found_episode:
                 missing.append(series_entry)
 
         if len(missing) > 0:
-            message = "Missing %i episode(s) - SERIES: %-25.25s" % (len(missing), series_details['SeriesName'])
+            message = "Missing %i episode(s) - SERIES: %-35.35s" % (len(missing), series_details['SeriesName'])
             self.write_log_entry(message, ERROR)
 
-        last_season = ''
+        season_message = "         Season: {}  Episode: ALL"
+        message = "         Season: {}  Episode: {}  Aired: {} Title: {}"
+
+        _last_season = None
         for _entry in missing:
-            _season_num = "S%2.2d" % int(_entry['SeasonNum'])
-            _ep_no = "E%2.2d" % int(_entry['EpisodeNum'])
-            if _entry['DateAired']:
-                _date_aired = _entry['DateAired'].date()
-            else:
-                _date_aired = "Unknown"
-            message = "         Season: {}  Episode: {}  Aired: {} Title: {}".format(_season_num, 
-                                                                           _ep_no,
-                                                                           _date_aired,
-                                                                           _entry['EpisodeTitle'].replace("&amp;", "&"))
-            self.write_log_entry(message, ERROR)
 
-            last_season = _entry['SeasonNum']
+            if (series_details['SeriesName'] in _seasons_found and _entry['SeasonNum'] in _seasons_found[series_details['SeriesName']]) or self.args.age_limit < 99999:
+                _season_num = "S%2.2d" % int(_entry['SeasonNum'])
+                _ep_no = "E%2.2d" % int(_entry['EpisodeNum'])
+                if _entry['DateAired']:
+                    _date_aired = _entry['DateAired']
+                else:
+                    _date_aired = "Unknown"
+                log.error(message.format(_season_num, 
+                                         _ep_no,
+                                         _date_aired,
+                                         _entry['EpisodeTitle'].encode('utf8', 'replace').replace("&amp;", "&")))
+            else:
+                _season_num = "S%2.2d" % int(_entry['SeasonNum'])
+                if not _season_num == _last_season:
+                    log.error(season_message.format(_season_num))
+                    _last_season = _season_num
+
+        return
+
+    def processDups(self, dups):
+        pass
 
     def handle_dup(self, DUPS, last_dups, seriesdata, series_dir, seriesname, season, fmt_epno, epno, epname, ext, lastext, fqname, lastfqname, fname, lastfname):
         global dups_series, dups_episode

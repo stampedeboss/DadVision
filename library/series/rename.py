@@ -137,11 +137,11 @@ class RenameSeries(Library):
                     log.debug("Filename: %s" % _path_name)
                     if self._ignored(pathname) and not self.regex_SeriesDir.match(_file_name):
                         try:
-                            os.remove(_file_details['FileName'])
-                            self._del_dir(_file_details['FileName'])
+                            os.remove(_path_name)
+                            self._del_dir(_path_name)
                             continue
                         except:
-                            log.info('Unable to delete: %s - %s' % (_file_details['FileName'], sys.exc_info()[1]))
+                            log.info('Unable to delete: %s - %s' % (_path_name, sys.exc_info()[1]))
                         continue
                     try:
                         _file_details = self.parser.getFileDetails(_path_name)
@@ -249,6 +249,7 @@ class RenameSeries(Library):
         _date_aired = file_details['DateAired']
         cur_date = time.localtime(os.path.getmtime(new_name))
         if _date_aired:
+            _date_aired = datetime.datetime.combine(_date_aired, datetime.time())
             tt = _date_aired.timetuple()
             log.debug('Current File Date: %s  Air Date: %s' % (time.asctime(cur_date), time.asctime(tt)))
             tup_cur = [cur_date[0], cur_date[1], cur_date[2], cur_date[3], cur_date[4], cur_date[5], cur_date[6], cur_date[7], -1]

@@ -221,34 +221,32 @@ class FileParser(Library, dict):
             ^(/.*/)*                                # Directory
             (?P<SeriesName>.*)                      # Series Name
             (/Season)                               # Season
-            [/\._ \-]                               # Sep 1
+            [/\._\ \-]                               # Sep 1
             (?P<SeasonNum>[0-9]+)                   # Season Number (##)
             (/)                                     # Directory Seperator
             [E|e]                                   # Episode Number (##)
             (?P<EpisodeNum1>[0-9][0-9]+)            # e
             (\-E)                                   # Sep between Episode Numbers1
             (?P<EpisodeNum2>[0-9][0-9]+)            # e
-            [/\._ \-]                               # Optional Sep 1
+            [/\._\ \-]                               # Optional Sep 1
             (?P<EpisodeName>.+)                     # Optional Title
             \.(?P<Ext>....?)$                       # extension
-            ''',
-             re.X | re.I))
+            ''',re.X|re.I))
 
         self.RegxParse.append(re.compile(
             '''                                     # #2 /xxx/xxx/xxx/series/Season #/E## Title.ext
             ^(/.*/)*                                # Directory
             (?P<SeriesName>.*)                      # Series Name
             (/Season)                               # Season
-            [/\._ \-]                               # Sep 1
+            [/\._\ \-]                               # Sep 1
             (?P<SeasonNum>[0-9]+)                   # Season Number (##)
             (/)                                     # Directory Seperator
             [E|e]                                   # Episode Number (##)
             (?P<EpisodeNum>[0-9][0-9]+)             # e
-            [/\._ \-]?                              # Optional Sep 1
+            [/\._\ \-]?                              # Optional Sep 1
             (?P<EpisodeName>.+)?                    # Optional Title
             \.(?P<Ext>....?)$                       # extension
-            ''',
-             re.X | re.I))
+            ''',re.X|re.I))
 
 #----------------------------------------------------------------------------------------
         # DATE AIRED
