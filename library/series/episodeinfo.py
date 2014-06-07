@@ -187,6 +187,9 @@ class EpisodeDetails(Library):
         if _series_name == _new_name or _series_name.lower() == _new_name.lower():
             return True
 
+        if not "AliasNames" in _m:
+            return False 
+
 	if not type(_m.AliasNames) == list:
 	    _m.AliasNames = [_m.AliasNames]
 
