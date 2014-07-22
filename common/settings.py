@@ -50,7 +50,7 @@ host = socket.gethostname()
 
 
 class Settings(object):
-    '''
+    """
     Returns new Settings object with Library, Common, and Subscriber data.
 
     settings: List of runtime information being requested. Valid options:
@@ -58,7 +58,7 @@ class Settings(object):
                 RoutineName: Name of the special settings
 
     update_existing: Indicator to request updating an existing config.
-    '''
+    """
 
     def __init__(self, subject=['common'], update=False):
 
@@ -204,12 +204,12 @@ class Settings(object):
 
         _user_profiles = {}
 
-        if req_profile != None:
+        if req_profile is not None:
             if type(req_profile) != list:
                 if req_profile.lower() != 'all':
                     raise InvalidArgumentType('Invalid Request Must be LIST with list of hostnames names to be returned')
 
-        if req_profile == 'all' or req_profile == None:
+        if req_profile == 'all' or req_profile is None:
             req_profile = self.Users
 
         for _entry in req_profile:
@@ -220,15 +220,14 @@ class Settings(object):
                 continue
 
             if _user_profile:
-                _user_dict = {}
-                _user_dict['Name'] = _entry
-                _user_dict['HostName'] = _user_profile['HostName']
-                _user_dict['UserId'] = _user_profile['UserId']
-                _user_dict['MovieDir'] = _user_profile['MovieDir']
-                _user_dict['SeriesDir'] = _user_profile['SeriesDir']
-                _user_dict['DownloadDir'] = _user_profile['DownloadDir']
-                _user_dict['NonVideoDir'] = _user_profile['NonVideoDir']
-                _user_dict['Identifier'] = _user_profile['Identifier']
+                _user_dict = {'Name': _entry, 'HostName': _user_profile['HostName'],
+                              'UserId': _user_profile['UserId'],
+                              'MovieDir': _user_profile['MovieDir'],
+                              'SeriesDir': _user_profile['SeriesDir'],
+                              'DownloadDir': _user_profile['DownloadDir'],
+                              'NonVideoDir': _user_profile['NonVideoDir'],
+                              'Identifier': _user_profile['Identifier']
+                             }
 
                 _user_profiles[_entry] = _user_dict
 
