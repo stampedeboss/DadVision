@@ -15,13 +15,15 @@ Purpose:
 
 from configobj import ConfigObj
 from common import logger
-from common.exceptions import (ConfigValueError, UserAbort,
+from common.exceptions import (ConfigValueError, ConfigNotFound, UserAbort,
     UnexpectedErrorOccured, InvalidArgumentType)
 import logging
 import os
 import sys
 import time
 import socket
+import base64
+import hashlib
 
 __pgmname__ = 'settings'
 __version__ = '$Rev$'
@@ -62,8 +64,8 @@ class Settings(object):
 
     def __init__(self, subject=['common'], update=False):
 
-        if update or not os.path.exists(ConfigFile):
-            self.BuildConfig(update)
+        if not os.path.exists(ConfigFile):
+            raise ConfigNotFound("Config File Not Found: %s" % ConfigFile)
 
         self.config = ConfigObj(ConfigFile, unrepr=True, interpolation=False)
 
@@ -72,6 +74,11 @@ class Settings(object):
         self.MoviesDir = HostName['MovieDir']
         self.DownloadDir = HostName['DownloadDir']
         self.NonVideoDir = HostName['NonVideoDir']
+        self.TraktUserID = HostName['TraktUserID']
+        self.TraktPassWord = HostName['TraktPassWord']
+        self.TraktHashPswd = hashlib.sha1(HostName['TraktPassWord']).hexdigest()
+        self.TraktAPIKey = HostName['TraktAPIKey']
+        self.TraktBase64Key = base64.encodestring(HostName['TraktUserID']+':'+HostName['TraktUserID'])
 
         Library = self.config['Library']
         self.NewDir = Library['NewDir']
@@ -272,146 +279,6 @@ class Settings(object):
 
         return _user_dict
 
-    def BuildConfig(self, update=False):
-
-        if not os.path.exists(ConfigDir):
-            try:
-                os.makedirs(ConfigDir)
-            except:
-                log.error("Cannot Create Config Directory: %s" % ConfigDir)
-                raise ConfigValueError("Cannot Create Config Directory: %s" % ConfigDir)
-
-        config = ConfigObj(unrepr=True, interpolation=False)
-        config.filename = ConfigFile
-
-        _base_dir = get_dir(os.path.join(os.sep, 'srv'), "Base Directory for Libraries")
-
-        config['Library'] = {}
-
-        config['Library']['NewDir'] = "New"
-        config['Library']['SubscriptionDir'] = "Links"
-        config['Library']['IncrementalsDir'] = "Incrementals"
-
-        config['Library']['DownloadDir'] = get_dir(os.path.join(_base_dir, "Downloads", "Bittorrent"), "Downloads")
-        config['Library']['NonVideoDir'] = get_dir(os.path.join(_base_dir, "Downloads", "Unpacked"), "Unknown Unpack")
-
-        _series_dir = get_dir(os.path.join(_base_dir, "DadVision", "Series"), "Series")
-        _movies_dir = get_dir(os.path.join(_base_dir, "DadVision", "Movies"), "Movies")
-        config['Library']['SeriesDir'] = _series_dir
-        config['Library']['MoviesDir'] = _movies_dir
-
-        if not os.path.exists(os.path.join(_series_dir, 'New')):
-            _create_dir("Series - New", os.path.join(_series_dir, 'New'))
-        if not os.path.exists(os.path.join(_movies_dir, 'New')):
-            _create_dir("Movies - New", os.path.join(_movies_dir, 'New'))
-        if not os.path.exists(os.path.join(ConfigDir , "Links")):
-            _create_dir("Subscriptions", os.path.join(ConfigDir , "Links"))
-
-        config['Common'] = {}
-        config['Common']['MediaExt'] = ['avi', 'bup', 'core', 'divx', 'ifo', 'img', 'iso',
-                                        'm2ts', "m4v", 'mp4', 'mkv', 'mpeg', 'mpg', 'vob'
-                                        ]
-
-        config['Common']['MovieGlob'] = ["1080p", "720p", "bluray", "x264", "x264-refined", "h264",
-                                         "ac3", "ac-3", "uncut", "director", "directors", "director's",
-                                         "unrated", "extended", "retail", "repack", "proper", "480p",
-                                         "dvdr", "dvdrip", "brrip", "bdrip", "hdtv", "ntsc", "pal", "r5",
-                                         "br-screener", "screener", "tsxvid", "xvid", "divxnl", "divx",
-                                         "scr", "hq", "pdvd-rip", "pdvd", "pdv", "Predvd", "pre-dvd", "dvd",
-                                         "ppvrip", "pdtv", "cam", "telesync", "telecine", "WorkPrint", "vhs",
-                                         "cvcd", "vcd", "webrip", "br-scr", "ts", "ws", "nl", "nlt", "cn ",
-                                         "tc ", "extratorrent", "2lions", " vostfr", "fxm", "subs", "nl Subs",
-                                         "french", "english", "spanish", "ita ", "italia", "hindi", "german",
-                                         "eng", "swesub", 'blu-ray', 'dvd-r', 'fulldvd', 'multi', 'dts',
-                                          ]
-        config['Common']['MovieGlob2'] = ['*1080*', '*720*', '*480*', '*x264*', '*h264*', '*ac3*', '*ac-3*',
-                                          '*bluray*', 'proper', '*repack*', '*dvdr*', '*brrip*', '*bdrip*',
-                                          '*hdtv*', '*ntsc*', '*pal*', '*r5*', '*screener*', '*xvid*', '*divx*',
-                                          '*scr', '*hq*', '*pdv*', '*dvd*', '*ppvrip*', '*pdtv*', '*cam*',
-                                          '*telesync*', '*telecine*', '*workprint*', '*vhs*', '*vcd*', '*webrip*',
-                                          'ws', 'nl', '*nlt*', 'cn', 'tc', '*extratorrent*', '*2lions*', '*vostfr*',
-                                          '*fxm*', 'sub', 'subs', '*swesub*', '*blu-ray*', '*fulldvd*', '*dts*', '*bdip*'
-                                          ]
-        config['Common']['IgnoreGlob'] = ['*subs*', '*subpack*', '*sample*', '*.sfv', '*.srt',
-                                                  '*.idx', '*.swp', '*.tmp', '*.bak', '*.nfo', '*.txt',
-                                                  '*.doc', '*.docx', '*.jpg', '*.png', '*.com', '*.mds',
-                                                  'thumbs.db', 'desktop.ini', 'ehthumbs_vista.db', '*.url',
-                                                  '.*', '*~*'
-                                                  ]
-        config['Common']['Predicates'] = ['The', 'A', 'An']
-
-        config['Common']['TvdbIdFile'] = 'Series_TvdbId'
-        config['Common']['SeriesAliasFile'] = 'Series_Aliases'
-        config['Common']['SplHandFile'] = 'Series_Special_Handling'
-        config['Common']['ExcludeFile'] = 'Series_Excludes'
-        config['Common']['ExcludeScanFile'] = 'Series_Excluded_From_Scans'
-        config['Common']['EpisodeAdjFile'] = 'Series_Episode_Adjustments'
-
-        config['Conversions'] = {}
-        # Formats for renaming files
-        config['Conversions']['std_fqn'] = '%(BaseDir)s/%(SeriesName)s/Season %(SeasonNum)s/%(EpisodeNumFmt)s %(EpisodeTitle)s.%(Ext)s'
-        config['Conversions']['proper_fqn'] = '%(BaseDir)s/%(SeriesName)s/Season %(SeasonNum)s/%(EpisodeNumFmt)s %(EpisodeTitle)s (PROPER).%(Ext)s'
-        config['Conversions']['fullname'] = '%(SeriesName)s/Season %(SeasonNum)/[%(SeriesName)s S0%(SeasonNum)%(EpisodeNumFmt)s] %(EpisodeTitle)s%(Ext)s'
-        config['Conversions']['std_show'] = '%(SeriesName)s/Season %(SeasonNumber)s/%(EpisodeNumFmt)s %(EpisodeTitle)s.%(Ext)s'
-        config['Conversions']['hdtv_fqn'] = '%(SeriesName)s/Season %(SeasonNum) hdtv/[%(EpisodeNumFmt)s] %(EpisodeTitle)s%(Ext)s'
-        config['Conversions']['std_epname'] = '%(EpisodeNumFmt)s %(EpisodeTitle)s.%(Ext)s'
-
-        # Used to join multiple episode names together
-        config['Conversions']['multiep_join_name_with'] = ', '
-
-        # Format for numbers (python string format), %02d does 2-digit
-        # padding, %d will cause no padding
-        config['Conversions']['episode_single'] = 'E%02d'
-
-        # String to join multiple number
-        config['Conversions']['episode_separator'] = '-'
-
-        config['Conversions']['rename_message'] = '%-15.15s Season %2.2s NEW NAME: %-40.40s CUR NAME: %s'
-
-        file_name = raw_input("Enter File Name for DaddyVision Tracking Database (%s): " % 'daddyvision.db3').lstrip(os.sep)
-        if not file_name:
-            file_name = 'daddyvision.db3'
-        config['DBFile'] = {}
-        config['DBFile']['DBFile'] = os.path.join(ConfigDir, file_name)
-
-        config['Hostnames'] = {}
-        config['Hostnames']['Hostnames'] = []
-
-        config.write()
-        log.info('New Config File Created: %s' % ConfigFile)
-        return
-
-def get_dir(dir_name_d, message):
-    while True:
-        log.debug("ROUTINE: get_dir %s %s" % (message, dir_name_d))
-        dir_name = raw_input("Enter %s Directory (%s): " % (message, dir_name_d)).rstrip(os.sep)
-        if not dir_name:
-            dir_name = dir_name_d
-        if os.path.exists(os.path.expanduser(dir_name)):
-            return dir_name
-        _create_dir(message, dir_name)
-        return dir_name
-
-def _create_dir(message, dir_name):
-    while not os.path.exists(os.path.expanduser(dir_name)):
-        action = raw_input("%s Directory: %s - Not Found,  Ignore/Re-Enter/Create/Abort? (I/R/C/A): " % (message, dir_name)).lower()[0]
-        log.debug("ROUTINE: _create_get_dir loop %s %s %s" % (action, message, dir_name))
-        if len(action) < 1:
-            continue
-        elif action[0].lower() == 'a':
-            raise UserAbort
-        elif action[0].lower() == 'i':
-            return dir_name
-        elif action[0].lower() == 'c':
-            try:
-                os.makedirs(os.path.expanduser(dir_name))
-                return dir_name
-            except OSError, exc:
-                log.error("Unable to Create Directory: %s, %s: " % (dir_name, exc))
-                continue
-        elif action[0] == 'r':
-            dir_name = get_dir(dir_name, message)
-            return dir_name
 
 def touch(path):
     now = time.time()
@@ -451,3 +318,7 @@ if __name__ == '__main__':
     log.info('DBFile: {}'.format(config.DBFile))
     log.info('HostNames: {}'.format(config.Hostnames))
 
+    log.info('TraktUserID: {}'.format(config.TraktUserID))
+    log.info('TraktPassWord: {}'.format(config.TraktPassWord))
+    log.info('TraktAPIKey: {}'.format(config.TraktAPIKey))
+    log.info('Base64Key: {}'.format(config.TraktBase64Key))
