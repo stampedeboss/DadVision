@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: UTF-8 -*-
 """
 Author: AJ Reynolds
 Date: 07-19-2014
@@ -65,19 +64,6 @@ USAGE
 
 log = logging.getLogger(__pgmname__)
 
-
-def use_library_logging(func):
-
-    def wrapper(self, *args, **kw):
-        # Set the library name in the logger
-        logger.set_library('trakt')
-        try:
-            return func(self, *args, **kw)
-        finally:
-            logger.set_library('')
-
-    return wrapper
-
 class UpdateTrakt(Library):
 
     def __init__(self):
@@ -122,7 +108,6 @@ class UpdateTrakt(Library):
 
         return
 
-    @use_library_logging
     def UpdateLibrary(self, pathname):
 
         fin = open(pathname, 'r')
@@ -173,19 +158,19 @@ class UpdateTrakt(Library):
         result = re.search('\d{4}', filename)
         if result and result.group() != 1080:
             d['year'] = result.group()
-        # filename = re.sub('_', ' ', filename, flags=re.IGNORECASE)
-        # filename = re.sub('\.', ' ', filename, flags=re.IGNORECASE)
-        # filename = re.sub('-', ' ', filename, flags=re.IGNORECASE)
-        # filename = re.sub(',', ' ', filename, flags=re.IGNORECASE)
-        # filename = re.sub('"', ' ', filename, flags=re.IGNORECASE)
-        # filename = re.sub('\s+', ' ', filename, flags=re.IGNORECASE)
-        # filename = re.sub('('+self._sources+').*', '', filename, flags=re.IGNORECASE)
-        # filename = re.sub('('+self._codecs+').*', '', filename, flags=re.IGNORECASE)
-        # filename = re.sub('('+self._resolutions+').*', '', filename, flags=re.IGNORECASE)
+        filename = re.sub('_', ' ', filename, flags=re.IGNORECASE)
+        filename = re.sub('\.', ' ', filename, flags=re.IGNORECASE)
+        filename = re.sub('-', ' ', filename, flags=re.IGNORECASE)
+        filename = re.sub(',', ' ', filename, flags=re.IGNORECASE)
+        filename = re.sub('"', ' ', filename, flags=re.IGNORECASE)
+        filename = re.sub('\s+', ' ', filename, flags=re.IGNORECASE)
+        filename = re.sub('('+self._sources+').*', '', filename, flags=re.IGNORECASE)
+        filename = re.sub('('+self._codecs+').*', '', filename, flags=re.IGNORECASE)
+        filename = re.sub('('+self._resolutions+').*', '', filename, flags=re.IGNORECASE)
         filename = re.sub('\(\d{4}\)', '', filename, flags=re.IGNORECASE)
-        # filename = re.sub('\[.*', '', filename, flags=re.IGNORECASE)
+        filename = re.sub('\[.*', '', filename, flags=re.IGNORECASE)
         # filename = re.sub('\(.*', '', filename, flags=re.IGNORECASE)
-        # filename = re.sub('\{.*', '', filename, flags=re.IGNORECASE)
+        filename = re.sub('\{.*', '', filename, flags=re.IGNORECASE)
 
         filename = filename.strip()
         d['cleanname'] = filename
