@@ -23,5 +23,9 @@ __credits__     = []
 
 class Common(object):
 
-	def __init__(self):
-		pass
+    settings = Settings()
+    options = CmdOptions()
+    args = {}
+
+    def __init__(self):
+        pass
