@@ -47,7 +47,7 @@ import json
 
 
 __pgmname__ = 'Trakt_tv.manage'
-__version__ = '$Rev: 297 $'
+__version__ = '$Rev$'
 
 __author__ = "@author: AJ Reynolds"
 __copyright__ = "@copyright: 2014, AJ Reynolds"
