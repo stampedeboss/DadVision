@@ -254,7 +254,7 @@ class Settings(object):
         self.TraktPassWord = HostName['TraktPassWord']
         self.TraktHashPswd = hashlib.sha1(HostName['TraktPassWord']).hexdigest()
         self.TraktAPIKey = HostName['TraktAPIKey']
-        self.TraktBase64Key = base64.encodestring(HostName['TraktUserID']+':'+HostName['TraktUserID'])
+        self.TraktBase64Key = base64.encodestring('{}:{}'.format(HostName['TraktUserID'].rstrip(), HostName['TraktUserID'].rstrip()))
 
         Library = self.config['Library']
         _NewDir = Library['NewDir']

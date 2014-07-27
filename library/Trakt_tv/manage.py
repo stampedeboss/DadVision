@@ -25,10 +25,6 @@ Examples of dirty movie names that can be cleaned:
 from library import Library
 from common import logger
 from common.exceptions import MovieNotFound, SeriesNotFound
-import trakt
-from trakt.movies import Movie
-from trakt.users import User, UserList
-from trakt import BaseAPI
 from pytvdbapi import api
 import logging
 import os
@@ -40,6 +36,10 @@ import fnmatch
 import urllib2
 import json
 
+# import trakt
+# from trakt.movies import Movie
+# from trakt.users import User, UserList
+# from trakt import BaseAPI
 #from trakt.tv import TVShow, TVSeason, TVEpisode, trending_shows, TraktRating, TraktStats, rate_shows, rate_episodes, genres, get_recommended_shows, dismiss_recommendation
 #from trakt.traktcalendar import PremiereCalendar, ShowCalendar, UserCalendar
 #from trakt.people import Person
@@ -147,8 +147,8 @@ class ManageTrakt(Library):
             action="store", nargs='?', default='myshows', const="myshows",
             help="Make changes to watchlist")
 
-        trakt.api_key = self.settings.TraktAPIKey
-        trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
+        # trakt.api_key = self.settings.TraktAPIKey
+        # trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
         tmdb3.set_key('587c13e576f991c0a653f783b290a065')
         tmdb3.set_cache(filename='tmdb3.cache')
         self.db = api.TVDB("959D8E76B796A1FB")
@@ -230,7 +230,8 @@ class ManageTrakt(Library):
                 log.warn('Movie Not Found: {}'.format(entry))
                 return
 
-        #log.info('{}:  {Title} ({Year}) - tmdb_id: {TMDB_ID}  imdb_id: {IMDB_ID}'.format('Queued', **_details))
+        log.info('{}:  {}'.format('Queued', _details))
+#        log.info('{}:  {Title} ({Year}) - tmdb_id: {TMDB_ID}  imdb_id: {IMDB_ID}'.format('Queued', **_details))
         self.ProcessBatch()
 
         return
@@ -359,6 +360,10 @@ class ManageTrakt(Library):
 
     def _processOptions(self):
 
+        self.settings.ReloadHostConfig(self.args.HostName)
+#        trakt.api_key = self.settings.TraktAPIKey
+#        trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
+
         if self.args.Type == 'lists':
             self.args.Target = 'items'
             self.Action = '/{}'.format(self.args.ActionTaken)
@@ -397,12 +402,12 @@ if __name__ == "__main__":
 
     logger.start(log_file, log_level, timed=False, error=True)
 
-    whitelist = __pgmname__.split('.')
-    whitelist = 'watchlist'
-    whitelist_handlers = ['Console']
-    for handler in logging.root.handlers:
-        if handler.name in whitelist_handlers:
-            handler.addFilter(logger.Whitelist(whitelist))
+    # whitelist = __pgmname__.split('.')
+    # whitelist = 'watchlist'
+    # whitelist_handlers = ['Console']
+    # for handler in logging.root.handlers:
+    #     if handler.name in whitelist_handlers:
+    #         handler.addFilter(logger.Whitelist(whitelist))
 
     if library.args.library:
         library.ProcessRequest('file')
