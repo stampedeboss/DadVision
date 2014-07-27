@@ -21,6 +21,7 @@ __maintainer__  = "@organization: AJ Reynolds"
 __status__      = "@status: Development"
 __credits__     = []
 
+import common
 
 class Library(object):
 
