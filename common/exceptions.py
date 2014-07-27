@@ -62,6 +62,10 @@ class InvalidArgumentType(BaseDaddyVisionException):
     """Raised when an argument is not expected type of object
     """
     pass
+class InvalidArgumentValue(BaseDaddyVisionException):
+    """Raised when an argument is not expected value for object
+    """
+    pass
 
 
 # Configuration Exceptions

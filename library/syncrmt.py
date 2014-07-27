@@ -7,8 +7,7 @@ Purpose:
 '''
 from library import Library
 from common import logger
-from common.exceptions import (ConfigValueError, SQLError,
-    UnexpectedErrorOccured, InvalidFilename)
+from common.exceptions import UnexpectedErrorOccured
 from library.series.fileparser import FileParser
 from subprocess import Popen, call as Call, check_call, CalledProcessError
 import logging
@@ -18,9 +17,11 @@ import re
 import socket
 import sqlite3
 import sys
-import tempfile
 import time
 import unicodedata
+import hashlib
+import base64
+import tempfile
 
 __pgmname__ = 'syncrmt'
 __version__ = '@version: $Rev$'
@@ -421,12 +422,21 @@ class SyncLibrary(Library):
 
     def _update_args(self):
         if self.args.hostname:
-            profile = self.settings.GetSubscribers(req_profile=[self.args.hostname])
+            profile = self.settings.GetHostConfig(requested_host=[self.args.hostname])
             self.args.UserId = profile[self.args.hostname]['UserId']
             self.args.SeriesRmt = profile[self.args.hostname]['SeriesDir']
             self.args.MoviesRmt = profile[self.args.hostname]['MovieDir']
+
             self.args.SeriesLoc = os.path.join(self.settings.SubscriptionDir, self.args.hostname, 'Series')
             self.args.MoviesLoc = os.path.join(self.settings.SubscriptionDir, self.args.hostname, 'Movies')
+
+            self.args.TraktUserID = profile[self.args.hostname]['TraktUserID']
+            self.args.TraktPassWord = profile[self.args.hostname]['TraktPassWord']
+            self.args.TraktHashPswd = hashlib.sha1(profile[self.args.hostname]['TraktPassWord']).hexdigest()
+            self.args.TraktAPIKey = profile[self.args.hostname]['TraktAPIKey']
+            self.args.TraktBase64Key = base64.encodestring(profile[self.args.hostname]['TraktUserID']+':'+profile[self.args.hostname]['TraktUserID'])
+
+
         else:
             self.options.parser.error('Missing Hostname Command Line Parameter')
             sys.exit(1)
@@ -441,7 +451,7 @@ class SyncLibrary(Library):
 
         if self.args.reverse:
             self.args.rsync = True
-            profile_loc = self.settings.GetSubscribers(req_profile=[socket.gethostname()])
+            profile_loc = self.settings.GetHostConfig(requested_host=[socket.gethostname()])
             self.args.SeriesLoc = '{}/'.format(profile[self.args.hostname]['SeriesDir'])
             self.args.MoviesLoc = '{}/'.format(profile[self.args.hostname]['MovieDir'])
 
