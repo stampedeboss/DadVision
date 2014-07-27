@@ -267,7 +267,11 @@ class ManageTrakt(Library):
             try:
                 _tmdbDetails = self.Re_Parse.match(entry)
                 if _tmdbDetails:
-                    _tmdbDetails = list(tmdb3.searchMovie(_tmdbDetails.group('MovieName')))[0]
+                    _tmdbDetails = list(tmdb3.searchMovie(_tmdbDetails.group('MovieName')))
+                    if len(_tmdbDetails) > 0:
+                        _tmdbDetails = _tmdbDetails[0]
+                    else:
+                        raise MovieNotFound('Movie Not Found: {}'.format(entry))
                 else:
                     raise MovieNotFound('Movie Not Found: {}'.format(entry))
             except MovieNotFound:
