@@ -204,7 +204,7 @@ class ManageTrakt(Library):
                 else:
                     log.error('Requested File Does Not Exist: {}'.format(_input_file))
 
-        if len(self.movieEntries) > 0:
+        if len(self.movieEntries) > 0 or len(self.showEntries) > 0:
             self.ProcessEntry('Junk', final=True)
 
     def ProcessEntry(self, entry, final=False):
