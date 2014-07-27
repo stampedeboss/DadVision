@@ -46,7 +46,7 @@ import json
 #from fuzzywuzzy import fuzz
 
 
-__pgmname__ = 'watchlist'
+__pgmname__ = 'Trakt_tv.manage'
 __version__ = '$Rev: 297 $'
 
 __author__ = "@author: AJ Reynolds"
@@ -143,6 +143,9 @@ class ManageTrakt(Library):
         trakt_library.add_argument("--watchlist", dest="Target",
             action="store_const", const="watchlist",
             help="Make changes to watchlist")
+        trakt_library.add_argument("--named-list", dest="listName",
+            action="store", nargs='?', default='myshows', const="myshows",
+            help="Make changes to watchlist")
 
         trakt.api_key = self.settings.TraktAPIKey
         trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
@@ -181,8 +184,8 @@ class ManageTrakt(Library):
             elif self.args.Type == 'movie':
                 _target_dir = self.settings.MoviesDir
             else:
-                log.warn("ListDir can only be used with Shows and Movies")
-                sys.exit(8)
+                log.warn("ListDir can only be used with Shows and Movies, defaulting to Shows")
+                _target_dir = self.settings.SeriesDir
 
             for _entry in sorted(os.listdir(_target_dir)):
                 if self._ignored(_entry):
@@ -240,7 +243,10 @@ class ManageTrakt(Library):
                 self.movieCounter = 0
         elif self.args.Type == 'show':
             if self.showCounter >= self.batchSize:
-                self.post_show(self.showEntries)
+                if self.args.Target in ['watchlist', 'unwatchlist']:
+                    self.post_data(self.showEntries)
+                else:
+                    self.post_show(self.showEntries)
                 self.showEntries = []
                 self.showCounter = 0
         elif self.args.Type == 'lists':
@@ -315,12 +321,12 @@ class ManageTrakt(Library):
         return _details
 
     def post_data(self, entry_data):
-        pydata = {'username': self.settings.TraktUserID,
-                  'password': self.settings.TraktHashPswd,
-                  '{}'.format(self.args.Type+'s'): entry_data
-                  }
+        pydata = {'username': self.settings.TraktUserID, 'password': self.settings.TraktHashPswd}
         if self.args.Type == 'lists':
-            pydata['slug'] = 'myshows'
+            pydata[self.args.Target] = entry_data
+            pydata['slug'] = self.args.listName
+        else:
+            pydata[self.args.Type+'s'] = entry_data
 
         json_data = json.dumps(pydata)
         clen = len(json_data)
