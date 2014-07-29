@@ -13,7 +13,7 @@ import fnmatch
 import os
 import re
 
-__pgmname__ = 'library.movie.fileparser'
+__pgmname__ = 'fileparser'
 __version__ = '@version: $Rev$'
 
 __author__ = "@author: AJ Reynolds"

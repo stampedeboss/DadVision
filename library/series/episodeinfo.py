@@ -9,6 +9,7 @@ from pytvdbapi.error import TVDBAttributeError, TVDBIndexError, TVDBValueError
 from common.exceptions import InvalidArgumentType, DictKeyError, DataRetrievalError
 from common.exceptions import SeriesNotFound, EpisodeNotFound, EpisodeNameNotFound
 from common import logger
+from fuzzywuzzy import fuzz
 import datetime
 import difflib
 import errno
@@ -23,7 +24,7 @@ import tvdb
 from pytvdbapi import api
 from tvrage.api import Show, ShowNotFound
 
-__pgmname__ = 'library.series.episodeinfo'
+__pgmname__ = 'episodeinfo'
 __version__ = '@version: $Rev$'
 
 __author__ = "@author: AJ Reynolds"
@@ -58,12 +59,13 @@ class EpisodeDetails(Library):
 
         self.db = api.TVDB("959D8E76B796A1FB")
         self._check_suffix = re.compile('^(?P<SeriesName>.+?)[ \._\-](?P<year>[0-9][0-9][0-9][0-9]|US|us|Us)$', re.VERBOSE)
+	self.confidenceFactor = 90
 
     def getDetails(self, request):
         log.trace('getDetailsAll: Input Parm: {}'.format(request))
 
         if type(request) == dict:
-            if 'SeriesName' in request:
+            if 'SeriesName' in request and request['SeriesName'] is not None:
                 _suffix = self._check_suffix.match(request['SeriesName'].rstrip())
                 if _suffix:
                     _series_name = '{} ({})'.format(_suffix.group('SeriesName'), _suffix.group('year').upper())
@@ -197,8 +199,9 @@ class EpisodeDetails(Library):
             _new_name = unicodedata.normalize('NFKD', _new_name).encode('ascii', 'ignore')
             _new_name = _new_name.replace("&amp;", "&").replace("/", "_")
             log.debug('Alias: {}'.format(_new_name))
-            _how_close = difflib.SequenceMatcher(None, _series_name, _new_name).ratio()
-            if _how_close > .95:
+
+
+            if self.matching(_series_name, _new_name):
                 _series_name = _m.SeriesName
                 _series_name = unicodedata.normalize('NFKD', _series_name).encode('ascii', 'ignore')
                 _series_name = _series_name.replace("&amp;", "&").replace("/", "_")
@@ -321,6 +324,22 @@ class EpisodeDetails(Library):
                     except KeyError, msg:
                         raise EpisodeNotFound(msg)
         return SeriesDetails
+
+    def _matching(self, value1, value2):
+        log.trace("_matching: Compare: {} --> {}".format(value1, value2))
+
+        Fuzzy[0] = fuzz.ratio(value1, value2)
+        Fuzzy[1] = fuzz.token_set_ratio(value1, value2)
+        Fuzzy[2] = fuzz.token_sort_ratio(value1, value2)
+        Fuzzy[3] = fuzz.token_set_ratio(value1, value2)
+
+        log.debug('Fuzzy Ratio" {} for {} - {}'.format(Fuzzy[0], value1, value2))
+        log.debug('Fuzzy Partial Ratio" {} for {} - {}'.format(Fuzzy[1], value1, value2))
+        log.debug('Fuzzy Token Sort Ratio" {} for {} - {}'.format(Fuzzy[2], value1, value2))
+        log.debug('Fuzzy Token Set Ratio" {} for {} - {}'.format(Fuzzy[3], value1, value2))
+
+        return any([fr > self.confidenceFactor for fr in Fuzzy])
+
 
 if __name__ == "__main__":
 

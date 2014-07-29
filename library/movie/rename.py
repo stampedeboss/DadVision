@@ -17,10 +17,11 @@ import logging
 import os
 import re
 import sys
-import tmdb
+import tmdb3
 import shutil
+import unicodedata
 
-__pgmname__ = 'library.movie.rename'
+__pgmname__ = 'rename'
 __version__ = '$Rev$'
 
 __author__ = "@author: AJ Reynolds"
@@ -73,7 +74,8 @@ class RenameMovie(Library):
         self.regex_repack = re.compile('^.*(repack|proper).*$', re.IGNORECASE)
         self.regex_NewMoviesDir = re.compile('^{}.*$'.format(self.settings.NewMoviesDir, re.IGNORECASE))
 
-        tmdb.configure('587c13e576f991c0a653f783b290a065')
+        tmdb3.set_key('587c13e576f991c0a653f783b290a065')
+        tmdb3.set_cache(filename='tmdb3.cache')
         return
 
     @useLibraryLogging
@@ -88,9 +90,10 @@ class RenameMovie(Library):
             log.debug("Movie Filename:  %s" % os.path.split(pathname)[1])
             try:
                 self._rename_file(pathname)
-            except (MovieNotFound, InvalidFilename, UnexpectedErrorOccured):
+                if len(os.listdir(pathname)) == 0:
+                    self._del_dir(pathname, Tree=False)
+            except (MovieNotFound, InvalidFilename):
                 pass
-
         elif os.path.isdir(pathname):
             log.debug("-----------------------------------------------")
             log.debug("Movie Directory: %s" % pathname)
@@ -122,13 +125,10 @@ class RenameMovie(Library):
 
                     try:
                         self._rename_file(_path_name)
-                    except (MovieNotFound, InvalidFilename, UnexpectedErrorOccured):
+                    except (MovieNotFound, InvalidFilename):
                         pass
-
-        if len(os.listdir(pathname)) == 0:
-            self._del_dir(pathname, MovieDir=False)
-        else:
-            self._del_dir(pathname)
+                if os.path.exists(_root) and len(os.listdir(_root)) == 0:
+                    self._del_dir(_root)
 
         return None
 
@@ -155,10 +155,6 @@ class RenameMovie(Library):
                     _file_details['MovieName'] = _directory_details['MovieName']
                 except KeyError:
                     raise                
-                try:
-                    _file_details['Year'] = _directory_details['Year']
-                except KeyError:
-                    pass                
                 _file_details = self._get_tmdb_info(_file_details)
             _fq_new_file_name = self._get_new_filename(_file_details)
 
@@ -181,22 +177,55 @@ class RenameMovie(Library):
         return
 
     def _get_tmdb_info(self, _file_details):
+        log.trace("_get_tmdb_info: file details:{!s}".format(_file_details))
 
-        _movie = []
-        _movies = tmdb.Movies(_file_details['MovieName'])
+        if 'Year' in _file_details:
+            _movie = '{MovieName} ({Year})'.format(**_file_details)
+            try:
+                _tmdbDetails = list(tmdb3.searchMovieWithYear(_movie))
+            except IndexError:
+                try:
+                    _tmdbDetails = list(tmdb3.searchMovie(_file_details['MovieName']))
+                except IndexError:
+                    raise MovieNotFound("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
+        else:
+            try:
+                _tmdbDetails = list(tmdb3.searchMovie(_file_details['MovieName']))
+            except IndexError:
+                raise MovieNotFound("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
 
-        for _movie in _movies.iter_results():
-            if fuzz.ratio(_movie["title"], _file_details['MovieName']) > 85:
+	if not _tmdbDetails:
+            raise MovieNotFound("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
+
+	log.trace('TMDB Details: {}'.format(_tmdbDetails))
+        for _movie in _tmdbDetails:
+            _title = unicodedata.normalize('NFKD', _movie.title).encode("ascii", 'ignore')
+            _title = _title.replace("&amp;", "&").replace("/", "_")
+
+            if self._matching(_title+' '+str(_movie.releasedate.year), _file_details['MovieName']+' '+_file_details['Year']):
                 break
 
-        if _movie and fuzz.ratio(_movie["title"], _file_details['MovieName']) > 85:
-            _file_details['MovieName'] = _movie["title"]
-            if _movie["release_date"]:
-                _file_details['Year'] = str(_movie["release_date"][0:4])
-            return _file_details
-        else:
-            log.warn("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
-            raise MovieNotFound("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
+        if self._matching(_title, _file_details['MovieName']):
+            # Check Alternate Titles: list(AlternateTitle) alternate_titles 
+            _alt_title = _movie.alternate_titles
+            for _alt_title in _movie.alternate_titles:
+                log.trace('Check Alternate Titles: {}'.format(_alt_title.title)) 
+                _alt_title = unicodedata.normalize('NFKD', _alt_title.title).encode("ascii", 'ignore')
+                _alt_title = _alt_title.replace("&amp;", "&").replace("/", "_")
+                if self._matching(_alt_title, _file_details['MovieName']):
+                    break
+
+            if self._matching(_alt_title, _file_details['MovieName']):
+                log.warn("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
+                raise MovieNotFound("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
+            _file_details['AltMovieName'] = _alt_title
+
+        _file_details['MovieName'] = _title
+        if _movie.releasedate:
+            _file_details['Year'] = str(_movie.releasedate.year)
+
+        log.trace("Movie Located in TMDB")
+        return _file_details
 
     def _get_new_filename(self, _file_details):
         log.trace("_get_new_filename method: pathname:{!s}".format(_file_details))
@@ -218,7 +247,7 @@ class RenameMovie(Library):
         return _fq_new_file_name
 
     def _check_for_existing(self, _fq_new_file_name, _file_details):
-        #log.trace("_check_for_existing method: filename: {} pathname:{!s}".format(_fq_new_file_name, _file_details))
+        log.trace("_check_for_existing method: filename: {} pathname:{!s}".format(_fq_new_file_name, _file_details))
 
         if not os.path.exists(_fq_new_file_name):
             return True
@@ -233,6 +262,7 @@ class RenameMovie(Library):
                 os.remove(_fq_new_file_name)
                 return True
 
+            log.trace("Comparing existing file to new, may run for some time.")
             if filecmp.cmp(_fq_new_file_name, _file_details['FileName']):
                 log.info("Deleting New File %r, Same File already at destination!" % (os.path.split(_file_details['FileName'])[1]))
                 os.remove(_file_details['FileName'])
@@ -288,11 +318,8 @@ class RenameMovie(Library):
 
         return None
 
-    def _del_dir(self, pathname, Tree=False, MovieDir=True):
+    def _del_dir(self, pathname, Tree=False):
         log.trace("_del_dir: pathname:{!s}".format(pathname))
-
-        if MovieDir and not self.regex_NewMoviesDir.match(pathname):
-            return
 
         if not os.path.isdir(pathname):
             raise InvalidPath('Invalid Path was requested for deletion: {}'.format(pathname))
@@ -305,6 +332,21 @@ class RenameMovie(Library):
                 os.rmdir(pathname)
         except:
             log.warn('Delete Directory: Unable to Delete requested directory: %s' % (sys.exc_info()[1]))
+
+    def _matching(self, value1, value2):
+        log.trace("_matching: Compare: {} --> {}".format(value1, value2))
+
+        Fuzzy[0] = fuzz.ratio(value1, value2)
+        Fuzzy[1] = fuzz.token_set_ratio(value1, value2)
+        Fuzzy[2] = fuzz.token_sort_ratio(value1, value2)
+        Fuzzy[3] = fuzz.token_set_ratio(value1, value2)
+
+        log.debug('Fuzzy Ratio" {} for {} - {}'.format(Fuzzy[0], value1, value2))
+        log.debug('Fuzzy Partial Ratio" {} for {} - {}'.format(Fuzzy[1], value1, value2))
+        log.debug('Fuzzy Token Sort Ratio" {} for {} - {}'.format(Fuzzy[2], value1, value2))
+        log.debug('Fuzzy Token Set Ratio" {} for {} - {}'.format(Fuzzy[3], value1, value2))
+
+        return any([fr > 85 for fr in Fuzzy])
 
     def _ignored(self, name):
         """ Check for ignored pathnames.
