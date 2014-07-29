@@ -287,7 +287,7 @@ class EpisodeDetails(Library):
             raise SeriesNotFound(error_msg)
 
         _tvrage_series_name = _series.name
-        if self._matching(_series_name, _tvrage_series_name)
+        if self._matching(_series_name, _tvrage_series_name):
             error_msg = "_retrieve_tvrage_info: Unable to Locate Series in TVDB or TVRAGE: %s" % (_series_name)
             raise SeriesNotFound(error_msg)
 
@@ -327,17 +327,18 @@ class EpisodeDetails(Library):
     def _matching(self, value1, value2):
         log.trace("_matching: Compare: {} --> {}".format(value1, value2))
 
-        Fuzzy[0] = fuzz.ratio(value1, value2)
-        Fuzzy[1] = fuzz.token_set_ratio(value1, value2)
-        Fuzzy[2] = fuzz.token_sort_ratio(value1, value2)
-        Fuzzy[3] = fuzz.token_set_ratio(value1, value2)
+        Fuzzy = []
+        Fuzzy.append(fuzz.ratio(value1, value2))
+        Fuzzy.append(fuzz.token_set_ratio(value1, value2))
+        Fuzzy.append(fuzz.token_sort_ratio(value1, value2))
+        Fuzzy.append(fuzz.token_set_ratio(value1, value2))
 
         log.debug('Fuzzy Ratio" {} for {} - {}'.format(Fuzzy[0], value1, value2))
         log.debug('Fuzzy Partial Ratio" {} for {} - {}'.format(Fuzzy[1], value1, value2))
         log.debug('Fuzzy Token Sort Ratio" {} for {} - {}'.format(Fuzzy[2], value1, value2))
         log.debug('Fuzzy Token Set Ratio" {} for {} - {}'.format(Fuzzy[3], value1, value2))
 
-        return any([fr > self.confidenceFactor for fr in Fuzzy])
+        return any([fr > 85 for fr in Fuzzy])
 
 
 if __name__ == "__main__":
