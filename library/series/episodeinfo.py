@@ -287,8 +287,7 @@ class EpisodeDetails(Library):
             raise SeriesNotFound(error_msg)
 
         _tvrage_series_name = _series.name
-        _how_close = difflib.SequenceMatcher(None, _series_name, _tvrage_series_name).ratio()
-        if _how_close < .85:
+        if self._matching(_series_name, _tvrage_series_name)
             error_msg = "_retrieve_tvrage_info: Unable to Locate Series in TVDB or TVRAGE: %s" % (_series_name)
             raise SeriesNotFound(error_msg)
 

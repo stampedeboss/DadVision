@@ -179,6 +179,25 @@ class RenameMovie(Library):
     def _get_tmdb_info(self, _file_details):
         log.trace("_get_tmdb_info: file details:{!s}".format(_file_details))
 
+        _check_year = False
+        try:
+            if 'Year' in _file_details:
+                _movie = '{MovieName} ({Year})'.format(**_file_details)
+                _tmdbDetails = list(tmdb3.searchMovieWithYear(_movie))
+                if not _tmdbDetails:
+                    _tmdbDetails = list(tmdb3.searchMovie(_file_details['MovieName']))
+                    if not _tmdbDetails:
+                        raise MovieNotFound("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
+                _check_year = True
+            else:
+                _tmdbDetails = list(tmdb3.searchMovie(_file_details['MovieName']))
+                if not _tmdbDetails:
+                    raise MovieNotFound("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
+        except MovieNotFound:
+                raise MovieNotFound("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
+
+
+
         if 'Year' in _file_details:
             _movie = '{MovieName} ({Year})'.format(**_file_details)
             try:
@@ -194,9 +213,6 @@ class RenameMovie(Library):
             except IndexError:
                 raise MovieNotFound("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
 
-	if not _tmdbDetails:
-            raise MovieNotFound("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
-
 	log.trace('TMDB Details: {}'.format(_tmdbDetails))
         for _movie in _tmdbDetails:
             _title = unicodedata.normalize('NFKD', _movie.title).encode("ascii", 'ignore')
@@ -205,7 +221,7 @@ class RenameMovie(Library):
             if self._matching(_title+' '+str(_movie.releasedate.year), _file_details['MovieName']+' '+_file_details['Year']):
                 break
 
-        if self._matching(_title, _file_details['MovieName']):
+        if not self._matching(_title, _file_details['MovieName']):
             # Check Alternate Titles: list(AlternateTitle) alternate_titles 
             _alt_title = _movie.alternate_titles
             for _alt_title in _movie.alternate_titles:
@@ -215,7 +231,7 @@ class RenameMovie(Library):
                 if self._matching(_alt_title, _file_details['MovieName']):
                     break
 
-            if self._matching(_alt_title, _file_details['MovieName']):
+            if not self._matching(_alt_title, _file_details['MovieName']):
                 log.warn("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
                 raise MovieNotFound("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
             _file_details['AltMovieName'] = _alt_title
@@ -336,10 +352,11 @@ class RenameMovie(Library):
     def _matching(self, value1, value2):
         log.trace("_matching: Compare: {} --> {}".format(value1, value2))
 
-        Fuzzy[0] = fuzz.ratio(value1, value2)
-        Fuzzy[1] = fuzz.token_set_ratio(value1, value2)
-        Fuzzy[2] = fuzz.token_sort_ratio(value1, value2)
-        Fuzzy[3] = fuzz.token_set_ratio(value1, value2)
+        Fuzzy = []
+        Fuzzy.append(fuzz.ratio(value1, value2))
+        Fuzzy.append(fuzz.token_set_ratio(value1, value2))
+        Fuzzy.append(fuzz.token_sort_ratio(value1, value2))
+        Fuzzy.append(fuzz.token_set_ratio(value1, value2))
 
         log.debug('Fuzzy Ratio" {} for {} - {}'.format(Fuzzy[0], value1, value2))
         log.debug('Fuzzy Partial Ratio" {} for {} - {}'.format(Fuzzy[1], value1, value2))
