@@ -27,7 +27,7 @@ import time
 import unicodedata
 import sqlite3
 
-__pgmname__ = 'library.series.rename'
+__pgmname__ = 'rename'
 __version__ = '$Rev$'
 
 __author__ = "@author: AJ Reynolds"
@@ -384,7 +384,6 @@ if __name__ == "__main__":
 
     # If an absolute path is not specified, use the default directory.
     if not os.path.isabs(log_file):
-        log_file = os.path.join(logger.LogDir, log_file)
 
     logger.start(log_file, log_level, timed=True)
 
