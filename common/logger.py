@@ -166,7 +166,7 @@ def initialize(unit_test=False, level=TRACE):
         log.setLevel(logging.INFO)
 
 
-def start(filename='daddyvision.log', level=logging.INFO, timed=False, error=False):
+def start(filename='daddyvision.log', level=logging.INFO, timed=False, errorlog=False):
     """After initialization, start file logging.
     """
     global _logging_started
@@ -186,7 +186,7 @@ def start(filename='daddyvision.log', level=logging.INFO, timed=False, error=Fal
 
     _mem_handler.setTarget(handler)
 
-    if error:
+    if errorlog:
         _error_log_dir = os.path.dirname(filename)
         _error_filename = os.path.splitext(os.path.basename(filename))[0]+'.error'+os.path.splitext(os.path.basename(filename))[1]
         _error_log = os.path.join(_error_log_dir, _error_filename)
@@ -198,9 +198,9 @@ def start(filename='daddyvision.log', level=logging.INFO, timed=False, error=Fal
     log = logging.getLogger()
     log.removeHandler(_mem_handler)
     log.addHandler(handler)
-    handler.addFilter(PrivacyFilter())
+    log.addFilter(PrivacyFilter())
     log.setLevel(level)
-    if error:
+    if errorlog:
         log.addHandler(error_handler)
         error_handler.setLevel(WARNING)
 
