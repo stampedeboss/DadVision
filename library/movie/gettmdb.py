@@ -84,26 +84,25 @@ class GetTMDBInfo(Library):
 		"""
 		log.trace("locatemovie method: request:{}".format(request))
 
-		if type(request) == dict:
-			if 'MovieName' in request and request['MovieName'] is None:
-				error_msg = 'LocaateMovie: Request Missing "MovieName" Value: {!s}'.format(request)
+		moviedetails = request
+		if type(moviedetails) == dict:
+			if 'MovieName' in moviedetails and moviedetails['MovieName'] is None:
+				error_msg = 'LocaateMovie: Request Missing "MovieName" Value: {!s}'.format(moviedetails)
 				log.trace(error_msg)
 				raise DictKeyError(error_msg)
 		else:
-			error_msg = 'locatemovie: Invalid object type passed, must be DICT, received: {}'.format(type(request))
+			error_msg = 'locatemovie: Invalid object type passed, must be DICT, received: {}'.format(type(moviedetails))
 			log.trace(error_msg)
 			raise InvalidArgumentType(error_msg)
 
-		_suffix = self._check_suffix.match(request['MovieName'])
+		_suffix = self._check_suffix.match(moviedetails['MovieName'])
 		if _suffix:
-			request['MovieName'] = '{} '.format(_suffix.group('MovieName')).rstrip()
-			if 'Year' not in request:
-				request['Year'] = '{}'.format(_suffix.group('Year').upper())
-			log.debug('locatemovie: Request: Modified {}'.format(request))
+			moviedetails['MovieName'] = '{} '.format(_suffix.group('MovieName')).rstrip()
+			if 'Year' not in moviedetails:
+				moviedetails['Year'] = '{}'.format(_suffix.group('Year').upper())
+			log.debug('locatemovie: Request: Modified {}'.format(moviedetails))
 
 		try:
-			moviedetails = request
-			_title = moviedetails['MovieName']
 			moviedetails = self._get_details(moviedetails)
 		except MovieNotFound:
 			raise MovieNotFound("Movie Not Found in TMDb: {}".format(moviedetails['MovieName']))
@@ -127,18 +126,22 @@ class GetTMDBInfo(Library):
 			else:
 				_tmdbDetails = list(tmdb3.searchMovie(moviedetails['MovieName']))
 				if not _tmdbDetails:
-					raise MovieNotFound("Movie Not Found in TMDb: {}".format(moviedetails['MovieName']))
-		except MovieNotFound:
-			raise MovieNotFound("Movie Not Found in TMDb: {}".format(moviedetails['MovieName']))
+					raise MovieNotFound("Movie without Year Not Found in TMDb: {}".format(moviedetails['MovieName']))
+		except:
+			raise MovieNotFound("Movie Not Found due to unknown reason: {}".format(moviedetails['MovieName']))
 
 		log.trace('TMDB Details: {}'.format(_tmdbDetails))
 		for _movie in _tmdbDetails:
 			_title = unicodedata.normalize('NFKD', _movie.title).encode("ascii", 'ignore')
 			_title = _title.replace("&amp;", "&").replace("/", "_")
 
-			if _matching(_title + ' ' + str(_movie.releasedate.year),
-			             moviedetails['MovieName'] + ' ' + str(moviedetails['Year'])):
-				break
+			if 'Year' in moviedetails:
+				if _matching(_title + ' ' + str(_movie.releasedate.year),
+				             moviedetails['MovieName'] + ' ' + str(moviedetails['Year'])):
+					break
+			else:
+				if _matching(_title, moviedetails['MovieName']):
+					break
 
 		if not _matching(_title, moviedetails['MovieName']):
 			# Check Alternate Titles: list(AlternateTitle) alternate_titles
