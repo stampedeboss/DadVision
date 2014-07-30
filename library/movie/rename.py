@@ -7,6 +7,7 @@ Program to rename files associated with Movie Content
 """
 from library import Library
 from library.movie.fileparser import FileParser
+from library.movie.gettmdb import GetTMDBInfo
 from common import logger
 from common.chkvideo import chkVideoFile
 from common.exceptions import InvalidPath, InvalidFilename, UnexpectedErrorOccured, MovieNotFound
@@ -70,6 +71,7 @@ class RenameMovie(Library):
             help="Bypass Video Checks")
 
         self.fileparser = FileParser()
+	self.tmdbinfo = GetTMDBInfo()
 
         self.regex_repack = re.compile('^.*(repack|proper).*$', re.IGNORECASE)
         self.regex_NewMoviesDir = re.compile('^{}.*$'.format(self.settings.NewMoviesDir, re.IGNORECASE))
@@ -147,7 +149,7 @@ class RenameMovie(Library):
         try:
             _file_details = self.fileparser.getFileDetails(pathname)
             try:
-                _file_details = self._get_tmdb_info(_file_details)
+                _file_details = self.tmdbinfo.locatemovie(_file_details)
             except MovieNotFound:
                 _dir_name = os.path.dirname(pathname) + '.' +_ext
                 _directory_details = self.fileparser.getFileDetails(_dir_name)
@@ -155,7 +157,7 @@ class RenameMovie(Library):
                     _file_details['MovieName'] = _directory_details['MovieName']
                 except KeyError:
                     raise                
-                _file_details = self._get_tmdb_info(_file_details)
+                _file_details = self.tmdbinfo.locatemovie(_file_details)
             _fq_new_file_name = self._get_new_filename(_file_details)
 
             if self._check_for_existing(_fq_new_file_name, _file_details):
@@ -175,73 +177,6 @@ class RenameMovie(Library):
         except (MovieNotFound, InvalidFilename, UnexpectedErrorOccured):
             pass
         return
-
-    def _get_tmdb_info(self, _file_details):
-        log.trace("_get_tmdb_info: file details:{!s}".format(_file_details))
-
-        _check_year = False
-        try:
-            if 'Year' in _file_details:
-                _movie = '{MovieName} ({Year})'.format(**_file_details)
-                _tmdbDetails = list(tmdb3.searchMovieWithYear(_movie))
-                if not _tmdbDetails:
-                    _tmdbDetails = list(tmdb3.searchMovie(_file_details['MovieName']))
-                    if not _tmdbDetails:
-                        raise MovieNotFound("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
-                _check_year = True
-            else:
-                _tmdbDetails = list(tmdb3.searchMovie(_file_details['MovieName']))
-                if not _tmdbDetails:
-                    raise MovieNotFound("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
-        except MovieNotFound:
-                raise MovieNotFound("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
-
-
-
-        if 'Year' in _file_details:
-            _movie = '{MovieName} ({Year})'.format(**_file_details)
-            try:
-                _tmdbDetails = list(tmdb3.searchMovieWithYear(_movie))
-            except IndexError:
-                try:
-                    _tmdbDetails = list(tmdb3.searchMovie(_file_details['MovieName']))
-                except IndexError:
-                    raise MovieNotFound("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
-        else:
-            try:
-                _tmdbDetails = list(tmdb3.searchMovie(_file_details['MovieName']))
-            except IndexError:
-                raise MovieNotFound("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
-
-	log.trace('TMDB Details: {}'.format(_tmdbDetails))
-        for _movie in _tmdbDetails:
-            _title = unicodedata.normalize('NFKD', _movie.title).encode("ascii", 'ignore')
-            _title = _title.replace("&amp;", "&").replace("/", "_")
-
-            if self._matching(_title+' '+str(_movie.releasedate.year), _file_details['MovieName']+' '+_file_details['Year']):
-                break
-
-        if not self._matching(_title, _file_details['MovieName']):
-            # Check Alternate Titles: list(AlternateTitle) alternate_titles 
-            _alt_title = _movie.alternate_titles
-            for _alt_title in _movie.alternate_titles:
-                log.trace('Check Alternate Titles: {}'.format(_alt_title.title)) 
-                _alt_title = unicodedata.normalize('NFKD', _alt_title.title).encode("ascii", 'ignore')
-                _alt_title = _alt_title.replace("&amp;", "&").replace("/", "_")
-                if self._matching(_alt_title, _file_details['MovieName']):
-                    break
-
-            if not self._matching(_alt_title, _file_details['MovieName']):
-                log.warn("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
-                raise MovieNotFound("Movie Not Found in TMDb: {}".format(_file_details['MovieName']))
-            _file_details['AltMovieName'] = _alt_title
-
-        _file_details['MovieName'] = _title
-        if _movie.releasedate:
-            _file_details['Year'] = str(_movie.releasedate.year)
-
-        log.trace("Movie Located in TMDB")
-        return _file_details
 
     def _get_new_filename(self, _file_details):
         log.trace("_get_new_filename method: pathname:{!s}".format(_file_details))
@@ -304,7 +239,7 @@ class RenameMovie(Library):
         _directory_details = self.fileparser.getFileDetails(directory + '.avi')
         _directory_details['FileName'] = directory
 
-        _directory_details = self._get_tmdb_info(_directory_details)
+        _directory_details = self.tmdbinfo.locatemovie(_directory_details)
 
         if 'Year' in _directory_details:
             _new_dir = '%s (%s)' % (_directory_details['MovieName'], _directory_details['Year'])
