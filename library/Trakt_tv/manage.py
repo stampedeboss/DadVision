@@ -118,6 +118,9 @@ class ManageTrakt(Library):
         trakt_action.add_argument("-d", "--delete", dest="ActionTaken",
             action="store_const", const="delete",
             help="Delete entries from list")
+        trakt_action.add_argument("--dump", dest="ActionTaken",
+            action="store_const", const="dump",
+            help="Dump the entries found in the selected list")
 
         trakt_type = self.options.parser.add_mutually_exclusive_group()
         trakt_type.add_argument("-s", "--show", dest="Type",
@@ -145,7 +148,7 @@ class ManageTrakt(Library):
             help="Make changes to watchlist")
         trakt_library.add_argument("--named-list", dest="listName",
             action="store", nargs='?', default='myshows', const="myshows",
-            help="Make changes to watchlist")
+            help="Make changes to the list with this name")
 
         # trakt.api_key = self.settings.TraktAPIKey
         # trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
@@ -290,7 +293,7 @@ class ManageTrakt(Library):
         # else:
         #     _details['tear'] = None
 
-        if self.args.Target == 'lists':
+        if self.args.Type == 'lists':
             _details['type'] = 'movie'
 
         self.movieCounter += 1
@@ -317,7 +320,7 @@ class ManageTrakt(Library):
         # else:
         #     _details['year'] = None
 
-        if self.args.Target == 'lists':
+        if self.args.Type == 'lists':
             _details['type'] = 'show'
 
         self.showCounter += 1
@@ -377,6 +380,27 @@ class ManageTrakt(Library):
         """
         return any(fnmatch.fnmatch(name.lower(), pattern) for pattern in self.settings.ExcludeList)
 
+    def ReportTrakt(self):
+        pydata = {'username': , 'password': self.settings.TraktHashPswd}
+        if self.args.Type == 'lists':
+            pydata[self.args.Target] = entry_data
+            pydata['slug'] = self.args.listName
+        else:
+            pydata[self.args.Type+'s'] = entry_data
+
+        json_data = json.dumps(pydata)
+        clen = len(json_data)
+        _url = 'http://api.trakt.tv/user/list.json/{}/{}/{}'.format(self.settings.TraktAPIKey,
+                                                                            self.settings.TraktUserID,
+                                                                            self.args.listName)
+        req = urllib2.Request(_url, json_data, {'Content-Type': 'application/json', 'Content-Length': clen})
+        f = urllib2.urlopen(req)
+        response = f.read()
+        f.close()
+        log.info(response)
+        return
+
+
 
 if __name__ == "__main__":
 
@@ -409,7 +433,10 @@ if __name__ == "__main__":
     #     if handler.name in whitelist_handlers:
     #         handler.addFilter(logger.Whitelist(whitelist))
 
-    if library.args.library:
-        library.ProcessRequest('file')
+    if library.args.Type == 'user':
+        pass
     else:
-        library.ProcessRequest('listdir')
+        if library.args.library:
+            library.ProcessRequest('file')
+        else:
+            library.ProcessRequest('listdir')
