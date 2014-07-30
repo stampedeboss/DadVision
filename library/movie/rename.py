@@ -7,7 +7,7 @@ Program to rename files associated with Movie Content
 """
 from library import Library
 from library.movie.fileparser import FileParser
-from library.movie.gettmdb import GetTMDBInfo
+from library.movie.gettmdb import TMDBInfo
 from common import logger
 from common.chkvideo import chkVideoFile
 from common.exceptions import InvalidPath, InvalidFilename, UnexpectedErrorOccured, MovieNotFound
@@ -71,7 +71,7 @@ class RenameMovie(Library):
             help="Bypass Video Checks")
 
         self.fileparser = FileParser()
-	self.tmdbinfo = GetTMDBInfo()
+	self.tmdbinfo = TMDBInfo()
 
         self.regex_repack = re.compile('^.*(repack|proper).*$', re.IGNORECASE)
         self.regex_NewMoviesDir = re.compile('^{}.*$'.format(self.settings.NewMoviesDir, re.IGNORECASE))
@@ -149,7 +149,7 @@ class RenameMovie(Library):
         try:
             _file_details = self.fileparser.getFileDetails(pathname)
             try:
-                _file_details = self.tmdbinfo.locatemovie(_file_details)
+                _file_details = self.tmdbinfo.retrieve_info(_file_details)
             except MovieNotFound:
                 _dir_name = os.path.dirname(pathname) + '.' +_ext
                 _directory_details = self.fileparser.getFileDetails(_dir_name)
@@ -157,7 +157,7 @@ class RenameMovie(Library):
                     _file_details['MovieName'] = _directory_details['MovieName']
                 except KeyError:
                     raise                
-                _file_details = self.tmdbinfo.locatemovie(_file_details)
+                _file_details = self.tmdbinfo.retrieve_info(_file_details)
             _fq_new_file_name = self._get_new_filename(_file_details)
 
             if self._check_for_existing(_fq_new_file_name, _file_details):
@@ -239,7 +239,7 @@ class RenameMovie(Library):
         _directory_details = self.fileparser.getFileDetails(directory + '.avi')
         _directory_details['FileName'] = directory
 
-        _directory_details = self.tmdbinfo.locatemovie(_directory_details)
+        _directory_details = self.tmdbinfo.retrieve_info(_directory_details)
 
         if 'Year' in _directory_details:
             _new_dir = '%s (%s)' % (_directory_details['MovieName'], _directory_details['Year'])
