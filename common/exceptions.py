@@ -66,6 +66,10 @@ class InvalidArgumentValue(BaseDaddyVisionException):
     """Raised when an argument is not expected value for object
     """
     pass
+class NotMediaFile(BaseDaddyVisionException):
+    """Raised when an argument is not expected value for object
+    """
+    pass
 
 
 # Configuration Exceptions
