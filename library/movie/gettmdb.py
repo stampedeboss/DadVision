@@ -165,37 +165,38 @@ class TMDBInfo(Library):
 				_title = _title.replace("&amp;", "&").replace("/", "_")
 
 				if 'Year' in moviedetails:
-					if _matching(_title + ' ' + str(_movie.releasedate.year),
-								 moviedetails['MovieName'] + ' ' + str(moviedetails['Year'])):
+					if _matching(_title.lower() + ' ' + str(_movie.releasedate.year),
+								 moviedetails['MovieName'].lower() + ' ' + str(moviedetails['Year'])):
+						moviedetails['MovieName'] = _title
 						raise GetOutOfLoop
 				else:
-					if _matching(_title, moviedetails['MovieName']):
+					if _matching(_title.lower(), moviedetails['MovieName'].lower()):
+						moviedetails['MovieName'] = _title
 						raise GetOutOfLoop
-		except GetOutOfLoop:
-			if not _matching(_title, moviedetails['MovieName']):
 				# Check Alternate Titles: list(AlternateTitle) alternate_titles
-				try:
-					_alt_title = _movie.alternate_titles
-					for _alt_title in _movie.alternate_titles:
-						log.trace('Check Alternate Titles: {}'.format(_alt_title.title))
-						_alt_title = unicodedata.normalize('NFKD', _alt_title.title).encode("ascii", 'ignore')
-						_alt_title = _alt_title.replace("&amp;", "&").replace("/", "_")
-						if _matching(_alt_title, moviedetails['MovieName']):
-							raise GetOutOfLoop
-					log.warn("Movie Not Found in TMDb: {}".format(moviedetails['MovieName']))
-					raise MovieNotFound("Movie Not Found in TMDb: {}".format(moviedetails['MovieName']))
-				except GetOutOfLoop:
-					moviedetails['AltMovieName'] = _alt_title
+				_alt_title = _movie.alternate_titles
+				for _alt_title in _movie.alternate_titles:
+					log.trace('Check Alternate Titles: {}'.format(_alt_title.title))
+					_alt_title = unicodedata.normalize('NFKD', _alt_title.title).encode("ascii", 'ignore')
+					_alt_title = _alt_title.replace("&amp;", "&").replace("/", "_")
+					if _matching(_alt_title, moviedetails['MovieName']):
+						moviedetails['MovieName'] = _title
+						moviedetails['AltMovieName'] = _alt_title
+						raise GetOutOfLoop
+			log.warn("Movie Not Found in TMDb: {}".format(moviedetails['MovieName']))
+			raise MovieNotFound("Movie Not Found in TMDb: {}".format(moviedetails['MovieName']))
+		except GetOutOfLoop:
+			if _movie.releasedate:
+				if not (-2 < (int(moviedetails['Year']) - _movie.releasedate.year) < 2):
+					msg = "Movie with simular name found but Year too far off: {}/{} - {}".format(moviedetails['Year'],
+					                                                                                _movie.releasedate.year,
+					                                                                                moviedetails['MovieName'])
+					log.warning(msg)
+					raise MovieNotFound(msg)
+				moviedetails['Year'] = str(_movie.releasedate.year)
 
-		moviedetails['MovieName'] = _title
-		if _movie.releasedate:
-			if chkyear and not -2 < (int(moviedetails['Year']) - _movie.releasedate.year) < 2:
-				raise MovieNotFound("Movie Not Found in TMDb: {}".format(moviedetails['MovieName']))
-			moviedetails['Year'] = str(_movie.releasedate.year)
-
-			log.trace("Movie Located in TMDB")
-			return moviedetails
-		raise MovieNotFound("Movie Not Found in TMDb: {}".format(moviedetails['MovieName']))
+		log.trace("Movie Located in TMDB")
+		return moviedetails
 
 
 @uselibrarylogging
@@ -216,6 +217,9 @@ def _matching(value1, value2):
 class GetOutOfLoop(Exception):
 	pass
 
+class GetOutOfLoop2(Exception):
+	pass
+
 
 if __name__ == "__main__":
 
@@ -223,6 +227,7 @@ if __name__ == "__main__":
 	log.trace("MAIN: -------------------------------------------------")
 	from library.movie.fileparser import FileParser
 	from library.movie.rename import RenameMovie
+	import traceback
 
 	library = TMDBInfo()
 	parser = FileParser()
@@ -267,23 +272,29 @@ if __name__ == "__main__":
 			else:
 				for _path in os.listdir(os.path.abspath(pathname)):
 					try:
-						_file_details = parser.getFileDetails(os.path.join(pathname, _path, _path+'.mkv'))
+						_file_details = parser.getFileDetails(os.path.join(pathname, _path))
+#						_file_details = parser.getFileDetails(os.path.join(pathname), _path, _path+'.mkv'))
 						_answer = library.retrieve_info(_file_details)
-						if int(_file_details['Year'])-int(_answer['Year']) != 0:
-							log.warning('Rename Required: {} (Current)'.format(_path))
-							log.warning('                 {MovieName} ({Year})'.format(**_answer))
-#						    rename.renameMovie(os.path.joing(pathname, _path))
-						if _path != '{MovieName} ({Year})'.format(**_answer):
-							log.warning('Rename Required: {} (Current)'.format(_path))
-							log.warning('                 {MovieName} ({Year})'.format(**_answer))
+# 						if int(_file_details['Year'])-int(_answer['Year']) != 0:
+# 							log.warning('Rename Required: {} (Current)'.format(_path))
+# 							log.warning('                 {MovieName} ({Year})'.format(**_answer))
+# #						    rename.renameMovie(os.path.joing(pathname, _path))
+# 						if _path != '{MovieName} ({Year})'.format(**_answer):
+# 							log.warning('Rename Required: {} (Current)'.format(_path))
+# 							log.warning('                 {MovieName} ({Year})'.format(**_answer))
 
-						# 	s = str(_path.decode('ascii', 'ignore'))
-						# 	if s != _path:
-						# 		log.error('INVALID NAME: {} - {}'.format(_path-s, _path))
+						s = str(_path.decode('ascii', 'ignore'))
+						if s != _path:
+							log.error('INVALID NAME: {} - {}'.format(_path-s, _path))
 
 #							log.info(_answer)
 					except Exception:
 						log.warning('MovieNotFound {}'.format(_path))
+						print 'Exception in user code:'
+						print '-'*60
+						traceback.print_exc(file=sys.stdout)
+						print '-'*60
+
 						sys.exc_clear()
 				sys.exit(0)
 
