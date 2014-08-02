@@ -29,7 +29,7 @@ from trakt.tv import TVShow
 
 from library import Library
 from common import logger
-from common.exceptions import UnexpectedErrorOccured
+from common.exceptions import UnexpectedErrorOccured, ConfigValueError
 from library.series.fileparser import FileParser
 from library.movie.gettmdb import TMDBInfo
 
@@ -427,6 +427,11 @@ class SyncLibrary(Library):
 			self.args.TraktHashPswd = hashlib.sha1(profiles[host_tgt]['TraktPassWord']).hexdigest()
 			self.args.TraktAPIKey = profiles[host_tgt]['TraktAPIKey']
 			self.args.TraktBase64Key = base64.encodestring(self.args.TraktUserID+':'+self.args.TraktPassWord)
+
+			if not self.args.TraktUserID:
+				msg = 'SYNCRTM Now requires you to have a trakt.tv account and the userid/passwords entered in the config file'
+				log.error(msg)
+				raise ConfigValueError(msg)
 
 			self._temp_dir = tempfile.mkdtemp(suffix='', prefix='tmp_syncrmt_'+host_tgt+'_', dir=None)
 
