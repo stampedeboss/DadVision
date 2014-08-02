@@ -250,6 +250,7 @@ class Settings(object):
         self.MoviesDir = HostName['MovieDir']
         self.DownloadDir = HostName['DownloadDir']
         self.NonVideoDir = HostName['NonVideoDir']
+        self.DownloadMovies = HostName['DownloadMovies']
         self.TraktUserID = HostName['TraktUserID']
         self.TraktPassWord = HostName['TraktPassWord']
         self.TraktHashPswd = hashlib.sha1(HostName['TraktPassWord']).hexdigest()
@@ -288,6 +289,7 @@ class Settings(object):
                           'SeriesDir': _HOSTNAME['SeriesDir'],
                           'DownloadDir': _HOSTNAME['DownloadDir'],
                           'NonVideoDir': _HOSTNAME['NonVideoDir'],
+                          'DownloadMovies': _HOSTNAME['DownloadMovies'],
                           'Identifier': _HOSTNAME['Identifier'],
                           'TraktUserID': _HOSTNAME['TraktUserID'],
                           'TraktPassWord': _HOSTNAME['TraktPassWord'],
@@ -322,6 +324,7 @@ if __name__ == '__main__':
     log.info('NewSeriesDir: {}'.format(config.NewSeriesDir))
     log.info('NewMoviesDir: {}'.format(config.NewMoviesDir))
     log.info('NonVideoDir: {}'.format(config.NonVideoDir))
+    log.info('DownloadMovies: {}'.format(config.DownloadMovies))
     log.info('SubscriptionDir: {}'.format(config.SubscriptionDir))
     log.info('TvdbIdList: {}'.format(config.TvdbIdList))
     log.info('EpisodeAdjList: {}'.format(config.EpisodeAdjList))
