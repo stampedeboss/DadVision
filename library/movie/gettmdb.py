@@ -223,6 +223,7 @@ class TMDBInfo(Library):
 			raise MovieNotFound("Movie Not Found in TMDb: {}".format(moviedetails['MovieName']))
 		except GetOutOfLoop:
 			if _movie.releasedate:
+				moviedetails['releasedate'] = _movie.releasedate
 				if 'Year' in moviedetails:
 					if (-2 < (moviedetails['Year'] - _movie.releasedate.year) < 2):
 						moviedetails['Year'] = _movie.releasedate.year
@@ -241,6 +242,10 @@ class TMDBInfo(Library):
 						raise MovieNotFound(msg)
 				else:
 					moviedetails['Year'] = _movie.releasedate.year
+
+		moviedetails['tmdb_id'] = _movie.id
+		moviedetails['imdb_id'] = _movie.imdb
+
 
 		log.trace("Movie Located in TMDB")
 		return moviedetails

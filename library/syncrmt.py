@@ -18,16 +18,20 @@ import base64
 import shutil
 import unicodedata
 import tempfile
+import urllib2
+import json
 
 import psutil
 import trakt
 from trakt.users import User, UserList
+from trakt.movies import Movie
+from trakt.tv import TVShow
 
 from library import Library
 from common import logger
 from common.exceptions import UnexpectedErrorOccured
 from library.series.fileparser import FileParser
-
+from library.movie.gettmdb import TMDBInfo
 
 __pgmname__ = 'syncrmt'
 __version__ = '@version: $Rev$'
@@ -132,6 +136,7 @@ class SyncLibrary(Library):
 						   help="Stop existing and Restart with this request")
 
 		self.fileparser = FileParser()
+		self.tmdb_info = TMDBInfo()
 		self._printfmt = '%P\n'
 		return
 
@@ -405,18 +410,12 @@ class SyncLibrary(Library):
 			host_src = self.args.hostname
 			host_tgt = socket.gethostname()
 
-			# self.args.TraktUserID = profiles[host_tgt]['TraktUserID']
-			# self.args.TraktPassWord = profiles[host_tgt]['TraktPassWord']
-			# self.args.TraktHashPswd = hashlib.sha1(profiles[host_tgt]['TraktPassWord']).hexdigest()
-			# self.args.TraktAPIKey = profiles[host_tgt]['TraktAPIKey']
-			# self.args.TraktBase64Key = base64.encodestring(self.args.TraktUserID+':'+self.args.TraktPassWord)
-
 			self._series_src = '{}@{}:{}/'.format(profiles[host_src]['UserId'],
-			                                      host_src,
-			                                      profiles[host_src]['SeriesDir'])
+												  host_src,
+												  profiles[host_src]['SeriesDir'])
 			self._movies_src = '{}@{}:{}/'.format(profiles[host_src]['UserId'],
-			                                      host_src,
-			                                      profiles[host_src]['MovieDir'])
+												  host_src,
+												  profiles[host_src]['MovieDir'])
 			self._series_tgt = profiles[host_tgt]['SeriesDir']
 			self._movies_tgt = profiles[host_tgt]['MovieDir']
 		else:
@@ -431,21 +430,21 @@ class SyncLibrary(Library):
 
 			self._temp_dir = tempfile.mkdtemp(suffix='', prefix='tmp_syncrmt_'+host_tgt+'_', dir=None)
 
-			self._build_links()
+			_symbolics_requested = self._build_list()
+			self._build_symbolics(_symbolics_requested)
 
 			self._series_src = '{}/{}'.format(os.path.join(self._temp_dir,
-			                                               'Series'),
-			                                  self.dir_name)
+														   'Series'),
+											  self.dir_name)
 			self._movies_src = '{}/{}'.format(os.path.join(self._temp_dir,
-			                                               'Movies'),
-			                                  self.dir_name)
+														   'Movies'),
+											  self.dir_name)
 			self._series_tgt = '{}@{}:{}/'.format(profiles[host_tgt]['UserId'],
-			                                      host_tgt,
-			                                      profiles[host_tgt]['SeriesDir'])
+												  host_tgt,
+												  profiles[host_tgt]['SeriesDir'])
 			self._movies_tgt = '{}@{}:{}/'.format(profiles[host_tgt]['UserId'],
-			                                      host_tgt,
-			                                      profiles[host_tgt]['MovieDir'])
-
+												  host_tgt,
+												  profiles[host_tgt]['MovieDir'])
 
 		if self.args.content == None:
 			self.args.content = ["Series", "Movies"]
@@ -480,38 +479,65 @@ class SyncLibrary(Library):
 
 		return
 
-	def _build_links(self):
+	def _build_list(self):
 
-		trakt.api_key = self.settings.TraktAPIKey
-		trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
+		trakt.api_key = self.args.TraktAPIKey
+		trakt.authenticate(self.args.TraktUserID, self.args.TraktPassWord)
 		trakt_user = User(self.args.TraktUserID)
+
+		_symbolic_requested = {}
+		_symbolic_requested['Series'] = []
+		_symbolic_requested['Movies'] = []
+
+		for _entry in trakt_user.shows + trakt_user.show_watchlist:
+			_title = unicodedata.normalize('NFKD', _entry.title).encode("ascii", 'ignore')
+			_title = _title.replace("&amp;", "&").replace("/", "_")
+
+			if _title in _symbolic_requested['Series']:
+				_show = TVShow(_title)
+				_show.remove_from_watchlist()
+				continue
+
+			_symbolic_requested['Series'].append(_title)
+
+		for _entry in trakt_user.movies + trakt_user.movie_watchlist:
+			_title = unicodedata.normalize('NFKD', _entry.title).encode("ascii", 'ignore')
+			_title = _title.replace("&amp;", "&").replace("/", "_")
+
+			_title_yr = "{} ({})".format(_title, _entry.year)
+			if _title_yr in _symbolic_requested['Movies']:
+				tmdbDetails = self.tmdb_info.retrieve_info({'MovieName': _title, 'Year': _entry.year})
+				_movie = Movie(_title,
+				               year=_entry.year,
+				               imdb_id=unicodedata.normalize('NFKD', tmdbDetails['imdb_id']).encode("ascii", 'ignore'),
+				               tmdb_id=tmdbDetails['tmdb_id'])
+#				_movie = Movie(_title, year=_entry.year)
+				_movie.remove_from_watchlist()
+				myrequest = [{'imdb_id':  unicodedata.normalize('NFKD', tmdbDetails['imdb_id']).encode("ascii", 'ignore')}]
+				self.post_data(myrequest)
+				continue
+
+			_symbolic_requested['Movies'].append(_title_yr)
+
+		return _symbolic_requested
+
+	def _build_symbolics(self, _symbolics_requested):
 
 		for area in self.args.content:
 			_area_directory = os.path.join(self._temp_dir, area)
 			os.makedirs(_area_directory)
 			os.chmod(_area_directory, 0775)
-
 			if area == "Series":
-				_library_list = trakt_user.shows
-				_library_list = trakt_user.show_watchlist
 				_target_dir = self.settings.SeriesDir
-
 			if area == "Movies":
-				_library_list = trakt_user.movies
-				_library_watchlist = trakt_user.movie_watchlist
 				_target_dir = self.settings.MoviesDir
 
-			if _library_list:
-				for _entry in _library_list:
-					_title = unicodedata.normalize('NFKD', _entry.title).encode("ascii", 'ignore')
-					_title = _title.replace("&amp;", "&").replace("/", "_")
-					if area == "Movies":
-						_title = "{} ({})".format(_title, _entry.year)
-					cmd =  ['ln',
-					        '-s',
-					        '{}'.format(os.path.join(_target_dir, _title)),
-					        '{}'.format(_area_directory, _title)]
-					run_command(cmd)
+			for _title in _symbolics_requested[area]:
+				cmd =  ['ln',
+						'-s',
+						'{}'.format(os.path.join(_target_dir, _title)),
+						'{}'.format(_area_directory, _title)]
+				run_command(cmd)
 
 			# Remove any broken links
 			try:
@@ -519,10 +545,19 @@ class SyncLibrary(Library):
 				log.verbose('{}'.format(cmd))
 				run_command(cmd, True)
 			except:
-				raise
+				pass
+		return
 
-			return
-
+	def post_data(self, entry_data, type='movie'):
+		pydata = {'username': self.args.TraktUserID, 'password': self.args.TraktHashPswd, type+'s': entry_data}
+		json_data = json.dumps(pydata)
+		clen = len(json_data)
+		_url = "http://api.trakt.tv/{}/unwatchlist/{}".format(type, self.args.TraktAPIKey)
+		req = urllib2.Request(_url, json_data, {'Content-Type': 'application/json', 'Content-Length': clen})
+		f = urllib2.urlopen(req)
+		response = f.read()
+		f.close()
+		log.info(response)
 		return
 
 
@@ -535,7 +570,6 @@ def run_command(cmd, Shell=False):
 			sys.exit(1)
 		else:
 			log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
-			raise
 	return
 
 
