@@ -446,7 +446,7 @@ class SyncLibrary(Library):
 												  host_tgt,
 												  profiles[host_tgt]['MovieDir'])
 
-		if self.args.content == None:
+		if self.args.content is None:
 			self.args.content = ["Series", "Movies"]
 
 		if self.args.dryrun:
@@ -523,7 +523,7 @@ class SyncLibrary(Library):
 
 	def _build_symbolics(self, _symbolics_requested):
 
-		for area in self.args.content:
+		for area in ['Series', 'Movies']:
 			_area_directory = os.path.join(self._temp_dir, area)
 			os.makedirs(_area_directory)
 			os.chmod(_area_directory, 0775)
