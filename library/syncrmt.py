@@ -5,23 +5,29 @@ Purpose:
 		Program to Sync Remote Hosts
 
 '''
-from library import Library
-from common import logger
-from common.exceptions import UnexpectedErrorOccured
-from library.series.fileparser import FileParser
-from subprocess import Popen, call as Call, check_call, CalledProcessError
+from subprocess import check_call, CalledProcessError
 import logging
 import os
-import psutil
 import re
 import socket
 import sqlite3
 import sys
 import time
-import unicodedata
 import hashlib
 import base64
+import shutil
+import unicodedata
 import tempfile
+
+import psutil
+import trakt
+from trakt.users import User, UserList
+
+from library import Library
+from common import logger
+from common.exceptions import UnexpectedErrorOccured
+from library.series.fileparser import FileParser
+
 
 __pgmname__ = 'syncrmt'
 __version__ = '@version: $Rev$'
@@ -137,8 +143,6 @@ class SyncLibrary(Library):
 
 		if not self.args.dryrun:
 			self._chk_already_running()
-		if not self.args.reverse:
-			self._clean_broken_links()
 
 		if self.args.rsync:
 			if 'Series' in self.args.content:
@@ -160,30 +164,8 @@ class SyncLibrary(Library):
 
 		if not self.args.dryrun:
 			self._update_xbmc()
+
 		return
-
-	def _clean_broken_links(self):
-		for area in self.args.content:
-			try:
-				cmd = 'find -L {} -type l -exec mv {} {}/ \;'.format(os.path.join(self.settings.SubscriptionDir,
-				                                                                  self.args.hostname,
-				                                                                  area),
-				                                                     "'{}'",
-				                                                     os.path.join(self.settings.SubscriptionDir,
-				                                                                  self.args.hostname,
-				                                                                  'Broken'))
-
-				log.verbose('{}'.format(cmd))
-				check_call(cmd, shell=True, stdin=None, stdout=None, stderr=None)
-			except CalledProcessError, exc:
-				if exc.returncode == 255 or exc.returncode == -9:
-					sys.exit(1)
-				else:
-					log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
-					self._update_xbmc()
-					sys.exit(1)
-		return
-
 
 	def _syncSeries(self):
 		log.info('Syncing - Series')
@@ -409,6 +391,11 @@ class SyncLibrary(Library):
 			self.options.parser.error('Missing Hostname Command Line Parameter')
 			sys.exit(1)
 
+		_syncrmt_dir = re.compile('^tmp_syncrmt_{}.*$'.format(self.args.hostname), re.IGNORECASE)
+		for pathname in os.listdir(tempfile.gettempdir()):
+			if _syncrmt_dir.match(pathname):
+				shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
+
 		profiles = self.settings.GetHostConfig(requested_host=[socket.gethostname(), self.args.hostname])
 		if self.args.reverse:
 			self.args.rsync = True
@@ -417,6 +404,12 @@ class SyncLibrary(Library):
 
 			host_src = self.args.hostname
 			host_tgt = socket.gethostname()
+
+			# self.args.TraktUserID = profiles[host_tgt]['TraktUserID']
+			# self.args.TraktPassWord = profiles[host_tgt]['TraktPassWord']
+			# self.args.TraktHashPswd = hashlib.sha1(profiles[host_tgt]['TraktPassWord']).hexdigest()
+			# self.args.TraktAPIKey = profiles[host_tgt]['TraktAPIKey']
+			# self.args.TraktBase64Key = base64.encodestring(self.args.TraktUserID+':'+self.args.TraktPassWord)
 
 			self._series_src = '{}@{}:{}/'.format(profiles[host_src]['UserId'],
 			                                      host_src,
@@ -430,12 +423,20 @@ class SyncLibrary(Library):
 			host_src = socket.gethostname()
 			host_tgt = self.args.hostname
 
-			self._series_src = '{}/{}'.format(os.path.join(self.settings.SubscriptionDir,
-			                                               host_tgt,
+			self.args.TraktUserID = profiles[host_tgt]['TraktUserID']
+			self.args.TraktPassWord = profiles[host_tgt]['TraktPassWord']
+			self.args.TraktHashPswd = hashlib.sha1(profiles[host_tgt]['TraktPassWord']).hexdigest()
+			self.args.TraktAPIKey = profiles[host_tgt]['TraktAPIKey']
+			self.args.TraktBase64Key = base64.encodestring(self.args.TraktUserID+':'+self.args.TraktPassWord)
+
+			self._temp_dir = tempfile.mkdtemp(suffix='', prefix='tmp_syncrmt_'+host_tgt+'_', dir=None)
+
+			self._build_links()
+
+			self._series_src = '{}/{}'.format(os.path.join(self._temp_dir,
 			                                               'Series'),
 			                                  self.dir_name)
-			self._movies_src = '{}/{}'.format(os.path.join(self.settings.SubscriptionDir,
-			                                               host_tgt,
+			self._movies_src = '{}/{}'.format(os.path.join(self._temp_dir,
 			                                               'Movies'),
 			                                  self.dir_name)
 			self._series_tgt = '{}@{}:{}/'.format(profiles[host_tgt]['UserId'],
@@ -445,11 +446,6 @@ class SyncLibrary(Library):
 			                                      host_tgt,
 			                                      profiles[host_tgt]['MovieDir'])
 
-		self.args.TraktUserID = profiles[host_tgt]['TraktUserID']
-		self.args.TraktPassWord = profiles[host_tgt]['TraktPassWord']
-		self.args.TraktHashPswd = hashlib.sha1(profiles[host_tgt]['TraktPassWord']).hexdigest()
-		self.args.TraktAPIKey = profiles[host_tgt]['TraktAPIKey']
-		self.args.TraktBase64Key = base64.encodestring(self.args.TraktUserID+':'+self.args.TraktPassWord)
 
 		if self.args.content == None:
 			self.args.content = ["Series", "Movies"]
@@ -483,6 +479,64 @@ class SyncLibrary(Library):
 				self.args.CmdLineArgs.append('--exclude=*.{}'.format(entry.upper()))
 
 		return
+
+	def _build_links(self):
+
+		trakt.api_key = self.settings.TraktAPIKey
+		trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
+		trakt_user = User(self.args.TraktUserID)
+
+		for area in self.args.content:
+			_area_directory = os.path.join(self._temp_dir, area)
+			os.makedirs(_area_directory)
+			os.chmod(_area_directory, 0775)
+
+			if area == "Series":
+				_library_list = trakt_user.shows
+				_library_list = trakt_user.show_watchlist
+				_target_dir = self.settings.SeriesDir
+
+			if area == "Movies":
+				_library_list = trakt_user.movies
+				_library_watchlist = trakt_user.movie_watchlist
+				_target_dir = self.settings.MoviesDir
+
+			if _library_list:
+				for _entry in _library_list:
+					_title = unicodedata.normalize('NFKD', _entry.title).encode("ascii", 'ignore')
+					_title = _title.replace("&amp;", "&").replace("/", "_")
+					if area == "Movies":
+						_title = "{} ({})".format(_title, _entry.year)
+					cmd =  ['ln',
+					        '-s',
+					        '{}'.format(os.path.join(_target_dir, _title)),
+					        '{}'.format(_area_directory, _title)]
+					run_command(cmd)
+
+			# Remove any broken links
+			try:
+				cmd = 'find -L {} -type l -exec rm -r {} \;'.format(_area_directory, "'{}'")
+				log.verbose('{}'.format(cmd))
+				run_command(cmd, True)
+			except:
+				raise
+
+			return
+
+		return
+
+
+def run_command(cmd, Shell=False):
+	try:
+		log.verbose('{}'.format(cmd))
+		check_call(cmd, shell=Shell, stdin=None, stdout=None, stderr=None)
+	except CalledProcessError, exc:
+		if exc.returncode == 255 or exc.returncode == -9:
+			sys.exit(1)
+		else:
+			log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
+			raise
+	return
 
 
 if __name__ == '__main__':

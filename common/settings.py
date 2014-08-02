@@ -284,8 +284,7 @@ class Settings(object):
             except KeyError:
                 raise ConfigValueError("The requested hostname's configuration missing")
 
-            _host_config = {'HostName': _HOSTNAME['HostName'],
-                          'UserId': _HOSTNAME['UserId'],
+            _host_config = {'UserId': _HOSTNAME['UserId'],
                           'MovieDir': _HOSTNAME['MovieDir'],
                           'SeriesDir': _HOSTNAME['SeriesDir'],
                           'DownloadDir': _HOSTNAME['DownloadDir'],
