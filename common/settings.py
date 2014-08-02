@@ -83,6 +83,7 @@ class Settings(object):
         self.MoviesDir = HostName['MovieDir']
         self.DownloadDir = HostName['DownloadDir']
         self.NonVideoDir = HostName['NonVideoDir']
+        self.DownloadMovies = HostName['DownloadMovies']
         self.TraktUserID = HostName['TraktUserID']
         self.TraktPassWord = HostName['TraktPassWord']
         self.TraktHashPswd = hashlib.sha1(HostName['TraktPassWord']).hexdigest()
