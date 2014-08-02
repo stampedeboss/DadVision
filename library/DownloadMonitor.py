@@ -64,6 +64,8 @@ class MyDaemon(Daemon):
 
             DownloadDir1 = self.watchManager.add_watch(library.settings.DownloadDir, self.mask, rec=True)
             log.info('Watching Directory: %s' % library.settings.DownloadDir)
+            DownloadDir2 = self.watchManager.add_watch(library.settings.DownloadMovies, self.mask, rec=True)
+            log.info('Watching Directory: %s' % library.settings.DownloadMovies)
 
             if library.args.loglevel not in ['DEBUG', 'TRACE']:
                 try:
