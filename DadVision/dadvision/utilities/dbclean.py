@@ -7,18 +7,18 @@ Purpose:
 
 '''
 from __future__ import division
-from daddyvision.common import logger
-from daddyvision.common.exceptions import UnexpectedErrorOccured
-from daddyvision.common.options import OptionParser, CoreOptionParser
-from daddyvision.common.settings import Settings
-from daddyvision.series.fileparser import FileParser
+from common import logger
+from common.exceptions import UnexpectedErrorOccured
+from common.options import OptionParser, CoreOptionParser
+from common.settings import Settings
+from series.fileparser import FileParser
 import logging
 import os
+import re
 import sqlite3
 import sys
 import tempfile
 import time
-import re
 
 __pgmname__ = 'dbclean'
 __version__ = '$Rev$'
