@@ -143,9 +143,6 @@ class SyncLibrary(Library):
 		self.dir_name = dir_name.rstrip(os.sep)
 		self._update_args()
 
-		if not self.args.dryrun:
-			self._chk_already_running()
-
 		if self.args.rsync:
 			if 'Series' in self.args.content:
 				self._syncSeries()
@@ -416,6 +413,11 @@ class SyncLibrary(Library):
 			host_src = socket.gethostname()
 			host_tgt = self.args.hostname
 
+			if not self.args.dryrun:
+				self._chk_already_running()
+			else:
+				self.args.reuse_links = True
+
 			self.args.TraktUserID = profiles[host_tgt]['TraktUserID']
 			self.args.TraktPassWord = profiles[host_tgt]['TraktPassWord']
 			self.args.TraktHashPswd = hashlib.sha1(profiles[host_tgt]['TraktPassWord']).hexdigest()
@@ -489,7 +491,12 @@ class SyncLibrary(Library):
 					self._temp_dir = os.path.join(tempfile.gettempdir(), pathname)
 					return False
 				else:
-					shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
+					st=os.stat(os.path.join(tempfile.gettempdir(), pathname))
+					Age=(time.time()-st.st_mtime)
+					if Age > 3600:
+						shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
+						self._temp_dir = os.path.join(tempfile.gettempdir(), pathname)
+						return True
 		self._temp_dir = tempfile.mkdtemp(suffix='', prefix='syncrmt_'+host_tgt+'_', dir=None)
 
 		return True
