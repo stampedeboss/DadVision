@@ -81,59 +81,56 @@ class SyncLibrary(Library):
 			action="store_const", const="pluto",
 			help="Sync Pluto for Ben and Mac")
 
-		sync2 = self.options.parser.add_argument_group("Media Type",
-													   description=None
-													   )
+		sync2 = self.options.parser.add_argument_group("Media Type", description=None)
 		sync2.add_argument("-s", "--series", dest="content",
-						   action="append_const", const="Series",
-						   help="Process Series")
+			action="append_const", const="Series",
+			help="Process Series")
 		sync2.add_argument("-m", "--movies", dest="content",
-						   action="append_const", const="Movies",
-						   help="Process Movies")
+			action="append_const", const="Movies",
+			help="Process Movies")
 
-		sync3 = self.options.parser.add_argument_group("Modifiers",
-													   description=None
-													   )
+		sync3 = self.options.parser.add_argument_group("Modifiers", description=None)
 		sync3.add_argument("--checksum", dest="chksum",
-						   action="store_true", default=False,
-						   help="Use Checksum not Date and Time")
+			action="store_true", default=False,
+			help="Use Checksum not Date and Time")
 		sync3.add_argument("--delete", dest="delete",
-						   action="store_true", default=False,
-						   help="Delete any files on rmt that do not exist on local")
+			action="store_true", default=False,
+			help="Delete any files on rmt that do not exist on local")
 		sync3.add_argument("-n", "--dry-run", dest="dryrun",
-						   action="store_true", default=False,
-						   help="Don't Run Link Create Commands")
+			action="store_true", default=False,
+			help="Don't Run Link Create Commands")
 		sync3.add_argument("--ignore-existing", dest='ignore_existing',
-						   action="store_true", default=False,
-						   help="Skip updating files that exist on receiver")
+			action="store_true", default=False,
+			help="Skip updating files that exist on receiver")
 		sync3.add_argument("--no-update", dest="no_update",
-						   action="store_true", default=False,
-						   help="Don't update database info on downloads")
+			action="store_true", default=False,
+			help="Don't update database info on downloads")
 		sync3.add_argument("--no-video", dest="novideo",
-						   action="store_true", default=False,
-						   help="Suppress Video Files, Only Move Support Files/Directories")
+			action="store_true", default=False,
+			help="Suppress Video Files, Only Move Support Files/Directories")
+		sync3.add_argument("--reuse", dest="reuse_links",
+			action="store_true", default=False,
+			help='Reuse existing links, if possible')
 		sync3.add_argument("--reverse", dest="reverse",
-						   action="store_true", default=False,
-						   help="Reverse flow of Update, RMT --> Local")
-		sync3.add_argument("-u", "--update", dest="update",
-						   action="store_true", default=False,
-						   help="Skip files that are newer on the receiver")
-		sync3.add_argument("-x", "--exclude", dest="xclude",
-						   action="append", default=[],
-						   help="Exclude files/directories")
+			action="store_true", default=False,
+			help="Reverse flow of Update, RMT --> Local")
 		sync3.add_argument("--rsync", dest="rsync",
-						   action="store_true", default=False,
-						   help='Bypass database and run full download')
+			action="store_true", default=False,
+			help='Bypass database and run full download')
+		sync3.add_argument("-u", "--update", dest="update",
+			action="store_true", default=False,
+			help="Skip files that are newer on the receiver")
+		sync3.add_argument("-x", "--exclude", dest="xclude",
+			action="append", default=[],
+			help="Exclude files/directories")
 
-		sync4 = self.options.parser.add_argument_group("syncRMT Already Running",
-													   description=None
-													   )
+		sync4 = self.options.parser.add_argument_group("syncRMT Already Running")
 		sync4.add_argument("-c", "--cancel", dest="runaction",
-						   action="store_const", const='cancel', default='ask',
-						   help="Cancel this request and let existing run")
+			action="store_const", const='cancel', default='ask',
+			help="Cancel this request and let existing run")
 		sync4.add_argument("-r", "--restart", dest="runaction",
-						   action="store_const", const='restart',
-						   help="Stop existing and Restart with this request")
+			action="store_const", const='restart',
+			help="Stop existing and Restart with this request")
 
 		self.fileparser = FileParser()
 		self.tmdb_info = TMDBInfo()
@@ -185,7 +182,7 @@ class SyncLibrary(Library):
 			cmd.append(self._series_src)
 			cmd.append(self._series_tgt)
 			log.verbose(' '.join(cmd))
-			process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None) #, cwd=os.path.join(self.args.SeriesLoc)
+			check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=self._series_wd)
 		except CalledProcessError, exc:
 			if exc.returncode == 255 or exc.returncode == -9:
 				sys.exit(1)
@@ -209,7 +206,7 @@ class SyncLibrary(Library):
 		log.verbose(' '.join(cmd))
 
 		try:
-			process = check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None)   #, cwd=os.path.join(self.args.MoviesLoc)
+			check_call(cmd, shell=False, stdin=None, stdout=None, stderr=None, cwd=self._movies_wd)
 		except CalledProcessError, exc:
 			if exc.returncode == 255 or exc.returncode == -9:
 				sys.exit(1)
@@ -396,11 +393,6 @@ class SyncLibrary(Library):
 			self.options.parser.error('Missing Hostname Command Line Parameter')
 			sys.exit(1)
 
-		_syncrmt_dir = re.compile('^tmp_syncrmt_{}.*$'.format(self.args.hostname), re.IGNORECASE)
-		for pathname in os.listdir(tempfile.gettempdir()):
-			if _syncrmt_dir.match(pathname):
-				shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
-
 		profiles = self.settings.GetHostConfig(requested_host=[socket.gethostname(), self.args.hostname])
 		if self.args.reverse:
 			self.args.rsync = True
@@ -418,6 +410,8 @@ class SyncLibrary(Library):
 												  profiles[host_src]['MovieDir'])
 			self._series_tgt = profiles[host_tgt]['SeriesDir']
 			self._movies_tgt = profiles[host_tgt]['MovieDir']
+			self._series_wd = profiles[host_tgt]['SeriesDir']
+			self._movies_wd = profiles[host_tgt]['MovieDir']
 		else:
 			host_src = socket.gethostname()
 			host_tgt = self.args.hostname
@@ -433,10 +427,9 @@ class SyncLibrary(Library):
 				log.error(msg)
 				raise ConfigValueError(msg)
 
-			self._temp_dir = tempfile.mkdtemp(suffix='', prefix='tmp_syncrmt_'+host_tgt+'_', dir=None)
-
-			_symbolics_requested = self._build_list()
-			self._build_symbolics(_symbolics_requested)
+			if self._build_directory(host_tgt):
+				_symbolics_requested = self._build_list()
+				self._build_symbolics(_symbolics_requested)
 
 			self._series_src = '{}/{}'.format(os.path.join(self._temp_dir,
 														   'Series'),
@@ -450,6 +443,8 @@ class SyncLibrary(Library):
 			self._movies_tgt = '{}@{}:{}/'.format(profiles[host_tgt]['UserId'],
 												  host_tgt,
 												  profiles[host_tgt]['MovieDir'])
+			self._series_wd = self._series_src
+			self._movies_wd = self._movies_src
 
 		if self.args.content is None:
 			self.args.content = ["Series", "Movies"]
@@ -484,6 +479,21 @@ class SyncLibrary(Library):
 
 		return
 
+	def _build_directory(self, host_tgt):
+
+		_syncrmt_dir = re.compile('^syncrmt_{}.*$'.format(self.args.hostname), re.IGNORECASE)
+
+		for pathname in os.listdir(tempfile.gettempdir()):
+			if _syncrmt_dir.match(pathname):
+				if self.args.reuse_links:
+					self._temp_dir = os.path.join(tempfile.gettempdir(), pathname)
+					return False
+				else:
+					shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
+		self._temp_dir = tempfile.mkdtemp(suffix='', prefix='syncrmt_'+host_tgt+'_', dir=None)
+
+		return True
+
 	def _build_list(self):
 
 		trakt.api_key = self.args.TraktAPIKey
@@ -494,34 +504,42 @@ class SyncLibrary(Library):
 		_symbolic_requested['Series'] = []
 		_symbolic_requested['Movies'] = []
 
-		for _entry in trakt_user.shows + trakt_user.show_watchlist:
+		trakt_list = trakt_user.shows
+		trakt_watchlist = trakt_user.show_watchlist
+		for _entry in trakt_list + trakt_watchlist:
 			_title = unicodedata.normalize('NFKD', _entry.title).encode("ascii", 'ignore')
 			_title = _title.replace("&amp;", "&").replace("/", "_")
 
 			if _title in _symbolic_requested['Series']:
-				_show = TVShow(_title)
-				_show.remove_from_watchlist()
+				if not self.args.dryrun:
+					#_show = TVShow(_title)
+					_entry.remove_from_watchlist()
+					args = {'shows': [{'imdb_id': _entry.imdb_id,
+									   'tvdb_id': _entry.tvdb_id}]}
+					self.post_data(args, type='show')
 				continue
-
 			_symbolic_requested['Series'].append(_title)
 
-		for _entry in trakt_user.movies + trakt_user.movie_watchlist:
+		trakt_list = trakt_user.movies
+		trakt_watchlist = trakt_user.movie_watchlist
+		for _entry in trakt_list + trakt_watchlist:
 			_title = unicodedata.normalize('NFKD', _entry.title).encode("ascii", 'ignore')
 			_title = _title.replace("&amp;", "&").replace("/", "_")
 
 			_title_yr = "{} ({})".format(_title, _entry.year)
 			if _title_yr in _symbolic_requested['Movies']:
-				tmdbDetails = self.tmdb_info.retrieve_info({'MovieName': _title, 'Year': _entry.year})
-				_movie = Movie(_title,
-				               year=_entry.year,
-				               imdb_id=unicodedata.normalize('NFKD', tmdbDetails['imdb_id']).encode("ascii", 'ignore'),
-				               tmdb_id=tmdbDetails['tmdb_id'])
-#				_movie = Movie(_title, year=_entry.year)
-				_movie.remove_from_watchlist()
-				myrequest = [{'imdb_id':  unicodedata.normalize('NFKD', tmdbDetails['imdb_id']).encode("ascii", 'ignore')}]
-				self.post_data(myrequest)
+				if not self.args.dryrun:
+#					tmdbDetails = self.tmdb_info.retrieve_info({'MovieName': _title, 'Year': _entry.year})
+#					_movie = Movie(_title,
+#					               year=_entry.year,
+#					               imdb_id=unicodedata.normalize('NFKD', tmdbDetails['imdb_id']).encode("ascii", 'ignore'),
+#					               tmdb_id=tmdbDetails['tmdb_id'])
+#   				_movie = Movie(_title, year=_entry.year)
+					_entry.remove_from_watchlist()
+					args = {'movies': [{'imdb_id': _entry.imdb_id,
+									   'tmdb_id': _entry.tmdb_id}]}
+					self.post_data(args, 'movie')
 				continue
-
 			_symbolic_requested['Movies'].append(_title_yr)
 
 		return _symbolic_requested
