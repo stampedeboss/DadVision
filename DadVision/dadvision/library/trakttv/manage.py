@@ -46,7 +46,7 @@ import json
 #from fuzzywuzzy import fuzz
 
 
-__pgmname__ = 'Trakt_tv.manage'
+__pgmname__ = 'manage'
 __version__ = '$Rev$'
 
 __author__ = "@author: AJ Reynolds"
@@ -107,6 +107,9 @@ class ManageTrakt(Library):
         trakt_auth_group.add_argument("-g", "--goofy", dest="HostName",
             action="store_const", const="goofy",
             help="Entries for Goofy")
+        trakt_auth_group.add_argument("-e", "--eeyore", dest="HostName",
+            action="store_const", const="eeyore",
+            help="Entries for Eeore")
         trakt_auth_group.add_argument("-p", "--pluto", dest="HostName",
             action="store_const", const="pluto",
             help="Entries for Pluto")
@@ -381,7 +384,7 @@ class ManageTrakt(Library):
         return any(fnmatch.fnmatch(name.lower(), pattern) for pattern in self.settings.ExcludeList)
 
     def ReportTrakt(self):
-        pydata = {'username': , 'password': self.settings.TraktHashPswd}
+        pydata = {'username': self.settings.TraktUserID, 'password': self.settings.TraktHashPswd}
         if self.args.Type == 'lists':
             pydata[self.args.Target] = entry_data
             pydata['slug'] = self.args.listName
@@ -424,7 +427,7 @@ if __name__ == "__main__":
 
     library.args.logfile = log_file
 
-    logger.start(log_file, log_level, timed=False, error=True)
+    logger.start(log_file, log_level, timed=False)
 
     # whitelist = __pgmname__.split('.')
     # whitelist = 'watchlist'
