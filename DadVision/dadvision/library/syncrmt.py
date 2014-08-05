@@ -108,6 +108,9 @@ class SyncLibrary(Library):
 		sync3.add_argument("--no-video", dest="novideo",
 			action="store_true", default=False,
 			help="Suppress Video Files, Only Move Support Files/Directories")
+		sync3.add_argument("--refresh", dest="refresh_limit",
+			action="store", type=int, default=3600,
+			help='Refresh existing links if older x seconds, Default: 3600')
 		sync3.add_argument("--reuse", dest="reuse_links",
 			action="store_true", default=False,
 			help='Reuse existing links, if possible')
@@ -485,20 +488,24 @@ class SyncLibrary(Library):
 
 		_syncrmt_dir = re.compile('^syncrmt_{}.*$'.format(self.args.hostname), re.IGNORECASE)
 
+		_dir_list = {}
 		for pathname in os.listdir(tempfile.gettempdir()):
 			if _syncrmt_dir.match(pathname):
-				if self.args.reuse_links:
-					self._temp_dir = os.path.join(tempfile.gettempdir(), pathname)
-					return False
-				else:
-					st=os.stat(os.path.join(tempfile.gettempdir(), pathname))
-					Age=(time.time()-st.st_mtime)
-					if Age > 3600:
-						shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
-						self._temp_dir = os.path.join(tempfile.gettempdir(), pathname)
-						return True
-		self._temp_dir = tempfile.mkdtemp(suffix='', prefix='syncrmt_'+host_tgt+'_', dir=None)
+				st=os.stat(os.path.join(tempfile.gettempdir(), pathname))
+				_age=(time.time()-st.st_mtime)
+				if _age > self.args.refresh_limit and not self.args.reuse_links:
+					shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
+				_dir_list[pathname] = _age
 
+		if _dir_list:
+			_last_dir = min(_dir_list, key=lambda k: _dir_list[k])
+			del _dir_list[_last_dir]
+			if _dir_list:
+				for pathname, age in _dir_list.iteritems():
+					shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
+			self._temp_dir = os.path.join(tempfile.gettempdir(), _last_dir)
+			return False
+		self._temp_dir = tempfile.mkdtemp(suffix='', prefix='syncrmt_'+host_tgt+'_', dir=None)
 		return True
 
 	def _build_list(self):
