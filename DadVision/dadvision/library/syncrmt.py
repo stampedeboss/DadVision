@@ -455,9 +455,10 @@ class SyncLibrary(Library):
 			log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
 		return
 
-	def _chk_already_running(self):
+	def _already_running(self):
 		time.sleep(0.2)
 		pidList = psutil.process_iter()
+		_directory_in_use = False
 		for p in pidList:
 			cmdline = p.cmdline
 			if len(cmdline) > 0:
@@ -468,28 +469,30 @@ class SyncLibrary(Library):
 						continue
 					_rsync_hostname = cmdline[-1].split(':')[0].split('@')[1]
 					if _rsync_hostname == self.args.hostname:
-						if p.terminal:
-							self.args.runaction = 'cancel'
-						elif self.args.runaction == 'ask':
-							while True:
-								value = raw_input("syncrmt for: %s Already Running, Cancel This Request or Restart? (C/R): " % (self.args.hostname))
-								if not value:
-									continue
-								if value.lower()[:1] == 'c':
-									self.args.runaction = 'cancel'
-									break
-								if value.lower()[:1] == 'r':
-									self.args.runaction = 'restart'
-									break
-						if self.args.runaction == 'cancel':
-							sys.exit(1)
-						else:
-							p.kill()
-							log.warn('Previous Session Killed: %s' % p.pid)
-							self.args.runaction = 'restart'
-							time.sleep(0.1)
-#                            self._chk_already_running()
-		return
+						_directory_in_use = True
+						if not self.args.dryrun:
+							if p.terminal:
+								self.args.runaction = 'cancel'
+							elif self.args.runaction == 'ask':
+								while True:
+									value = raw_input("syncrmt for: %s Already Running, Cancel This Request or Restart? (C/R): " % (self.args.hostname))
+									if not value:
+										continue
+									if value.lower()[:1] == 'c':
+										self.args.runaction = 'cancel'
+										break
+									if value.lower()[:1] == 'r':
+										self.args.runaction = 'restart'
+										break
+							if self.args.runaction == 'cancel':
+								sys.exit(1)
+							else:
+								p.kill()
+								log.warn('Previous Session Killed: %s' % p.pid)
+								self.args.runaction = 'restart'
+								time.sleep(0.1)
+								_directory_in_use = False
+		return _directory_in_use
 
 	def _update_args(self):
 		"""
@@ -523,11 +526,6 @@ class SyncLibrary(Library):
 			host_src = socket.gethostname()
 			host_tgt = self.args.hostname
 
-			if not self.args.dryrun:
-				self._chk_already_running()
-			else:
-				self.args.reuse_links = True
-
 			self.args.TraktUserID = profiles[host_tgt]['TraktUserID']
 			self.args.TraktPassWord = profiles[host_tgt]['TraktPassWord']
 			self.args.TraktHashPswd = hashlib.sha1(profiles[host_tgt]['TraktPassWord']).hexdigest()
@@ -539,9 +537,10 @@ class SyncLibrary(Library):
 				log.error(msg)
 				raise ConfigValueError(msg)
 
-			if self._build_directory(host_tgt):
-				_symbolics_requested = self._build_list()
-				self._build_symbolics(_symbolics_requested)
+			if not self._already_running():
+				if self._build_directory(host_tgt):
+					_symbolics_requested = self._build_list()
+					self._build_symbolics(_symbolics_requested)
 
 			self._series_src = '{}/{}'.format(os.path.join(self._temp_dir,
 														   'Series'),
