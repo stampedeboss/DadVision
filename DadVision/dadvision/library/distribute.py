@@ -288,7 +288,7 @@ class Distribute(Library):
 
                 _file = os.path.join(_root, _file)
                 if _file.lower().endswith(".rar"):
-                    log.verbose("Unpacking: {}".format(os.path.basenamee(_file)))
+                    log.verbose("Unpacking: {}".format(os.path.basename(_file)))
                     self._unpack_requested(_file, dest_dir)
                     _files_req_unpack = True
 
