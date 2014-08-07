@@ -84,12 +84,14 @@ class EventHandler(pyinotify.ProcessEvent):
 
     def process_IN_CREATE(self, event):
         log.info("-----------------------------------")
-        log.info("Create Event: " + event.pathname)
+        log.info("Create Event: {}".format(os.path.dirname(event.pathname)))
+        log.info("              {}".format(os.path.basename(event.pathname)))
         self.pHandler.NewDownload(event.pathname)
 
     def process_IN_MOVED_TO(self, event):
         log.info("-----------------------------------")
-        log.info("Moved Event: " + event.pathname)
+        log.info("Moved Event: {}".format(os.path.dirname(event.pathname)))
+        log.info("             {}".format(os.path.basename(event.pathname)))
         self.pHandler.NewDownload(event.pathname)
 
 class PackageHandler(object):

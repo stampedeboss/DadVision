@@ -119,7 +119,7 @@ class Distribute(Library):
                 log.error(msg)
         elif self.type == "Movie":
             if self.args.suppress_movies:
-               log.info('Skipping Movie')
+               log.info('Suppression of Movies Requested: Movie Skipped')
             try:
                 self.rename_movies.renameMovie(_tgt_rename)
             except:
@@ -198,7 +198,9 @@ class Distribute(Library):
 
         destfile = os.path.join(destdir, os.path.basename(srcfile))
         if os.path.exists(destfile) and filecmp.cmp(destfile, srcfile):
-            log.info("Skipped: Already at Destination - %s" % (os.path.basename(srcfile)))
+            log.info("Skipped: Already at Destination:")
+            log.info("         {}".format(os.path.basename(srcfile)))
+            log.info("         {}".format(os.path.basename(destfile)))
             return destfile
 
         indicator = "<+<"
@@ -214,7 +216,9 @@ class Distribute(Library):
                 log.error("Failed to create %r (%s)" % (destdir, exc))
 
         # copy file, possibly across devices.
-        log.info("%s %s %s" % (destdir, indicator, srcfile))
+        log.verbose("Copying: {}".format(destdir))
+        log.verbose("         {}".format(indicator))
+        log.verbose("         {}".format(srcfile))
         try:
             action(srcfile, destfile)
         except OSError, exc:
@@ -284,7 +288,7 @@ class Distribute(Library):
 
                 _file = os.path.join(_root, _file)
                 if _file.lower().endswith(".rar"):
-                    log.info("Unpacking %r..." % _file[len(src_dir):])
+                    log.verbose("Unpacking: {}".format(os.path.basenamee(_file)))
                     self._unpack_requested(_file, dest_dir)
                     _files_req_unpack = True
 
