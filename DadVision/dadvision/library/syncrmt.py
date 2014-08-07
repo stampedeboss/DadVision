@@ -510,15 +510,20 @@ class SyncLibrary(Library):
 
 	def _build_list(self):
 
-		trakt.api_key = self.args.TraktAPIKey
-		trakt.authenticate(self.args.TraktUserID, self.args.TraktPassWord)
+		if self.args.TraktAPIKey:
+			trakt.api_key = self.args.TraktAPIKey
+			trakt.authenticate(self.args.TraktUserID, self.args.TraktPassWord)
+		else:
+			trakt.api_key = self.settings.TraktAPIKey
+			trakt.authenticate(self.settings.TraktUserID, self.args.TraktPassWord)
+
 		trakt_user = User(self.args.TraktUserID)
 
 		_symbolic_requested = {}
 		_symbolic_requested['Series'] = []
 		_symbolic_requested['Movies'] = []
 
-		trakt_list = trakt_user.shows
+		trakt_list = trakt_user.collected
 		trakt_watchlist = trakt_user.show_watchlist
 		for _entry in trakt_list + trakt_watchlist:
 			_title = unicodedata.normalize('NFKD', _entry.title).encode("ascii", 'ignore')
