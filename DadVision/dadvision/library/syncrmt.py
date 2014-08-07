@@ -25,7 +25,7 @@ import psutil
 import trakt
 from trakt.users import User, UserList
 from trakt.movies import Movie
-from trakt.tv import TVShow
+from trakt.tv import TVShow, TVSeason, TVEpisode
 
 from library import Library
 from common import logger
@@ -145,6 +145,7 @@ class SyncLibrary(Library):
 
 		self.dir_name = dir_name.rstrip(os.sep)
 		self._update_args()
+#		self._get_trakt_series()
 
 		if self.args.rsync:
 			if 'Series' in self.args.content:
@@ -215,6 +216,112 @@ class SyncLibrary(Library):
 				self._update_xbmc()
 				sys.exit(1)
 		return
+
+	def _get_trakt_series(self):
+		log.trace('_get_trakt_series: Getting list of files requiring Sync')
+
+		profiles = self.settings.GetHostConfig(requested_host=[socket.gethostname(), self.args.hostname])
+		self.args.TraktUserID = profiles[self.args.hostname]['TraktUserID']
+		self.args.TraktPassWord = profiles[self.args.hostname]['TraktPassWord']
+		self.args.TraktHashPswd = hashlib.sha1(profiles[self.args.hostname]['TraktPassWord']).hexdigest()
+		self.args.TraktAPIKey = profiles[self.args.hostname]['TraktAPIKey']
+		self.args.TraktBase64Key = base64.encodestring(self.args.TraktUserID+':'+self.args.TraktPassWord)
+
+		if self.args.TraktAPIKey:
+			trakt.api_key = self.args.TraktAPIKey
+			trakt.authenticate(self.args.TraktUserID, self.args.TraktPassWord)
+		else:
+			trakt.api_key = self.settings.TraktAPIKey
+			trakt.authenticate(self.settings.TraktUserID, self.args.TraktPassWord)
+
+		trakt_user = User(self.args.TraktUserID)
+
+		_trakt_collected = trakt_user.collected
+		_trakt_collected_names = {_item.title: _item for _item in _trakt_collected}
+		_trakt_watchlist = trakt_user.show_watchlist
+		_trakt_watchlist_names = {_item.title: _item for _item in _trakt_watchlist}
+
+		_trakt_unwatchlist_needed = [_trakt_collected_names[x] for x in _trakt_watchlist_names if x in _trakt_collected_names]
+		if _trakt_unwatchlist_needed:
+			for _item in _trakt_unwatchlist_needed:
+				_item.remove_from_watchlist()
+				_args = {'shows': [{'title': _item._search_title,
+									'imdb_id': str(_item.imdb_id),
+									'tvdb_id': _item.tvdb_id,
+									'year': _item.year}]}
+				self.post_data(_args, type='show')
+
+		_trakt_request_batch = []
+		for _item in _trakt_collected:
+			if _item.progress['left'] == 0:
+				continue
+			_trakt_request = {}
+			_title = unicodedata.normalize('NFKD', _item.title).encode("ascii", 'ignore')
+			_trakt_request['title'] = _title.replace("&amp;", "&").replace("/", "_")
+			_trakt_request['imdb_id'] = _item.imdb_id
+			_trakt_request['tvdb_id'] = _item.tvdb_id
+			_trakt_request['_year'] = _item.year
+			_trakt_request['TVShow'] = _item
+			_trakt_request['episodes'] = []
+			_trakt_request['library'] = []
+			for _season in _item.seasons:
+				_missing = []
+				_collected = []
+				for episode, collected in _season['episodes'].iteritems():
+					if not collected:
+						_missing.append(int(episode))
+					else:
+						_collected.append(int(episode))
+						continue
+				if _missing:
+					_trakt_request['library'].append({_season['season']: {'collected': _collected, 'missing': _missing}})
+			_trakt_request_batch.append(_trakt_request)
+		_download_available = []
+		for _item in _trakt_request_batch:
+			pathname = os.path.join(self.settings.SeriesDir, _item['title'])
+			for _season in _item['library']:
+				for _season_num, _trakt_status in _season.items():
+					_file_system_episode = {}
+					pathname = os.path.join(pathname, 'Season '+str(_season_num))
+					if os.path.exists(pathname):
+						for _file in os.listdir(pathname):
+							_fq_name = os.path.join(pathname, _file)
+							FileDetails = self.fileparser.getFileDetails(_fq_name)
+							for _epno in FileDetails['EpisodeNums']:
+								_file_system_episode[_epno] = _fq_name
+						_episodes_downloaded = _file_system_episode.keys()
+					else:
+						_episodes_downloaded = []
+					_matches = list(set(_episodes_downloaded).intersection(_trakt_status['missing']))
+					_no_update_req = list(set(_episodes_downloaded) ^ set(_trakt_status['missing']+_trakt_status['collected']))
+					for _epno in _matches:
+						_item['episodes'].append({"season": _season_num, "episode": int(_epno)})
+						_download_available.append({"season": _season_num,
+													'episode': _epno,
+													'filename': _file_system_episode[_epno]})
+			#Update Trakt
+			for entry in _item['library']:
+				for _season_num, _status in entry.items():
+					for epno in _status['collected']:
+						_item['episodes'].append({'season': _season_num, 'episode': epno})
+			if _item['episodes']:
+				print _item['title']
+# {
+#     "username": "username",
+#     "password": "sha1hash",
+#     "imdb_id": "tt0898266",
+#     "tvdb_id": "80379",
+#     "title": "The Big Bang Theory",
+#     "year": 2007,
+#     "episodes": [
+#         {
+#             "season": 1,
+#             "episode": 1
+#         }
+#     ]
+# }
+		return
+
 
 	def _get_list_series(self, directory):
 		log.trace('_get_list_series: Getting list of files requiring Sync')
@@ -499,12 +606,17 @@ class SyncLibrary(Library):
 
 		if _dir_list:
 			_last_dir = min(_dir_list, key=lambda k: _dir_list[k])
-			del _dir_list[_last_dir]
-			if _dir_list:
+			if os.path.exists(os.path.join(_last_dir, 'Series')) \
+				and os.path.exists(os.path.join(_last_dir, 'Movies')):
+				del _dir_list[_last_dir]
+				if _dir_list:
+					for pathname, age in _dir_list.iteritems():
+						shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
+				self._temp_dir = os.path.join(tempfile.gettempdir(), _last_dir)
+				return False
+			else:
 				for pathname, age in _dir_list.iteritems():
 					shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
-			self._temp_dir = os.path.join(tempfile.gettempdir(), _last_dir)
-			return False
 		self._temp_dir = tempfile.mkdtemp(suffix='', prefix='syncrmt_'+host_tgt+'_', dir=None)
 		return True
 
@@ -515,7 +627,7 @@ class SyncLibrary(Library):
 			trakt.authenticate(self.args.TraktUserID, self.args.TraktPassWord)
 		else:
 			trakt.api_key = self.settings.TraktAPIKey
-			trakt.authenticate(self.settings.TraktUserID, self.args.TraktPassWord)
+			trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
 
 		trakt_user = User(self.args.TraktUserID)
 
@@ -525,41 +637,43 @@ class SyncLibrary(Library):
 
 		trakt_list = trakt_user.collected
 		trakt_watchlist = trakt_user.show_watchlist
-		for _entry in trakt_list + trakt_watchlist:
-			_title = unicodedata.normalize('NFKD', _entry.title).encode("ascii", 'ignore')
-			_title = _title.replace("&amp;", "&").replace("/", "_")
+		if trakt_list:
+			for _entry in trakt_list + trakt_watchlist:
+				_title = unicodedata.normalize('NFKD', _entry.title).encode("ascii", 'ignore')
+				_title = _title.replace("&amp;", "&").replace("/", "_")
 
-			if _title in _symbolic_requested['Series']:
-				if not self.args.dryrun:
-					#_show = TVShow(_title)
-					_entry.remove_from_watchlist()
-					args = {'shows': [{'imdb_id': _entry.imdb_id,
-									   'tvdb_id': _entry.tvdb_id}]}
-					self.post_data(args, type='show')
-				continue
-			_symbolic_requested['Series'].append(_title)
+				if _title in _symbolic_requested['Series']:
+					if not self.args.dryrun:
+						#_show = TVShow(_title)
+						_entry.remove_from_watchlist()
+						args = {'shows': [{'imdb_id': _entry.imdb_id,
+										   'tvdb_id': _entry.tvdb_id}]}
+						self.post_data(args, type='show')
+					continue
+				_symbolic_requested['Series'].append(_title)
 
 		trakt_list = trakt_user.movies
 		trakt_watchlist = trakt_user.movie_watchlist
-		for _entry in trakt_list + trakt_watchlist:
-			_title = unicodedata.normalize('NFKD', _entry.title).encode("ascii", 'ignore')
-			_title = _title.replace("&amp;", "&").replace("/", "_")
+		if trakt_list:
+			for _entry in trakt_list + trakt_watchlist:
+				_title = unicodedata.normalize('NFKD', _entry.title).encode("ascii", 'ignore')
+				_title = _title.replace("&amp;", "&").replace("/", "_")
 
-			_title_yr = "{} ({})".format(_title, _entry.year)
-			if _title_yr in _symbolic_requested['Movies']:
-				if not self.args.dryrun:
-#					tmdbDetails = self.tmdb_info.retrieve_info({'MovieName': _title, 'Year': _entry.year})
-#					_movie = Movie(_title,
-#					               year=_entry.year,
-#					               imdb_id=unicodedata.normalize('NFKD', tmdbDetails['imdb_id']).encode("ascii", 'ignore'),
-#					               tmdb_id=tmdbDetails['tmdb_id'])
-#   				_movie = Movie(_title, year=_entry.year)
-					_entry.remove_from_watchlist()
-					args = {'movies': [{'imdb_id': _entry.imdb_id,
-									   'tmdb_id': _entry.tmdb_id}]}
-					self.post_data(args, 'movie')
-				continue
-			_symbolic_requested['Movies'].append(_title_yr)
+				_title_yr = "{} ({})".format(_title, _entry.year)
+				if _title_yr in _symbolic_requested['Movies']:
+					if not self.args.dryrun:
+	#					tmdbDetails = self.tmdb_info.retrieve_info({'MovieName': _title, 'Year': _entry.year})
+	#					_movie = Movie(_title,
+	#					               year=_entry.year,
+	#					               imdb_id=unicodedata.normalize('NFKD', tmdbDetails['imdb_id']).encode("ascii", 'ignore'),
+	#					               tmdb_id=tmdbDetails['tmdb_id'])
+	#   				_movie = Movie(_title, year=_entry.year)
+						_entry.remove_from_watchlist()
+						args = {'movies': [{'imdb_id': _entry.imdb_id,
+										   'tmdb_id': _entry.tmdb_id}]}
+						self.post_data(args, 'movie')
+					continue
+				_symbolic_requested['Movies'].append(_title_yr)
 
 		return _symbolic_requested
 
