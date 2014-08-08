@@ -111,9 +111,9 @@ class SyncLibrary(Library):
 		sync3.add_argument("--refresh", dest="refresh_limit",
 			action="store", type=int, default=3600,
 			help='Refresh existing links if older x seconds, Default: 3600')
-		sync3.add_argument("--reuse", dest="reuse_links",
+		sync3.add_argument("--no-reuse", dest="no_reuse",
 			action="store_true", default=False,
-			help='Reuse existing links, if possible')
+			help='Do not reuse existing links, even if possible')
 		sync3.add_argument("--reverse", dest="reverse",
 			action="store_true", default=False,
 			help="Reverse flow of Update, RMT --> Local")
@@ -472,6 +472,7 @@ class SyncLibrary(Library):
 						_directory_in_use = True
 						if not self.args.dryrun:
 							if p.terminal:
+								log.info('syncrmt running in terminal window, unable to cancel')
 								self.args.runaction = 'cancel'
 							elif self.args.runaction == 'ask':
 								while True:
@@ -601,9 +602,12 @@ class SyncLibrary(Library):
 			if _syncrmt_dir.match(pathname):
 				st=os.stat(os.path.join(tempfile.gettempdir(), pathname))
 				_age=(time.time()-st.st_mtime)
-				if not dryrun:
-					if _age > self.args.refresh_limit and not self.args.reuse_links:
-						shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
+				if dryrun and not self.args.no_reuse:
+					_dir_list[pathname] = _age
+					continue
+				if _age > self.args.refresh_limit or self.args.no_reuse:
+					shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
+					continue
 				_dir_list[pathname] = _age
 
 		if _dir_list:
