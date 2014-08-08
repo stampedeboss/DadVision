@@ -642,10 +642,9 @@ class SyncLibrary(Library):
 			for _entry in trakt_list + trakt_watchlist:
 				_title = unicodedata.normalize('NFKD', _entry.title).encode("ascii", 'ignore')
 				_title = _title.replace("&amp;", "&").replace("/", "_")
-
 				if _title in _symbolic_requested['Series']:
 					if not self.args.dryrun:
-						#_show = TVShow(_title)
+						log.info('Please remove from watchlist: {}'.format(_title))
 						_entry.remove_from_watchlist()
 						args = {'shows': [{'imdb_id': _entry.imdb_id,
 										   'tvdb_id': _entry.tvdb_id}]}
@@ -659,16 +658,10 @@ class SyncLibrary(Library):
 			for _entry in trakt_list + trakt_watchlist:
 				_title = unicodedata.normalize('NFKD', _entry.title).encode("ascii", 'ignore')
 				_title = _title.replace("&amp;", "&").replace("/", "_")
-
 				_title_yr = "{} ({})".format(_title, _entry.year)
 				if _title_yr in _symbolic_requested['Movies']:
 					if not self.args.dryrun:
-	#					tmdbDetails = self.tmdb_info.retrieve_info({'MovieName': _title, 'Year': _entry.year})
-	#					_movie = Movie(_title,
-	#					               year=_entry.year,
-	#					               imdb_id=unicodedata.normalize('NFKD', tmdbDetails['imdb_id']).encode("ascii", 'ignore'),
-	#					               tmdb_id=tmdbDetails['tmdb_id'])
-	#   				_movie = Movie(_title, year=_entry.year)
+						log.info('Please remove from watchlist: {}'.format(_title_yr))
 						_entry.remove_from_watchlist()
 						args = {'movies': [{'imdb_id': _entry.imdb_id,
 										   'tmdb_id': _entry.tmdb_id}]}
