@@ -538,9 +538,11 @@ class SyncLibrary(Library):
 				raise ConfigValueError(msg)
 
 			if not self._already_running():
-				if self._build_directory(host_tgt):
+				if self._build_directory(host_tgt, False):
 					_symbolics_requested = self._build_list()
 					self._build_symbolics(_symbolics_requested)
+			else:
+				self._build_directory(host_tgt, True)
 
 			self._series_src = '{}/{}'.format(os.path.join(self._temp_dir,
 														   'Series'),
@@ -590,7 +592,7 @@ class SyncLibrary(Library):
 
 		return
 
-	def _build_directory(self, host_tgt):
+	def _build_directory(self, host_tgt, dryrun=False):
 
 		_syncrmt_dir = re.compile('^syncrmt_{}.*$'.format(self.args.hostname), re.IGNORECASE)
 
@@ -599,23 +601,19 @@ class SyncLibrary(Library):
 			if _syncrmt_dir.match(pathname):
 				st=os.stat(os.path.join(tempfile.gettempdir(), pathname))
 				_age=(time.time()-st.st_mtime)
-				if _age > self.args.refresh_limit and not self.args.reuse_links:
-					shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
+				if not dryrun:
+					if _age > self.args.refresh_limit and not self.args.reuse_links:
+						shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
 				_dir_list[pathname] = _age
 
 		if _dir_list:
 			_last_dir = min(_dir_list, key=lambda k: _dir_list[k])
-			if os.path.exists(os.path.join(_last_dir, 'Series')) \
-				and os.path.exists(os.path.join(_last_dir, 'Movies')):
-				del _dir_list[_last_dir]
-				if _dir_list:
-					for pathname, age in _dir_list.iteritems():
-						shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
-				self._temp_dir = os.path.join(tempfile.gettempdir(), _last_dir)
-				return False
-			else:
+			self._temp_dir = os.path.join(tempfile.gettempdir(), _last_dir)
+			del _dir_list[_last_dir]
+			if _dir_list:
 				for pathname, age in _dir_list.iteritems():
 					shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
+			return False
 		self._temp_dir = tempfile.mkdtemp(suffix='', prefix='syncrmt_'+host_tgt+'_', dir=None)
 		return True
 
