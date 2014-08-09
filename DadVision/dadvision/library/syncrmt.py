@@ -636,7 +636,7 @@ class SyncLibrary(Library):
 		_symbolic_requested['Series'] = []
 		_symbolic_requested['Movies'] = []
 
-		trakt_list = trakt_user.collected
+		trakt_list = trakt_user.show_collection
 		trakt_watchlist = trakt_user.show_watchlist
 		if trakt_list:
 			for _entry in trakt_list + trakt_watchlist:
@@ -652,7 +652,7 @@ class SyncLibrary(Library):
 					continue
 				_symbolic_requested['Series'].append(_title)
 
-		trakt_list = trakt_user.movies
+		trakt_list = trakt_user.movie_collection
 		trakt_watchlist = trakt_user.movie_watchlist
 		if trakt_list:
 			for _entry in trakt_list + trakt_watchlist:
