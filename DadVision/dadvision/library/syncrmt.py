@@ -644,10 +644,8 @@ class SyncLibrary(Library):
 				_title = _title.replace("&amp;", "&").replace("/", "_")
 				if _title in _symbolic_requested['Series']:
 					if not self.args.dryrun:
-						log.info('Please remove from watchlist: {}'.format(_title))
 						_entry.remove_from_watchlist()
-						args = {'shows': [{'imdb_id': _entry.imdb_id,
-										   'tvdb_id': _entry.tvdb_id}]}
+						args = {'imdb_id': _entry.imdb_id, 'tvdb_id': _entry.tvdb_id}
 						self.post_data(args, type='show')
 					continue
 				_symbolic_requested['Series'].append(_title)
@@ -661,10 +659,8 @@ class SyncLibrary(Library):
 				_title_yr = "{} ({})".format(_title, _entry.year)
 				if _title_yr in _symbolic_requested['Movies']:
 					if not self.args.dryrun:
-						log.info('Please remove from watchlist: {}'.format(_title_yr))
 						_entry.remove_from_watchlist()
-						args = {'movies': [{'imdb_id': _entry.imdb_id,
-										   'tmdb_id': _entry.tmdb_id}]}
+						args = {'imdb_id': _entry.imdb_id, 'tmdb_id': _entry.tmdb_id}
 						self.post_data(args, 'movie')
 					continue
 				_symbolic_requested['Movies'].append(_title_yr)
@@ -699,7 +695,7 @@ class SyncLibrary(Library):
 		return
 
 	def post_data(self, entry_data, type='movie'):
-		pydata = {'username': self.args.TraktUserID, 'password': self.args.TraktHashPswd, type+'s': entry_data}
+		pydata = {'username': self.args.TraktUserID, 'password': self.args.TraktHashPswd, type+'s': [entry_data]}
 		json_data = json.dumps(pydata)
 		clen = len(json_data)
 		_url = "http://api.trakt.tv/{}/unwatchlist/{}".format(type, self.args.TraktAPIKey)
