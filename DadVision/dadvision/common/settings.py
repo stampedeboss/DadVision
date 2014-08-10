@@ -241,7 +241,7 @@ class Settings(object):
         return 0
 
     def ReloadHostConfig(self, hostname):
-        log.info('Reloading Settings on request for hostname: {}'.format(hostname))
+        log.verbose('Reloading Settings on request for hostname: {}'.format(hostname))
         if hostname not in self.Hostnames:
             raise InvalidArgumentValue('Requested Hostname not found: {}'.format(hostname))
 

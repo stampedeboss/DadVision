@@ -85,6 +85,7 @@ def _ignored(name):
     """ Check for ignored pathnames.
     """
     rc = []
+    if name == 'New': rc.append(True)
     rc.append(any(fnmatch.fnmatch(name.lower(), pattern) for pattern in library.settings.ExcludeList))
     rc.append(any(fnmatch.fnmatch(name.lower(), pattern) for pattern in library.settings.IgnoreGlob))
     return any(rc)
@@ -110,7 +111,7 @@ class TMDBInfo(Library):
         tmdb3.set_cache(filename='tmdb3.cache')
 
         self._check_suffix = re.compile('^(?P<MovieName>.+?)[ \._\-\(]*?(?P<Year>[1|2][0|9]\d\d)(:P.*)?', re.VERBOSE)
-        self._check_part = re.compile('^(?P<MovieName>.*)[ \._\-\(]*(?P<Part>.part.\d).*?', re.IGNORECASE)
+        self._check_part = re.compile('^(?P<MovieName>.*\([1|2][0|9]\d\d\))[ \._\-\(]*(?P<Part>part.\d)[\)]?.*', re.IGNORECASE)
 
         return
 
