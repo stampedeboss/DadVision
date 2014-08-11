@@ -14,7 +14,7 @@ from common.exceptions import (DataRetrievalError, EpisodeNotFound,
     ConfigValueError, UnexpectedErrorOccured, DuplicateRecord)
 from common.chkvideo import chkVideoFile
 from library.series.fileparser import FileParser
-from library.series.episodeinfo import EpisodeDetails
+from library.series.seriesinfo import SeriesInfo
 from common.cmdoptions import CmdOptions
 import datetime
 import filecmp
@@ -74,7 +74,7 @@ class RenameSeries(Library):
             action="store_false", default=True,
             help="Bypass Video Checks")
 
-        self.episodeinfo = EpisodeDetails()
+        self.seriesinfo = SeriesInfo()
         self.parser = FileParser()
 
         self.xbmc_update_required = False
@@ -103,7 +103,7 @@ class RenameSeries(Library):
                     if chkVideoFile(pathname):
                         log.error('File Failed Video Check: {}'.format(pathname))
                         return
-                if _file_details : _file_details = self.episodeinfo.getDetails(_file_details)
+                if _file_details : _file_details = self.seriesinfo.getShowInfo(_file_details)
                 if _file_details : self._rename_file(_file_details)
                 self.xbmc_update_required = False
             except (InvalidFilename, DuplicateFilesFound, RegxSelectionError, EpisodeNotFound, SeriesNotFound), msg:
@@ -149,7 +149,7 @@ class RenameSeries(Library):
                             if chkVideoFile(_path_name):
                                 log.error('File Failed Video Check: {}'.format(_path_name))
                                 continue
-                            _file_details = self.episodeinfo.getDetails(_file_details)
+                            _file_details = self.seriesinfo.getShowInfo(_file_details)
                             self._rename_file(_file_details)
                     except (InvalidFilename, DuplicateFilesFound, RegxSelectionError, DataRetrievalError, EpisodeNotFound, SeriesNotFound), msg:
                         log.error('Unable to Rename File: {}'.format(msg))
@@ -184,7 +184,9 @@ class RenameSeries(Library):
 #            if os.path.exists(_new_name) and filecmp.cmp(_new_name, file_details['FileName']):
             if os.path.exists(_new_name):
                 if os.path.split(_new_name)[0] == os.path.split(file_details['FileName'])[0]:
-                    log.info('File Already Exists, Only Updating Timestamp: %s' % (_new_name))
+                    log.info('Exists, Updating Timestamp')
+                    log.info('   Series: {}'.format(file_details['SeriesName']))
+                    log.info('   Season: {}  Episode: {}'.format(file_details['SeasonNum'], file_details['EpisodeNumFmt']))
                     self._update_date(file_details, _new_name)
                     return
                 else:
@@ -230,8 +232,10 @@ class RenameSeries(Library):
                 self.db.close()
                 raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, file_details))
 
-            log.info('Successfully Renamed: CURRENT NAME: %s' % os.path.basename(file_details['FileName']))
-            log.info('Successfully Renamed: SERIES: %s  SEASON: %s  FILE: %s' % (file_details['SeriesName'], file_details['SeasonNum'], os.path.basename(_new_name)))
+            log.info('Renamed: CURRENT {}'.format(os.path.basename(file_details['FileName'])))
+            log.info('Renamed: SERIES: {}'.format(file_details['SeriesName']))
+            log.info('Renamed: SEASON: {}'.format(file_details['SeasonNum']))
+            log.info('Renamed:   FILE: {}'.format(os.path.basename(_new_name)))
             self.xbmc_update_required = True
         except OSError, exc:
             log.error("Skipping, Unable to Rename File: %s" % file_details['FileName'])
