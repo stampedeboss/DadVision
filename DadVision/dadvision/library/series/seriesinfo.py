@@ -83,7 +83,7 @@ class SeriesInfo(Library):
 		self.db = api.TVDB("959D8E76B796A1FB")
 		trakt.api_key = self.settings.TraktAPIKey
 		trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
-		self._check_suffix = re.compile('^(?P<SeriesName>.+?)[ \._\-](?P<year>[0-9][0-9][0-9][0-9]|US|us|Us)$', re.VERBOSE)
+		self._check_suffix = re.compile('^(?P<SeriesName>.*)[ \._\-][\(]?(?P<year>(?:19|20)\d{2}|us).*$', re.I)
 		self.confidenceFactor = 90
 		self.last_request = {'LastRequestName': ''}
 
@@ -151,7 +151,7 @@ class SeriesInfo(Library):
 			}
 
 			try:
-				for service in ['trakt', 'tvdb', 'tvrage']:
+				for service in ['tvdb', 'trakt', 'tvrage']:
 					try:
 						results = options[service](_series_name)
 						if results:

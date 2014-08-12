@@ -25,6 +25,7 @@ Examples of dirty movie names that can be cleaned:
 from library import Library
 from common import logger
 from common.exceptions import MovieNotFound, SeriesNotFound
+from exceptions import ValueError
 from pytvdbapi import api
 import logging
 import os
@@ -119,11 +120,11 @@ class TestTrakt(Library):
         trakt_type.add_argument("-m", "--movie", dest="Type",
             action="store_const", const="movie",
             help="Update list with movie information")
-        trakt_type.add_argument("-l", "--lists", dest="Type",
-            action="store_const", const="lists",
+        trakt_type.add_argument("-l", "--list", dest="Type",
+            action="store_const", const="list",
             help="Update personal list (MyShow) with show or movie")
-        trakt_type.add_argument("-u", "--users", dest="Type",
-            action="store_const", const="users",
+        trakt_type.add_argument("-u", "--user", dest="Type",
+            action="store_const", const="user",
             help="Work with User Information")
         trakt_type.add_argument("--cleanup", dest="Type",
             action="store_const", const="cleanup",
@@ -139,8 +140,8 @@ class TestTrakt(Library):
         trakt_library.add_argument("--watchlist", dest="Target",
             action="store_const", const="watchlist",
             help="Make changes to watchlist")
-        trakt_library.add_argument("--named-list", dest="listName",
-            action="store", nargs='?', default='myshows', const="myshows",
+        trakt_library.add_argument("--named-list", dest="list_name",
+            action="store", nargs='?', default='std-shows', const="std-shows",
             help="Make changes to the list with this name")
 
         TMDB_group = self.options.parser.add_argument_group("Get TMDB Information Options", description=None)
@@ -173,7 +174,7 @@ class TestTrakt(Library):
             trakt.authenticate(self.args.TraktUserID, self.args.TraktPassWord)
         else:
             trakt.api_key = self.settings.TraktAPIKey
-            trakt.authenticate(self.settings.TraktUserID, self.args.TraktPassWord)
+            trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
 
         if self.args.series_name:
             self.args.Type = 'show'
@@ -181,16 +182,16 @@ class TestTrakt(Library):
             self.args.Type = 'movie'
 
         options = {'show': self.show,
-                    'movie': self.movie,
-                    'lists': self.lists,
-                    'users': self.users,
-                    'cleanup': self.cleanup
+                   'list': self.lists,
+                   'user': self.users,
+                   'movie': self.movie,
+                   'cleanup': self.cleanup
         }
 
         args = {'show': self.args.series_name,
+                'list': self.args.list_name,
+                'user': None,
                 'movie': (self.args.movie_name, self.args.year),
-                'lists': None,
-                'users': None,
                 'cleanup': None
         }
 
@@ -275,19 +276,46 @@ class TestTrakt(Library):
 
         return
 
-    def lists(self, args):
+    def lists(self, list_name):
+        # http://api.trakt.tv/lists/items/add/apikey
+        trakt.users.extended_output(True)
+        trakt_user = User(self.args.TraktUserID)
 
-        # self.args.Target = 'items'
-        # self.Action = '/{}'.format(self.args.ActionTaken)
-        #
-        # elif self.args.Type == 'lists':
-        # 	if self.showCounter + self.movieCounter > self.batchSize:
-        # 		self.movieEntries.extend(self.showEntries)
-        # 		self.post_data(self.movieEntries)
-        # 		self.movieCounter = 0
-        # 		self.movieEntries = []
-        # 		self.showCounter = 0
-        # 		self.showEntries = []
+        trakt_list = trakt_user.get_list('std-shows')
+        self.request = {'items': []}
+        self.request['slug'] = 'std-shows'
+        for show in trakt_list.items:
+            show_entry = {}
+            show_entry['type'] = 'show'
+            show_entry['title'] = show.title
+            show_entry['tvdb_id'] = show.tvdb_id
+            self.request['items'].append(show_entry)
+
+        self.args.Type = 'lists'
+        self.args.Target = 'items/{}'.format('delete')
+        response = self.post_data()
+        log.info(response)
+
+        trakt_list = trakt_user.get_list('top-shows')
+        trakt_list_names = {_item.title: _item for _item in trakt_list.items}
+        trakt_collected = trakt_user.show_collection
+        self.request = {'items': []}
+        self.request['slug'] = list_name
+        for show in trakt_collected:
+            if show.title in trakt_list_names:
+                continue
+            if show.status == 'Ended':
+                continue
+            show_entry = {}
+            show_entry['type'] = 'show'
+            show_entry['title'] = show.title
+            show_entry['tvdb_id'] = show.tvdb_id
+            self.request['items'].append(show_entry)
+
+        self.args.Type = 'lists'
+        self.args.Target = 'items/{}'.format(self.args.ActionTaken)
+        response = self.post_data()
+        log.info(response)
 
         return
 
@@ -298,79 +326,129 @@ class TestTrakt(Library):
 
     def cleanup(self, args):
 
-        #Cleanup Seen Shows
+        trakt.users.extended_output(True)
         trakt_user = User(self.args.TraktUserID)
-        trakt_list = trakt_user.shows
-        trakt_collected = trakt_user.show_collection
 
-        trakt_list_names = {_item.title: _item for _item in trakt_list}
-        trakt_collected_names = {_item.title: _item for _item in trakt_collected}
+        #Create Show Lists
+        trakt_shows_list = trakt_user.shows
+        trakt_shows_list_names = {_item.title: _item for _item in trakt_shows_list}
 
-        trakt_unseen_needed = [trakt_list_names[x] for x in trakt_list_names if x not in trakt_collected_names]
+        trakt_shows_collected = trakt_user.show_collection
+        trakt_shows_collected_names = {_item.title: _item for _item in trakt_shows_collected}
 
-        self.args.Type = 'show'
-        self.args.Target = 'seen'
-        self.args.ActionTaken = 'delete'
+        trakt_shows_watchlist = trakt_user.show_watchlist
+        trakt_shows_watchlist_names = {_item.title: _item for _item in trakt_shows_watchlist}
 
-        for _item in trakt_unseen_needed:
+        trakt_movies_list = trakt_user.movies
+        trakt_movies_list_names = {_item.title: _item for _item in trakt_movies_list}
+
+        trakt_movies_collected = trakt_user.movie_collection
+        trakt_movies_collected_names = {_item.title: _item for _item in trakt_movies_collected}
+
+        trakt_movies_watchlist = trakt_user.movie_watchlist
+        trakt_movies_watchlist_names = {_item.title: _item for _item in trakt_movies_watchlist}
+
+        # #Cleanup Seen Shows
+        # trakt_unseen_needed = [trakt_shows_list_names[x] for x in trakt_shows_list_names if x not in trakt_shows_collected_names]
+        #
+        # self.args.Type = 'show'
+        # self.args.Target = 'seen'
+        # self.args.ActionTaken = 'delete'
+        # for _item in trakt_unseen_needed:
+        #     try:
+        #         self.show(_item.title)
+        #     except:
+        #         pass
+        #
+        # #Cleanup Shows Watchlist
+        # trakt_shows_unwatchlist_needed = [trakt_shows_collected_names[x] for x in trakt_shows_watchlist_names if x in trakt_shows_collected_names]
+        #
+        # self.args.Target = 'watchlist'
+        # self.args.ActionTaken = 'delete'
+        # for _item in trakt_shows_unwatchlist_needed:
+        #     try:
+        #         self.show(_item.title)
+        #     except:
+        #         pass
+        #
+        # #Cleanup Seen Movies
+        # trakt_movies_unseen_needed = [trakt_movies_list_names[x] for x in trakt_movies_list_names if x not in trakt_movies_collected_names]
+        #
+        # self.args.Type = 'movie'
+        # self.args.Target = 'seen'
+        # self.args.ActionTaken = 'delete'
+        # for _item in trakt_unseen_needed:
+        #     try:
+        #         self.movie(_item.title, _item.year)
+        #     except:
+        #         pass
+        #
+        # #Cleanup Movies Watchlist
+        # trakt_unwatchlist_needed = [trakt_movies_collected_names[x] for x in trakt_movies_watchlist_names if x in trakt_movies_collected_names]
+        #
+        # self.args.Target = 'watchlist'
+        # self.args.ActionTaken = 'delete'
+        # for _item in trakt_unwatchlist_needed:
+        #     try:
+        #         self.movie(_item.title, _item.year)
+        #     except:
+        #         pass
+        #
+        # #Delete all entries from std-shows to prepare for reload
+        # trakt_std-shows_list = trakt_user.get_list('std-shows')
+        # self.request = {'items': []}
+        # self.request['slug'] = 'std-shows'
+        # for show in trakt_std-shows_list.items:
+        #     show_entry = {}
+        #     show_entry['type'] = 'show'
+        #     show_entry['title'] = show.title
+        #     show_entry['tvdb_id'] = show.tvdb_id
+        #     self.request['items'].append(show_entry)
+        #
+        # self.args.Type = 'lists'
+        # self.args.Target = 'items/{}'.format('delete')
+        # response = self.post_data()
+        # log.info(response)
+
+        #Reload entries to std-shows, exclude top-shows and shows that have ended
+        new_shows = []
+        trakt_top_shows = trakt_user.get_list('top-shows')
+        trakt_top_shows_names = {_item.title: _item for _item in trakt_top_shows.items}
+        for dir in os.listdir(self.settings.SeriesDir):
+            if dir in trakt_top_shows_names:
+                continue
+            if dir in trakt_shows_collected_names:
+                continue
             try:
-                self.show(_item.title)
-            except:
+                show = TVShow(dir)
+                new_shows.append({dir: show})
+            except ValueError:
                 pass
 
-        #Cleanup Shows Watchlist
-        trakt_watchlist = trakt_user.show_watchlist
-        trakt_watchlist_names = {_item.title: _item for _item in trakt_watchlist}
-        trakt_unwatchlist_needed = [trakt_collected_names[x] for x in trakt_watchlist_names if x in trakt_collected_names]
-
-        self.args.Target = 'watchlist'
-        self.args.ActionTaken = 'delete'
-
-        for _item in trakt_unwatchlist_needed:
-            try:
-                self.show(_item.title)
-            except:
-                pass
-
-        #Cleanup Seen Movies
-        trakt_list = trakt_user.movies
-        trakt_collected = trakt_user.movie_collection
-#        trakt_collected = []
-        trakt_list_names = {_item.title: _item for _item in trakt_list}
-        trakt_collected_names = {_item.title: _item for _item in trakt_collected}
-
-        trakt_unseen_needed = [trakt_list_names[x] for x in trakt_list_names if x not in trakt_collected_names]
-
-        self.args.Type = 'movie'
-        self.args.Target = 'seen'
-        self.args.ActionTaken = 'delete'
-
-        for _item in trakt_unseen_needed:
-            try:
-                self.movie(_item.title, _item.year)
-            except:
-                pass
-
-        trakt_watchlist = trakt_user.movie_watchlist
-        trakt_watchlist_names = {_item.title: _item for _item in trakt_watchlist}
-        trakt_unwatchlist_needed = [trakt_collected_names[x] for x in trakt_watchlist_names if x in trakt_collected_names]
-
-        self.args.Target = 'watchlist'
-        self.args.ActionTaken = 'delete'
-
-        for _item in trakt_unwatchlist_needed:
-            try:
-                self.movie(_item.title, _item.year)
-            except:
-                pass
+        # self.request = {'items': []}
+        # self.request['slug'] = 'top-shows'
+        # for show in trakt_shows_collected:
+        #     if show.title in trakt_std-shows_list_names:
+        #         continue
+        #     if show.status == 'Ended':
+        #         continue
+        #     show_entry = {}
+        #     show_entry['type'] = 'show'
+        #     show_entry['title'] = show.title
+        #     show_entry['tvdb_id'] = show.tvdb_id
+        #     self.request['items'].append(show_entry)
+        #
+        # self.args.Type = 'lists'
+        # self.args.Target = 'items/{}'.format(self.args.ActionTaken)
+        # response = self.post_data()
+        # log.info(response)
 
         return
 
     def post_data(self):
         pydata = {'username': self.settings.TraktUserID, 'password': self.settings.TraktHashPswd}
         if self.args.Type == 'lists':
-            pydata[self.args.Target] = self.request
-            pydata['slug'] = self.args.listName
+            pydata.update(self.request)
         else:
             pydata[self.args.Type+'s'] = [self.request]
 
