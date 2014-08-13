@@ -126,7 +126,7 @@ class SeriesInfo(Library):
 		#Valid Request: Locate Show IDs
 		SeriesDetails = self._identify_show(SeriesDetails)
 
-		if 'TVDBSeriesID' in SeriesDetails:
+		if 'TVDBSeriesID' in SeriesDetails :
 			try:
 				SeriesDetails = self.getEpisodeInfo(SeriesDetails)
 				log.debug('getSeriesInfo: Series Data Returned: {!s}'.format(SeriesDetails))
@@ -167,6 +167,8 @@ class SeriesInfo(Library):
 						SeriesDetails['TVDBSeriesID'] = SeriesDetails['tvdb_id']
 					if results['service'] in ['trakt', 'tvrage']:
 						SeriesDetails['tvrage_id'] = results['tvrage_id']
+					if 'tvrage_id' in SeriesDetails:
+						raise GetOutOfLoop
 				except SeriesNotFound:
 					pass
 			if any([key in SeriesDetails for key in ['tvrage_id', 'tvdb_id']]):
@@ -232,10 +234,12 @@ class SeriesInfo(Library):
 		try:
 			show = TVShow(series_name)
 			if 'tvdb_id' in kwargs:
-				if int(kwargs['tvdb_id']) <> _item.seriesid:
+				if int(kwargs['tvdb_id']) <> show.tvdb_id:
 					raise SeriesNotFound('trakt: Unable to locate series: {}'.format(series_name))
 		except:
-			raise SeriesNotFound('trakt: Unable to locate series: {}'.format(series_name))
+			an_error = traceback.format_exc(1)
+			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+			raise SeriesNotFound(an_error)
 
 		results = {}
 
@@ -254,8 +258,7 @@ class SeriesInfo(Library):
 		results = {}
 		try:
 			if 'tvrage_id' in kwargs:
-				show = self.tvrage.get_showinfo(kwargs['tvrage_id'])
-				raise GetOutOfLoop
+				return results
 			show_list = self.tvrage.search(series_name)
 			for show in show_list:
 				if _matching(series_name, show.name):
@@ -263,7 +266,7 @@ class SeriesInfo(Library):
 			raise SeriesNotFound
 		except GetOutOfLoop:
 			pass
-		except:
+		except exc:
 			an_error = traceback.format_exc()
 			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
 			raise SeriesNotFound(an_error)

@@ -59,7 +59,7 @@ def uselibrarylogging(func):
 
 
 def _matching(value1, value2):
-    log.trace("=================================================")
+    log.trace("="*30)
     log.trace("_matching: Compare: {} --> {}".format(value1, value2))
 
     fuzzy = [fuzz.ratio(value1, value2), fuzz.token_set_ratio(value1, value2), fuzz.token_sort_ratio(value1, value2),
@@ -74,10 +74,6 @@ def _matching(value1, value2):
 
 
 class GetOutOfLoop(Exception):
-    pass
-
-
-class GetOutOfLoop2(Exception):
     pass
 
 
