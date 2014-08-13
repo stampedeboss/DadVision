@@ -19,6 +19,7 @@ import re
 import sys
 import fnmatch
 import unicodedata
+import traceback
 
 import trakt
 from trakt.users import User, UserList
@@ -495,7 +496,6 @@ if __name__ == "__main__":
 	log.trace("MAIN: -------------------------------------------------")
 	from library.series.fileparser import FileParser
 	from library.series.rename import RenameSeries
-	import traceback
 
 	library = SeriesInfo()
 	parser = FileParser()
