@@ -25,9 +25,9 @@ from trakt.users import User, UserList
 from trakt.tv import TVShow, TVSeason, TVEpisode, trending_shows, TraktRating, TraktStats, rate_shows, rate_episodes, genres, get_recommended_shows, dismiss_recommendation
 
 from pytvdbapi import api
+from TVRage import TVRage, Show, ShowInfo, Season, EpisodeList, Episode, EpisodeInfo
 #from tvrage import feeds
 #from xml.etree.ElementTree import tostring
-from tvrage import TVRage, Show, ShowInfo, Season, EpisodeList, Episode, EpisodeInfo
 
 __pgmname__ = 'seriesinfo'
 __version__ = '@version: $Rev$'
@@ -267,6 +267,30 @@ class SeriesInfo(Library):
 		except GetOutOfLoop:
 			pass
 		except exc:
+			an_error = traceback.format_exc()
+			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+			raise SeriesNotFound(an_error)
+
+		results['title'] = show.name
+		results['tvrage_id'] = show.showid
+
+		results['service'] = 'tvrage'
+		return results
+
+	def _get_pytvrage_id(self, series_name, **kwargs):
+
+		results = {}
+		try:
+#			if 'tvrage_id' in kwargs:
+#				return results
+			show_list = feeds.search(series_name)
+			for show in show_list:
+				if _matching(series_name, show.name):
+					raise GetOutOfLoop
+			raise SeriesNotFound
+		except GetOutOfLoop:
+			pass
+		except:
 			an_error = traceback.format_exc()
 			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
 			raise SeriesNotFound(an_error)
