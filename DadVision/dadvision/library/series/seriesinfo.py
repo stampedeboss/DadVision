@@ -26,8 +26,8 @@ from trakt.tv import TVShow, TVSeason, TVEpisode, trending_shows, TraktRating, T
 
 from pytvdbapi import api
 from TVRage import TVRage, Show, ShowInfo, Season, EpisodeList, Episode, EpisodeInfo
-#from tvrage import feeds
-#from xml.etree.ElementTree import tostring
+from tvrage import feeds
+from xml.etree.ElementTree import tostring
 
 __pgmname__ = 'seriesinfo'
 __version__ = '@version: $Rev$'
@@ -151,6 +151,7 @@ class SeriesInfo(Library):
 		except IndexError:
 			pass
 
+#		options = {'tvrage': self._get_tvrage_id}
 		options = {'trakt': self._get_trakt_id,
 				   'tvdb': self._get_tvdb_id,
 				   'tvrage': self._get_tvrage_id
@@ -283,7 +284,7 @@ class SeriesInfo(Library):
 		try:
 #			if 'tvrage_id' in kwargs:
 #				return results
-			show_list = feeds.search(series_name)
+			show_list = feeds.full_search(series_name)
 			for show in show_list:
 				if _matching(series_name, show.name):
 					raise GetOutOfLoop
@@ -529,7 +530,7 @@ if __name__ == "__main__":
 		answer = library.getShowInfo(series_details)
 		print '-'*40
 		print ('Series: {SeriesName}'.format(**answer))
-		for episode in sorted(answer['EpisodeData']):
+		for episode in answer['EpisodeData']:
 			print ('Season: {SeasonNum}  Episode: {EpisodeNum} Title: {EpisodeTitle}'.format(**episode))
 		sys.exit(0)
 	elif len(library.args.library) > 0:
