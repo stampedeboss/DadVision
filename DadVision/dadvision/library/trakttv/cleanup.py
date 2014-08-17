@@ -12,7 +12,7 @@ Current functions:
  Remove entries from the watchlist that have been delivered.
  Repopulate the std-shows list
 """
-from exceptions import ValueError
+from exceptions import ValueError, AttributeError
 import logging
 import os
 import sys
@@ -21,6 +21,9 @@ import json
 import base64
 import hashlib
 import socket
+import traceback
+import fnmatch
+import unicodedata
 
 from pytvdbapi import api
 import tmdb3
@@ -65,6 +68,27 @@ USAGE
 ''' % (str(__date__))
 
 log = logging.getLogger(__pgmname__)
+
+
+def _decode(coded_text):
+
+	decoded_text = unicodedata.normalize('NFKD', coded_text).encode('ascii', 'ignore')
+	decoded_text = decoded_text.replace("&amp;", "&").replace("/", "_")
+
+	return decoded_text
+
+
+def _ignored(name):
+	""" Check for ignored pathnames.
+	"""
+	rc = [False]
+	if name == 'New': rc.append(True)
+	rc.append(any(fnmatch.fnmatch(name.lower(), pattern) for pattern in library.settings.ExcludeList))
+	return any(rc)
+
+
+class GetOutOfLoop(Exception):
+	pass
 
 
 class CleanUp(Library):
@@ -124,217 +148,165 @@ class CleanUp(Library):
 
 				self.cleanup_shows()
 				self.cleanup_movies()
-				# self.cleanup_lists()
+				if hostname == 'grumpy':
+					self.cleanup_lists()
 
 		return
 
 	def cleanup_shows(self):
 
 		#Create Show Lists
-		trakt_shows_list = self.trakt_user.shows
-		trakt_shows_list_names = {_item.title: _item for _item in trakt_shows_list}
+		_trakt_shows_list = self.trakt_user.shows
+		_trakt_shows_list_names = {_item.title: _item for _item in _trakt_shows_list}
+		_trakt_shows_collected = self.trakt_user.show_collection
+		_trakt_shows_collected_names = {_item.title: _item for _item in _trakt_shows_collected}
+		_trakt_shows_watchlist = self.trakt_user.show_watchlist
+		_trakt_shows_watchlist_names = {_item.title: _item for _item in _trakt_shows_watchlist}
 
-		trakt_shows_collected = self.trakt_user.show_collection
-		trakt_shows_collected_names = {_item.title: _item for _item in trakt_shows_collected}
+		_trakt_shows_needing_unseen = [_trakt_shows_list_names[x] for x in _trakt_shows_list_names if x not in _trakt_shows_collected_names]
+		_trakt_shows_needing_unwatchlist = [_trakt_shows_collected_names[x] for x in _trakt_shows_watchlist_names if x in _trakt_shows_collected_names]
 
-		trakt_shows_watchlist = self.trakt_user.show_watchlist
-		trakt_shows_watchlist_names = {_item.title: _item for _item in trakt_shows_watchlist}
-
-		# #Cleanup Seen Shows
-		trakt_unseen_needed = [trakt_shows_list_names[x] for x in trakt_shows_list_names if x not in trakt_shows_collected_names]
-
-		for _item in trakt_unseen_needed:
+		#Cleanup Seen Shows
+		for _item in _trakt_shows_needing_unseen:
 			try:
-				self.show(_item.title, target='episode/unseen')
-			except:
-				pass
+				_series_details = self.seriesinfo.getShowInfo({'SeriesName': _item.title})
+			except SeriesNotFound:
+				continue
 
-		# #Cleanup Shows Watchlist
-		trakt_shows_unwatchlist_needed = [trakt_shows_collected_names[x] for x in trakt_shows_watchlist_names if x in trakt_shows_collected_names]
+			_show_entry = {}
+			_show_entry['title'] = _series_details['SeriesName']
+			_show_entry['tvdb_id'] = _series_details['tvdb_id']
+			_show_entry['imdb_id'] = _series_details['imdb_id']
 
-		for _item in trakt_shows_unwatchlist_needed:
-			try:
-				self.show(_item.title, target='unwatchlist')
-			except:
-				pass
-
-		return
-
-	def show(self, series_name, type='show', target='unwatchlist'):
-
-		try:
-			_series_details = self.seriesinfo.getShowInfo({'SeriesName': series_name})
-		except:
-			raise SeriesNotFound
-
-		request = {}
-		request['title'] = _series_details['SeriesName']
-		request['tvdb_id'] = _series_details['tvdb_id']
-		request['imdb_id'] = _series_details['imdb_id']
-		_episodes = []
-
-		if target in ['seen', 'episode/unseen']:
+			_episodes = []
 			for episode in _series_details['EpisodeData']:
 				_episodes.append({'season': episode['SeasonNum'], 'episode': episode['EpisodeNum']})
-			request['episodes'] = _episodes
+			_show_entry['episodes'] = _episodes
 
-		if type == 'lists':
-			type = 'show'
+			_response = self.post_show(_show_entry, 'show', 'episode/unseen')
+			log.info('{}: {}'.format(_series_details['SeriesName'], _response))
 
-		if target in ['watchlist', 'unwatchlist']:
-			response = self.post_data(request, type, target)
-			log.info('{}: {}'.format(_series_details['SeriesName'], response))
-		else:
-			response = self.post_show(request, type, target)
+		#Cleanup Shows Watchlist
+		_remove_watchlist = {'shows': []}
+		for _item in _trakt_shows_needing_unwatchlist:
+			try:
+				_series_details = self.seriesinfo.getShowInfo({'SeriesName': _item.title})
+			except SeriesNotFound:
+				continue
+
+			_show_entry = {}
+			_show_entry['title'] = _series_details['SeriesName']
+			_show_entry['tvdb_id'] = _series_details['tvdb_id']
+			_show_entry['imdb_id'] = _series_details['imdb_id']
+			_remove_watchlist['shows'].append(_show_entry)
+
+
+		if _remove_watchlist['shows']:
+			response = self.post_data(_show_entry, 'show', 'unwatchlist')
 			log.info('{}: {}'.format(_series_details['SeriesName'], response))
 
 		return
 
 	def cleanup_movies(self):
+		_trakt_movies_list = self.trakt_user.movies
+		_trakt_movies_list_names = {'{} ({})'.format(_decode(_item.title), _item.year): _item for _item in _trakt_movies_list}
+		_trakt_movies_collected = self.trakt_user.movie_collection
+		_trakt_movies_collected_names = {'{} ({})'.format(_decode(_item.title), _item.year): _item for _item in _trakt_movies_collected}
+		_trakt_movies_watchlist = self.trakt_user.movie_watchlist
+		_trakt_movies_watchlist_names = {'{} ({})'.format(_decode(_item.title), _item.year): _item for _item in _trakt_movies_watchlist}
 
-		trakt_movies_list = self.trakt_user.movies
-		trakt_movies_list_names = {_item.title: _item for _item in trakt_movies_list}
-
-		trakt_movies_collected = self.trakt_user.movie_collection
-		trakt_movies_collected_names = {_item.title: _item for _item in trakt_movies_collected}
-
-		trakt_movies_watchlist = self.trakt_user.movie_watchlist
-		trakt_movies_watchlist_names = {_item.title: _item for _item in trakt_movies_watchlist}
+		_trakt_movies_needing_unseen = [_trakt_movies_list_names[x] for x in _trakt_movies_list_names if x not in _trakt_movies_collected_names]
+		_trakt_movies_needing_unwatchlist = [_trakt_movies_collected_names[x] for x in _trakt_movies_watchlist_names if x in _trakt_movies_collected_names]
 
 		#Cleanup Seen Movies
-		trakt_movies_unseen_needed = [trakt_movies_list_names[x] for x in trakt_movies_list_names if x not in trakt_movies_collected_names]
-
-		for _item in trakt_movies_unseen_needed:
+		_remove_seen = {'movies': []}
+		for _item in _trakt_movies_needing_unseen:
 			try:
-				self.movie(_item.title, _item.year, target='unseen')
+				_movie_details = self.tmdbinfo._get_details({'MovieName': _item.title, 'Year': _item.year})
 			except:
-				pass
+				log.warn('Movie Not Found: {} ({})'.format(_item.title, _item.year))
+				continue
+
+			_movie_entry = {}
+			_movie_entry['title'] = _movie_details['MovieName']
+			_movie_entry['imdb_id'] = _movie_details['imdb_id']
+			_movie_entry['tmdb_id'] = _movie_details['tmdb_id']
+			_movie_entry['year'] = str(_movie_details['Year'])
+			_remove_seen['movies'].append(_movie_entry)
+
+		if _remove_seen['movies']:
+			_response = self.post_data(_remove_seen, 'movie', 'unseen')
+			log.info('{}'.format(_response))
 
 		#Cleanup Movies Watchlist
-		trakt_movies_unwatchlist_needed = [trakt_movies_collected_names[x] for x in trakt_movies_watchlist_names if x in trakt_movies_collected_names]
-
-		for _item in trakt_movies_unwatchlist_needed:
+		_remove_watchlist = {'movies': []}
+		for _item in _trakt_movies_needing_unwatchlist:
 			try:
-				self.movie(_item.title, _item.year, target='unwatchlist')
+				_movie_details = self.tmdbinfo._get_details({'MovieName': _item.title, 'Year': _item.year})
 			except:
-				pass
+				log.warn('Movie Not Found: {} ({})'.format(_item.title, _item.year))
+				continue
 
-		return
+			_movie_entry = {}
+			_movie_entry['title'] = _movie_details['MovieName']
+			_movie_entry['imdb_id'] = _movie_details['imdb_id']
+			_movie_entry['tmdb_id'] = _movie_details['tmdb_id']
+			_movie_entry['year'] = str(_movie_details['Year'])
+			_remove_watchlist['movies'].append(_movie_entry)
 
-	def movie(self, movie_name, year, type='movie', target='unwatchlist'):
-
-		try:
-			movie_details = self.tmdbinfo._get_details({'MovieName': movie_name, 'Year': year})
-		except:
-			raise MovieNotFound('Movie Not Found: {} ({})'.format(movie_name, year))
-
-		request = {}
-		request['title'] = movie_details['MovieName']
-		request['imdb_id'] = movie_details['imdb_id']
-		request['tmdb_id'] = movie_details['tmdb_id']
-		request['year'] = str(movie_details['Year'])
-
-		if type == 'lists':
-			request['type'] = 'movie'
-
-		response = self.post_data(request, type, target)
-		log.info('{}: {}'.format(movie_details['MovieName'], response))
+		if _remove_watchlist['movies']:
+			_response = self.post_data(_remove_watchlist, 'movie', 'unwatchlist')
+			log.info('{}'.format(_response))
 
 		return
 
 	def cleanup_lists(self):
 
 		#Delete all entries from std-shows to prepare for reload
-		trakt_std_shows_list = self.trakt_user.get_list('std-shows')
-		self.request = {'items': []}
-		self.request['slug'] = 'std-shows'
-		for show in trakt_std_shows_list.items:
+		_trakt_top_shows = self.trakt_user.get_list('topshows')
+		_trakt_top_shows_names = {_item.title: _item for _item in _trakt_top_shows.items}
+		_trakt_std_shows_list = self.trakt_user.get_list('stdshows')
+
+		_remove_show = {'slug': 'stdshows', 'items': []}
+		for show in _trakt_std_shows_list.items:
 			show_entry = {}
 			show_entry['type'] = 'show'
 			show_entry['title'] = show.title
 			show_entry['tvdb_id'] = show.tvdb_id
-			self.request['items'].append(show_entry)
+			_remove_show['items'].append(show_entry)
 
-		self.args.Type = 'lists'
-		self.args.Target = 'items/{}'.format('delete')
-		response = self.post_data()
-		log.info(response)
+		if _remove_show['items']:
+			_type = 'lists'
+			_target = 'items/{}'.format('delete')
+			_response = self.post_data(_remove_show, _type, _target)
+			log.info('{}: {}'.format('std-shows', _response))
 
 		#Reload entries to std-shows, exclude top-shows and shows that have ended
-		new_shows = []
-		trakt_top_shows = self.trakt_user.get_list('top-shows')
-		trakt_top_shows_names = {_item.title: _item for _item in trakt_top_shows.items}
-		for dir in os.listdir(self.settings.SeriesDir):
-			if dir in trakt_top_shows_names:
-				continue
-			if dir in trakt_shows_collected_names:
+		_load_shows = {'slug': 'stdshows', 'items': []}
+		for _dir in os.listdir(self.settings.SeriesDir):
+			if _ignored(_dir): continue
+			if _dir in _trakt_top_shows_names:
 				continue
 			try:
-				show = TVShow(dir)
-				new_shows.append({dir: show})
-			except ValueError:
-				pass
+				show = TVShow(_dir)
+				if show.ended:
+					continue
+				raise GetOutOfLoop
+			except (AttributeError, ValueError):
+				an_error = traceback.format_exc(1)
+				log.warn('{}: Show Not Found' .format(_dir))
+			except GetOutOfLoop:
+				show_entry = {}
+				show_entry['type'] = 'show'
+				show_entry['title'] = show.title
+				show_entry['tvdb_id'] = show.tvdb_id
+				_load_shows['items'].append(show_entry)
 
-		# self.request = {'items': []}
-		# self.request['slug'] = 'top-shows'
-		# for show in trakt_shows_collected:
-		#     if show.title in trakt_std-shows_list_names:
-		#         continue
-		#     if show.status == 'Ended':
-		#         continue
-		#     show_entry = {}
-		#     show_entry['type'] = 'show'
-		#     show_entry['title'] = show.title
-		#     show_entry['tvdb_id'] = show.tvdb_id
-		#     self.request['items'].append(show_entry)
-		#
-		# self.args.Type = 'lists'
-		# self.args.Target = 'items/{}'.format(self.args.ActionTaken)
-		# response = self.post_data()
-		# log.info(response)
-
-		return
-
-	def lists(self, list_name):
-		# http://api.trakt.tv/lists/items/add/apikey
-		trakt.users.extended_output(True)
-		trakt_user = User(self.args.TraktUserID)
-
-		trakt_list = trakt_user.get_list('std-shows')
-		self.request = {'items': []}
-		self.request['slug'] = 'std-shows'
-		for show in trakt_list.items:
-			show_entry = {}
-			show_entry['type'] = 'show'
-			show_entry['title'] = show.title
-			show_entry['tvdb_id'] = show.tvdb_id
-			self.request['items'].append(show_entry)
-
-		self.args.Type = 'lists'
-		self.args.Target = 'items/{}'.format('delete')
-		response = self.post_data()
-		log.info(response)
-
-		trakt_list = trakt_user.get_list('top-shows')
-		trakt_list_names = {_item.title: _item for _item in trakt_list.items}
-		trakt_collected = trakt_user.show_collection
-		self.request = {'items': []}
-		self.request['slug'] = list_name
-		for show in trakt_collected:
-			if show.title in trakt_list_names:
-				continue
-			if show.status == 'Ended':
-				continue
-			show_entry = {}
-			show_entry['type'] = 'show'
-			show_entry['title'] = show.title
-			show_entry['tvdb_id'] = show.tvdb_id
-			self.request['items'].append(show_entry)
-
-		self.args.Type = 'lists'
-		self.args.Target = 'items/{}'.format(self.args.ActionTaken)
-		response = self.post_data()
-		log.info(response)
+		if _load_shows['items']:
+			_type = 'lists'
+			_target = 'items/{}'.format('add')
+			_response = self.post_data(_load_shows, _type, _target)
+			log.info(_response)
 
 		return
 
@@ -342,14 +314,9 @@ class CleanUp(Library):
 
 		return
 
-
 	def post_data(self, request, type, target):
 		pydata = {'username': self.settings.TraktUserID, 'password': self.settings.TraktHashPswd}
-		if type == 'lists':
-			pydata.update(request)
-		else:
-			pydata[type+'s'] = [request]
-
+		pydata.update(request)
 		json_data = json.dumps(pydata)
 		clen = len(json_data)
 		_url = "http://api.trakt.tv/{}/{}/{}".format(type, target, self.settings.TraktAPIKey)
@@ -362,7 +329,6 @@ class CleanUp(Library):
 	def post_show(self, request, type, target):
 		pydata = {'username': self.settings.TraktUserID, 'password': self.settings.TraktHashPswd}
 		pydata.update(request)
-
 		json_data = json.dumps(pydata)
 		clen = len(json_data)
 		_url = "http://api.trakt.tv/{}/{}/{}".format(type, target, self.settings.TraktAPIKey)

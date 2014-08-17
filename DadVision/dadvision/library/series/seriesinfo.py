@@ -144,8 +144,9 @@ class SeriesInfo(Library):
 			raise InvalidArgumentType(error_msg)
 
 		try:
-			SeriesDetails = self._adj_episode(SeriesDetails)
 			SeriesDetails['SeriesName'] = self._check_for_alias(SeriesDetails['SeriesName'])
+			if 'epno' in SeriesDetails:
+				SeriesDetails = self._adj_episode(SeriesDetails)
 		except IndexError:
 			sys.exc_clear()
 
@@ -179,7 +180,7 @@ class SeriesInfo(Library):
 			self.last_request = {'LastRequestName': _series_name}
 
 		if not self.args.processes:
-			_process_order = ['tvdb', 'tvrage']
+			_process_order = ['tvdb', 'trakt', 'tvrage']
 		else:
 			_process_order = self.args.processes
 
@@ -372,8 +373,16 @@ class SeriesInfo(Library):
 			if not _show_list:
 				raise SeriesNotFound
 
-			#Check for Suffix
-			for _status in _check_order:
+			#Look for Exact Match in Current Shows
+			for _item in _show_status[_check_order[0]]:
+				if fuzz.ratio(_item, series_name) > 95:
+					if 'tvdb_id' not in kwargs:
+						_results['title'] = _item
+					_results['tvrage_id'] = _show_list[_item].showid
+					raise GetOutOfLoop
+
+			#Check for Suffix in Current Shows
+			for _status in [_check_order[0], _check_order[1]]:
 				for _item in _show_status[_status]:
 					_suffix_tvrage = self._check_suffix.match(_item)
 					_suffix_req = self._check_suffix.match(series_name)
@@ -389,6 +398,15 @@ class SeriesInfo(Library):
 								_results['title'] = _item
 							_results['tvrage_id'] = _show_list[_item].showid
 							raise GetOutOfLoop
+
+			#Look for Exact Match
+			for _status in _check_order:
+				for _item in _show_status[_status]:
+					if fuzz.ratio(_item, series_name) > 95:
+						if 'tvdb_id' not in kwargs:
+							_results['title'] = _item
+						_results['tvrage_id'] = _show_list[_item].showid
+						raise GetOutOfLoop
 
 			#Check for country
 			for _status in _check_order:
