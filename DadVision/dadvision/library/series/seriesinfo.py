@@ -160,12 +160,12 @@ class SeriesInfo(Library):
 				SeriesDetails = self._identify_show(SeriesDetails)
 
 		if self.args.get_episodes:
-			if 'tvdb_id' in SeriesDetails :
+			if 'tvdb_id' in SeriesDetails  and SeriesDetails['tvdb_id']:
 				try:
 					SeriesDetails = self.getEpisodeInfo(SeriesDetails)
 				except SeriesNotFound:
 					SeriesDetails = self._retrieve_tvrage_info(SeriesDetails)
-			elif 'tvrage_id' in SeriesDetails:
+			elif 'tvrage_id' in SeriesDetails and SeriesDetails['tvrage_id']:
 				self._retrieve_tvrage_info(SeriesDetails)
 
 		return SeriesDetails
@@ -236,14 +236,14 @@ class SeriesInfo(Library):
 			_matches = self.db.search(series_name, "en")
 			if not _matches: raise SeriesNotFound
 			if len(_matches) == 1:
-				if _matching(series_name, _decode(_matches[0].SeriesName), factor=90):
+				if _matching(series_name.lower(), _decode(_matches[0].SeriesName).lower(), factor=90):
 					_results = self._load_tmdb_info(_decode(_matches[0].SeriesName), _matches[0], _results)
 					raise GetOutOfLoop
 				else:
 					raise SeriesNotFound
 			for _item in _matches:
 				_name_decoded = _decode(_item.SeriesName)
-				if not _matching(series_name, _name_decoded, factor=95):
+				if not _matching(series_name.lower(), _name_decoded.lower(), factor=90):
 					continue
 				_item.update()
 				_show_list[_name_decoded] = _item
@@ -257,7 +257,7 @@ class SeriesInfo(Library):
 
 			#Look for Exact Match in Current Shows
 			for _item in _show_status[_check_order[0]]:
-				if fuzz.ratio(_item, series_name) > 95:
+				if fuzz.ratio(_item.lower(), series_name.lower()) > 90:
 					_results = self._load_tmdb_info(_item, _show_list[_item], _results)
 					raise GetOutOfLoop
 
@@ -268,17 +268,17 @@ class SeriesInfo(Library):
 					_suffix_tmdb = self._check_suffix.match(_item)
 					if _suffix_tmdb:
 						if _suffix_req \
-						  and fuzz.ratio(_suffix_tmdb.group('SeriesName'), _suffix_req.group('SeriesName')) > 95:
+						  and fuzz.ratio(_suffix_tmdb.group('SeriesName').lower(), _suffix_req.group('SeriesName').lower()) >= 90:
 							_results = self._load_tmdb_info(_item, _show_list[_item], _results)
 							raise GetOutOfLoop
-						elif fuzz.ratio(_suffix_tmdb.group('SeriesName'), series_name):
+						elif fuzz.ratio(_suffix_tmdb.group('SeriesName').lower(), series_name.lower()):
 							_results = self._load_tmdb_info(_item, _show_list[_item], _results)
 							raise GetOutOfLoop
 
 			#Look for Exact Match
 			for _status in _check_order:
 				for _item in _show_status[_status]:
-					if fuzz.ratio(_item, series_name) > 95:
+					if fuzz.ratio(_item.lower(), series_name.lower()) >= 90:
 						_results = self._load_tmdb_info(_item, _show_list[_item], _results)
 						raise GetOutOfLoop
 
@@ -332,7 +332,7 @@ class SeriesInfo(Library):
 		else:
 			_results['title'] = _decode(show.title)
 
-		if not _matching(series_name, _decode(show.title)):
+		if not _matching(series_name.lower(), _decode(show.title).lower()):
 			raise SeriesNotFound('trakt: Unable to locate series: {}'.format(series_name))
 
 		if hasattr(show, 'tvdb_id') and show.tvdb_id: _results['tvdb_id'] = show.tvdb_id
@@ -356,7 +356,7 @@ class SeriesInfo(Library):
 			_matches = self.tvrage.search(series_name)
 			if not _matches: raise SeriesNotFound
 			if len(_matches) == 1:
-				if _matching(series_name, _matches[0].name, factor=90):
+				if _matching(series_name.lower(), _matches[0].name.lower(), factor=90):
 					_results['title'] = _matches[0].name
 					_results['tvrage_id'] = _matches[0].showid
 					_results['imdb_id'] = _matches[0].IMDB_ID
@@ -364,7 +364,7 @@ class SeriesInfo(Library):
 				else:
 					raise SeriesNotFound
 			for _item in _matches:
-				if not _matching(series_name, _item.name, factor=90):
+				if not _matching(series_name.lower(), _item.name.lower(), factor=90):
 					continue
 				_show_list[_item.name] = _item
 				if _item.status in _check_order:
@@ -377,7 +377,7 @@ class SeriesInfo(Library):
 
 			#Look for Exact Match in Current Shows
 			for _item in _show_status[_check_order[0]]:
-				if fuzz.ratio(_item, series_name) > 95:
+				if fuzz.ratio(_item.lower(), series_name.lower()) >= 90:
 					if 'tvdb_id' not in kwargs:
 						_results['title'] = _item
 					_results['tvrage_id'] = _show_list[_item].showid
@@ -404,7 +404,7 @@ class SeriesInfo(Library):
 			#Look for Exact Match
 			for _status in _check_order:
 				for _item in _show_status[_status]:
-					if fuzz.ratio(_item, series_name) > 95:
+					if fuzz.ratio(_item.lower(), series_name.lower()) >= 90:
 						if 'tvdb_id' not in kwargs:
 							_results['title'] = _item
 						_results['tvrage_id'] = _show_list[_item].showid
