@@ -73,7 +73,7 @@ def _matching(value1, value2, factor=85):
 	log.verbose('{}: Token Sort Ratio'.format(fuzzy[3]))
 	log.verbose(any([fr > factor for fr in fuzzy]))
 
-	return any([fr > factor for fr in fuzzy])
+	return any([fr >= factor for fr in fuzzy])
 
 
 class GetOutOfLoop(Exception):
@@ -114,8 +114,8 @@ class SeriesInfo(Library):
 				action="store_false", default=True,
 				help="Information to come from trakt.tv")
 
-#		trakt.api_key = self.settings.TraktAPIKey
-#		trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
+		trakt.api_key = self.settings.TraktAPIKey
+		trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
 		self.db = api.TVDB("959D8E76B796A1FB")
 		self.tvrage = TVRage(api_key='XwJ7KGdTfep9EpsZBf8m')
 
@@ -310,7 +310,8 @@ class SeriesInfo(Library):
 	def _load_tmdb_info(self, show, entry, record):
 		record['title'] = show
 		record['tvdb_id'] = entry.seriesid
-		if hasattr(entry, 'IMDB_ID'):
+#		if hasattr(entry, 'IMDB_ID'):
+		if 'IMDB_ID' in entry.__dict__:
 			record['imdb_id'] = _decode(entry.IMDB_ID)
 		return record
 
@@ -324,6 +325,7 @@ class SeriesInfo(Library):
 			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
 			raise SeriesNotFound(an_error)
 
+		if not show.tvdb_id: return {}
 		if 'tvdb_id' in kwargs:
 			if int(kwargs['tvdb_id']) <> show.tvdb_id:
 				raise SeriesNotFound('trakt: Unable to locate series: {}'.format(series_name))
@@ -333,9 +335,9 @@ class SeriesInfo(Library):
 		if not _matching(series_name, _decode(show.title)):
 			raise SeriesNotFound('trakt: Unable to locate series: {}'.format(series_name))
 
-		_results['tvdb_id'] = show.tvdb_id
-		_results['tvrage_id'] = show.tvrage_id
-		_results['imdb_id'] = _decode(show.imdb_id)
+		if hasattr(show, 'tvdb_id') and show.tvdb_id: _results['tvdb_id'] = show.tvdb_id
+		if hasattr(show, 'tvrage_id') and show.tvrage_id: _results['tvrage_id'] = show.tvrage_id
+		if hasattr(show, 'imdb_id') and show.imdb_id: _results['imdb_id'] = _decode(show.imdb_id)
 
 		_results['service'] = 'trakt'
 		return _results
