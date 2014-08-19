@@ -48,8 +48,11 @@ log = logging.getLogger(__pgmname__)
 
 def _decode(coded_text):
 
-	decoded_text = unicodedata.normalize('NFKD', coded_text).encode('ascii', 'ignore')
-	decoded_text = decoded_text.replace("&amp;", "&").replace("/", "_")
+	if type(coded_text) is unicode:
+		decoded_text = unicodedata.normalize('NFKD', coded_text).encode('ascii', 'ignore')
+		decoded_text = decoded_text.replace("&amp;", "&").replace("/", "_")
+	else:
+		decoded_text = coded_text
 
 	return decoded_text
 
@@ -167,6 +170,8 @@ class SeriesInfo(Library):
 					SeriesDetails = self._retrieve_tvrage_info(SeriesDetails)
 			elif 'tvrage_id' in SeriesDetails and SeriesDetails['tvrage_id']:
 				self._retrieve_tvrage_info(SeriesDetails)
+			else:
+				raise SeriesNotFound
 
 		return SeriesDetails
 
@@ -299,12 +304,8 @@ class SeriesInfo(Library):
 			raise SeriesNotFound('TVDB: Unable to locate series: {}'.format(series_name))
 		except GetOutOfLoop:
 			sys.exc_clear()
-		except:
-			an_error = traceback.format_exc(1)
-			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
-			raise SeriesNotFound(an_error)
-		_results['service'] = 'tvdb'
 
+		_results['service'] = 'tvdb'
 		return _results
 
 	def _load_tmdb_info(self, show, entry, record):
@@ -318,14 +319,9 @@ class SeriesInfo(Library):
 	def _get_trakt_id(self, series_name, **kwargs):
 
 		_results = {}
-		try:
-			show = TVShow(series_name)
-		except:
-			an_error = traceback.format_exc(1)
-			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
-			raise SeriesNotFound(an_error)
+		show = TVShow(series_name)
 
-		if not show.tvdb_id: return {}
+		if not show.tvdb_id: raise SeriesNotFound
 		if 'tvdb_id' in kwargs:
 			if int(kwargs['tvdb_id']) <> show.tvdb_id:
 				raise SeriesNotFound('trakt: Unable to locate series: {}'.format(series_name))
@@ -364,7 +360,7 @@ class SeriesInfo(Library):
 				else:
 					raise SeriesNotFound
 			for _item in _matches:
-				if not _matching(series_name.lower(), _item.name.lower(), factor=90):
+				if not _matching(series_name.lower(), _decode(_item.name).lower(), factor=90):
 					continue
 				_show_list[_item.name] = _item
 				if _item.status in _check_order:
@@ -431,11 +427,8 @@ class SeriesInfo(Library):
 			raise SeriesNotFound('TVDB: Unable to locate series: {}'.format(series_name))
 		except GetOutOfLoop:
 			sys.exc_clear()
-		except:
-			an_error = traceback.format_exc(1)
-			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
-			raise SeriesNotFound(an_error)
 
+		_results['service'] = 'tvrage'
 		return _results
 
 	def _get_pytvrage_id(self, series_name, **kwargs):

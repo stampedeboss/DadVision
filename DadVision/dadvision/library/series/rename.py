@@ -11,11 +11,12 @@ from library import Library
 from common import logger
 from common.exceptions import (DataRetrievalError, EpisodeNotFound,
 	SeriesNotFound, DuplicateFilesFound, InvalidFilename, RegxSelectionError,
-	ConfigValueError, UnexpectedErrorOccured, DuplicateRecord)
+	ConfigValueError, UnexpectedErrorOccured, DuplicateRecord, InvalidPath)
 from common.chkvideo import chkVideoFile
 from library.series.fileparser import FileParser
 from library.series.seriesinfo import SeriesInfo
 from common.cmdoptions import CmdOptions
+from exceptions import IOError
 import datetime
 import filecmp
 import fnmatch
@@ -27,6 +28,8 @@ import time
 import unicodedata
 import sqlite3
 import socket
+import traceback
+import shutil
 
 __pgmname__ = 'rename'
 __version__ = '$Rev$'
@@ -53,6 +56,47 @@ def useLibraryLogging(func):
 			logger.set_library('')
 
 	return wrapper
+
+
+def _del_dir(pathname, Tree=False):
+	log.trace("_del_dir: pathname:{!s}".format(pathname))
+
+	if not os.path.isdir(pathname):
+		raise InvalidPath('Invalid Path was requested for deletion: {}'.format(pathname))
+
+	_base_dir = library.settings.NewSeriesDir
+	if not re.match('^{}.*'.format(_base_dir), pathname):
+		return
+
+	try:
+		if Tree:
+			shutil.rmtree(pathname)
+		else:
+			_curr_dir = os.path.dirname(pathname)
+			while _curr_dir != _base_dir:
+				if len(os.listdir(_curr_dir)) != 0:
+					return
+				os.rmdir(pathname)
+				_curr_dir = os.path.split(_curr_dir)[0]
+	except:
+		log.warn('Delete Directory: Unable to Delete requested directory: %s' % (sys.exc_info()[1]))
+
+	return
+
+
+
+def _del_file(pathname):
+	log.trace("_del_file: pathname:{!s}".format(pathname))
+
+	if os.path.isdir(pathname):
+		raise InvalidPath('Path was requested for deletion: {}'.format(pathname))
+
+	try:
+		log.info('Deleting File as Requested: {}'.format(pathname))
+		os.remove(pathname)
+	except:
+		log.warn('Delete File: Unable to Delete requested file: %s' % (sys.exc_info()[1]))
+
 
 class RenameSeries(Library):
 
@@ -100,61 +144,35 @@ class RenameSeries(Library):
 			log.debug("-----------------------------------------------")
 			log.debug("Directory: %s" % os.path.split(pathname)[0])
 			log.debug("Filename:  %s" % os.path.split(pathname)[1])
-			try:
-				_file_details = self.parser.getFileDetails(pathname)
-				if self.args.check_video:
-					if chkVideoFile(pathname):
-						log.error('File Failed Video Check: {}'.format(pathname))
-						return
-				if _file_details : _file_details = self.seriesinfo.getShowInfo(_file_details)
-				if _file_details : self._rename_file(_file_details)
-				self.xbmc_update_required = False
-			except (InvalidFilename, DuplicateFilesFound, RegxSelectionError, EpisodeNotFound, SeriesNotFound), msg:
-				log.error('Unable to Rename File: {}'.format(msg))
-				return
-			if self.xbmc_update_required:
-				try:
-					cmd = 'xbmc-send --host=happy --action="XBMC.UpdateLibrary(video)"'
-					os.system(cmd)
-					log.trace("TV Show Rename Trigger Successful")
-				except OSError, exc:
-					log.error("TV Show Rename Trigger Failed: %s" % exc)
+			self._rename_file(pathname)
 		elif os.path.isdir(pathname):
 			for _root, _dirs, _files in os.walk(os.path.abspath(pathname), followlinks=False):
 				for _dir in _dirs[:]:
 					if self._ignored(_dir):
 						log.debug("Ignoring %r" % os.path.join(_root, _dir))
+						_del_dir(os.path.join(_root, _dir), Tree=True)
 						_dirs.remove(_dir)
 
 				if _dirs == [] and _files == []:
-					self._del_dir(os.path.join(_root, 'dummy'))
+					_del_dir(_root)
 					continue
 				elif _files == []:
 					continue
 
 				_files.sort()
-
 				for _file_name in _files:
 					_path_name = os.path.join(_root, _file_name)
 					log.debug("-----------------------------------------------")
 					log.debug("Filename: %s" % _path_name)
-					if self._ignored(pathname) and not self.regex_SeriesDir.match(_file_name):
-						try:
-							os.remove(_path_name)
-							self._del_dir(_path_name)
-							continue
-						except:
-							log.info('Unable to delete: %s - %s' % (_path_name, sys.exc_info()[1]))
+					ext = os.path.splitext(_path_name)[1][1:]
+					if self._ignored(pathname) or os.path.splitext(_path_name)[1][1:] not in self.settings.MediaExt:
+						if not self.regex_SeriesDir.match(_file_name):
+							_del_file(_path_name)
+							_del_dir(_root)
 						continue
 					try:
-						_file_details = self.parser.getFileDetails(_path_name)
-						if _file_details:
-							if chkVideoFile(_path_name):
-								log.error('File Failed Video Check: {}'.format(_path_name))
-								continue
-							_file_details = self.seriesinfo.getShowInfo(_file_details)
-							self._rename_file(_file_details)
-					except (InvalidFilename, DuplicateFilesFound, RegxSelectionError, DataRetrievalError, EpisodeNotFound, SeriesNotFound), msg:
+						self._rename_file(_path_name)
+					except (IOError, DuplicateFilesFound, RegxSelectionError, DataRetrievalError, EpisodeNotFound, SeriesNotFound), msg:
 						log.error('Unable to Rename File: {}'.format(msg))
 						continue
 			if self.xbmc_update_required:
@@ -167,87 +185,212 @@ class RenameSeries(Library):
 		else:
 			raise InvalidFilename('Invalid Request, Neither File or Directory: %s' % pathname)
 
-	def _rename_file(self, file_details):
+	def _rename_file(self, pathname):
 
-		file_details['EpisodeNumFmt'] = self._format_episode_numbers(file_details)
-		file_details['EpisodeTitle'] = self._format_episode_name(file_details['EpisodeData'], join_with=self.settings.ConversionsPatterns['multiep_join_name_with'])
-		file_details['DateAired'] = self._get_date_aired(file_details)
+		if self.args.check_video:
+			if chkVideoFile(pathname):
+				log.error('File Failed Video Check: {}'.format(pathname))
+				raise IOError('File Failed Video Check: {}'.format(pathname))
+		try:
+			_file_details = self.parser.getFileDetails(pathname)
+			_file_details = self.seriesinfo.getShowInfo(_file_details)
+		except (RegxSelectionError, EpisodeNotFound, SeriesNotFound), msg:
+			_dir_details = self.parser.getFileDetails(os.path.join(os.path.dirname(pathname), 'E01.txt'))
+			_file_details['SeriesName'] = _dir_details['SeriesName']
+			_file_details = self.seriesinfo.getShowInfo(_file_details)
+#			log.error('Unable to Rename File: {}'.format(msg))
+#			raise
 
-		file_details['BaseDir'] = self.settings.SeriesDir
+		_file_details['EpisodeNumFmt'] = self._format_episode_numbers(_file_details)
+		_file_details['EpisodeTitle'] = self._format_episode_name(_file_details['EpisodeData'], join_with=self.settings.ConversionsPatterns['multiep_join_name_with'])
+		_file_details['DateAired'] = self._get_date_aired(_file_details)
+		_file_details['BaseDir'] = self.settings.SeriesDir
 
-		_new_name = self.settings.ConversionsPatterns['std_fqn'] % file_details
-		_repack = self.regex_repack.search(file_details['FileName'])
+		_repack = self.regex_repack.search(_file_details['FileName'])
 		if _repack:
-			try:
-				os.remove(_new_name)
-			except:
-				log.info('Unable to delete: %s' % _new_name)
 			_new_name = self.settings.ConversionsPatterns['proper_fqn'] % file_details
 		else:
-#            if os.path.exists(_new_name) and filecmp.cmp(_new_name, file_details['FileName']):
-			if os.path.exists(_new_name):
-				if os.path.split(_new_name)[0] == os.path.split(file_details['FileName'])[0]:
-					log.info('Exists, Updating Timestamp')
-					log.info('   Series: {}'.format(file_details['SeriesName']))
-					log.info('   Season: {}  Episode: {}'.format(file_details['SeasonNum'], file_details['EpisodeNumFmt']))
-					self._update_date(file_details, _new_name)
-					return
-				else:
-					if self.args.force_delete:
-						log.info("Deleting %r, already at destination!" % (os.path.split(file_details['FileName'])[1],))
-						os.remove(file_details['FileName'])
-						self._del_dir(file_details['FileName'])
-						return
-					elif not self.args.force_rename:
-#                        log.info("Skipping Rename %r, already at destination!" % (os.path.split(file_details['FileName'])[1],))
-						log.info("Skipping Rename %r, already at destination!" % _new_name)
-						return
-
+			_new_name = self.settings.ConversionsPatterns['std_fqn'] % _file_details
+		_season_folder = os.path.dirname(_new_name)
+		_series_folder = os.path.dirname(_season_folder)
 		try:
-			_season_folder = os.path.split(_new_name)[0]
-			_series_folder = os.path.split(_season_folder)[0]
-			if not os.path.exists(_season_folder):
+			if os.path.exists(_season_folder):
+				if self._handle_dups(_file_details, _new_name):
+					return
+			else:
 				os.makedirs(_season_folder)
 				os.chmod(_season_folder, 0775)
-#                os.chown(_season_folder, 1000, 100)
+				os.chown(_season_folder, 1000, 100)
 				os.chmod(_series_folder, 0775)
-#                os.chown(_series_folder, 1000, 100)
-			os.rename(file_details['FileName'], _new_name)
+				os.chown(_series_folder, 1000, 100)
+			os.rename(_file_details['FileName'], _new_name)
 			os.chmod(_new_name, 0664)
-#            os.chown(_new_name, 1000, 100)
+			os.chown(_new_name, 1000, 100)
+		except OSError:
+			an_error = traceback.format_exc(1)
+			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+			raise InvalidFilename(an_error)
 
-			if self.hostname == 'grumpy':
-				try:
-					self.db = sqlite3.connect(self.settings.DBFile)
-					self.cursor = self.db.cursor()
-					self.cursor.execute('INSERT INTO Files(SeriesName, SeasonNum, EpisodeNum, Filename) \
-							 VALUES ("{}", {}, {}, "{}")'.format(file_details['SeriesName'],
-																 file_details['SeasonNum'],
-																 file_details['EpisodeNums'][0],
-																 file_details['FileName']
-																 )
-								   )
-	#                file_id = int(self.cursor.lastrowid)
-					self.db.commit()
-					self.db.close()
-				except  sqlite3.IntegrityError, e:
-					self.db.close()
-				except sqlite3.Error, e:
-					self.db.close()
-					raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, file_details))
+		log.info('Renamed: CURRENT {}'.format(os.path.basename(_file_details['FileName'])))
+		log.info('Renamed: SERIES: {}'.format(_file_details['SeriesName']))
+		log.info('Renamed: SEASON: {}'.format(_file_details['SeasonNum']))
+		log.info('Renamed:   FILE: {}'.format(os.path.basename(_new_name)))
 
-			log.info('Renamed: CURRENT {}'.format(os.path.basename(file_details['FileName'])))
-			log.info('Renamed: SERIES: {}'.format(file_details['SeriesName']))
-			log.info('Renamed: SEASON: {}'.format(file_details['SeasonNum']))
-			log.info('Renamed:   FILE: {}'.format(os.path.basename(_new_name)))
-			self.xbmc_update_required = True
-		except OSError, exc:
-			log.error("Skipping, Unable to Rename File: %s" % file_details['FileName'])
-			log.error("Unexpected error: %s" % exc)
+		self._update_date(_file_details, _new_name)
+		_del_dir(os.path.dirname(_file_details['FileName']))
+		self.xbmc_update_required = True
 
-		self._del_dir(file_details['FileName'])
+		if self.hostname == 'grumpy':
+			try:
+				self.db = sqlite3.connect(self.settings.DBFile)
+				self.cursor = self.db.cursor()
+				self.cursor.execute('INSERT INTO Files(SeriesName, SeasonNum, EpisodeNum, Filename) \
+						 VALUES ("{}", {}, {}, "{}")'.format(_file_details['SeriesName'],
+															 _file_details['SeasonNum'],
+															 _file_details['EpisodeNums'][0],
+															 _file_details['FileName']
+															 )
+							   )
+#                file_id = int(self.cursor.lastrowid)
+				self.db.commit()
+				self.db.close()
+			except  sqlite3.IntegrityError, e:
+				self.db.close()
+			except sqlite3.Error, e:
+				self.db.close()
+				raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, _file_details))
 
-		self._update_date(file_details, _new_name)
+		return
+
+	def _handle_dups(self, file_details, _new_name):
+
+		_title_new, _ext_new = os.path.splitext(os.path.basename(_new_name))
+		_ext_new = _ext_new[1:].lower()
+		_ep_new, _title_new = _title_new.split(None, 1)
+
+		options = {'avi': self._new_avi,
+				   'mkv': self._new_mkv,
+				   'mp4': self._new_mp4
+		}
+
+		_skip_rename = False
+		for _file in [f for f in os.listdir(os.path.dirname(_new_name)) if f.startswith(_ext_new)]:
+			_title_cur, _ext_cur = os.path.splitext(_file)
+			_ext_cur = _ext_cur[1:].lower()
+			if re.search(r"\s", _title_cur):
+				_ep_cur, _title_cur = _title_cur.split(None, 1)
+			else:
+				_ep_cur = _title_cur
+				_title_cur = ' '
+
+			# If not same episode, continue
+			if _ep_new != _ep_cur: continue
+
+			if _ext_new == _ext_cur:
+				if os.path.dirname(_new_name) == os.path.dirname(file_details['FileName']):
+					if _title_new == _title_cur:
+						log.info('Exists, Updating Timestamp')
+						log.info('   Series: {}'.format(file_details['SeriesName']))
+						log.info('   Season: {}  Episode: {}'.format(file_details['SeasonNum'], file_details['EpisodeNumFmt']))
+						self._update_date(file_details, _new_name)
+						_skip_rename = True
+						continue
+					else:
+						if os.path.exists(_new_name):
+							_del_file(os.path.join(os.path.dirname(_new_name), _file))
+							continue
+				else:
+					if os.path.getsize(file_details['FileName']) > os.path.getsize(os.path.join(os.path.dirname(_new_name), _file)):
+						_del_file(os.path.join(os.path.dirname(_new_name), _file))
+						continue
+
+					if self.args.force_rename:
+						_del_file(os.path.join(os.path.dirname(_new_name), _file))
+						continue
+
+					if _title_new != _title_cur:
+						self._rename_file(os.path.join(os.path.dirname(_new_name), _file))
+
+					if self.args.force_delete:
+						log.info("Deleting %r, already at destination!" % (os.path.split(file_details['FileName'])[1],))
+						_del_file(file_details['FileName'])
+						_del_dir(os.path.dirname(file_details['FileName']))
+					_skip_rename = True
+					continue
+
+			try:
+				_skip_rename = options[_ext_new](_ext_new,
+												 _ext_cur,
+												 _title_new,
+												 _title_cur,
+												 _file,
+												 _new_name,
+												 file_details['FileName'],
+				                                 _skip_rename
+				)
+			except KeyError:
+				_skip_rename = self.new_other(_ext_new,
+											  _ext_cur,
+											  _title_new,
+											  _title_cur,
+											  _file,
+											  _new_name,
+											  file_details['FileName'],
+				                              _skip_rename
+				)
+
+		return _skip_rename
+
+	def _new_avi(self, _ext_new, _ext_cur, _title_new, _title_cur, _file, _new_name, _cur_name, _skip_rename):
+		if _ext_cur in ['mkv', 'mp4', 'm2ts', 'm4v', 'ts']:
+			_del_file(_cur_name)
+			_del_dir(os.path.dirname(_cur_name))
+			if _title_new != _title_cur:
+				self. _rename_file(os.path.join(os.path.dirname(_new_name), _file))
+			_skip_rename = True
+			return _skip_rename
+		if _ext_cur in ['bup', 'ifo', 'vob', 'img', 'iso']:
+			if os.path.getsize(_cur_name) > 100000000:
+				_del_file(os.path.join(os.path.dirname(_new_name), _file))
+			else:
+				_del_file(_cur_name)
+				_del_dir(os.path.dirname(_cur_name))
+				_skip_rename = True
+				if _title_new != _title_cur and _ext_cur in ['img', 'iso']:
+					self. _rename_file(os.path.join(os.path.dirname(_new_name), _file))
+		else:
+			_del_file(os.path.join(os.path.dirname(_new_name), _file))
+
+		return _skip_rename
+
+	def _new_mp4(self, _ext_new, _ext_cur, _title_new, _title_cur, _file, _new_name, _cur_name, _skip_rename):
+		if _ext_cur in ['mkv', 'mp4', 'm2ts', 'ts']:
+			_del_file(_cur_name)
+			_del_dir(os.path.dirname(_cur_name))
+			if _title_new != _title_cur:
+				self. _rename_file(os.path.join(os.path.dirname(_new_name), _file))
+			_skip_rename = True
+			return _skip_rename
+		else:
+			_del_file(os.path.join(os.path.dirname(_new_name), _file))
+		return _skip_rename
+
+	def _new_mkv(self, _ext_new, _ext_cur, _title_new, _title_cur, _file, _new_name, _cur_name, _skip_rename):
+
+		_del_file(os.path.join(os.path.dirname(_new_name), _file))
+		return _skip_rename
+
+	def _new_other(self, _ext_new, _ext_cur, _title_new, _title_cur, _file, _new_name, _cur_name, _skip_rename):
+		if _ext_cur in ['mkv', 'mp4', 'm2ts', 'ts', 'avi']:
+			_del_file(_cur_name)
+			_del_dir(os.path.dirname(_cur_name))
+			if _title_new != _title_cur:
+				self. _rename_file(os.path.join(os.path.dirname(_new_name), _file))
+			_skip_rename = True
+			return _skip_rename
+		else:
+			_del_file(os.path.join(os.path.dirname(_new_name), _file))
+		return _skip_rename
 
 	def _update_date(self, file_details, new_name):
 		if 'DateAired' not in file_details:
@@ -270,25 +413,6 @@ class RenameSeries(Library):
 				except (OSError, IOError), exc:
 					log.error("Skipping, Unable to update time: %s" % new_name)
 					log.error("Unexpected error: %s" % exc)
-
-	def _del_dir(self, pathname):
-		if not re.match('^{}'.format(self.settings.NewSeriesDir), pathname):
-			return
-
-		_base_dir = self.settings.NewSeriesDir
-		_curr_dir = os.path.split(pathname)[0]
-		while _curr_dir != _base_dir:
-			if len(os.listdir(_curr_dir)) == 0:
-				try:
-					os.rmdir(_curr_dir)
-					_curr_dir = os.path.split(_curr_dir)[0]
-					continue
-				except:
-					log.warn('_del_dir: Unable to Delete: %s' % (sys.exc_info()[1]))
-					return
-			else:
-				return
-		return
 
 	def _ignored(self, name):
 		""" Check for ignored pathnames.
