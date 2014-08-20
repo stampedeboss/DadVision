@@ -166,12 +166,13 @@ class SeriesInfo(Library):
 			if 'tvdb_id' in SeriesDetails  and SeriesDetails['tvdb_id']:
 				try:
 					SeriesDetails = self.getEpisodeInfo(SeriesDetails)
-				except SeriesNotFound:
-					SeriesDetails = self._retrieve_tvrage_info(SeriesDetails)
+				except EpisodeNotFound, SeriesNotFound:
+					if 'tvrage_id' in SeriesDetails and SeriesDetails['tvrage_id']:
+						SeriesDetails = self._retrieve_tvrage_info(SeriesDetails)
 			elif 'tvrage_id' in SeriesDetails and SeriesDetails['tvrage_id']:
 				self._retrieve_tvrage_info(SeriesDetails)
 			else:
-				raise SeriesNotFound
+				raise EpisodeNotFound
 
 		return SeriesDetails
 
@@ -507,20 +508,20 @@ class SeriesInfo(Library):
 						self._load_data(_season, _episode, SeriesDetails)
 		except TVDBIndexError, message:
 			an_error = traceback.format_exc()
-			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
-			log.error(_err_msg_1.format(**SeriesDetails))
+			log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
+			log.debug(_err_msg_1.format(**SeriesDetails))
 			raise EpisodeNotFound(_err_msg_1.format(**SeriesDetails))
 		except IOError, message:
 			an_error = traceback.format_exc()
-			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
-			log.error(_err_msg_2.format(**SeriesDetails))
+			log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
+			log.debug(_err_msg_2.format(**SeriesDetails))
 			raise DataRetrievalError(_err_msg_2.format(**SeriesDetails))
 
 		if len(SeriesDetails['EpisodeData']) > 0:
 			return SeriesDetails
 		else:
 			an_error = traceback.format_exc()
-			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+			log.debu(traceback.format_exception_only(type(an_error), an_error)[-1])
 			log.debug(_err_msg_4.format(**SeriesDetails))
 			raise EpisodeNotFound(_err_msg_4.format(**SeriesDetails))
 
@@ -554,7 +555,7 @@ class SeriesInfo(Library):
 														 'DateAired': _epinfo.episode['airdate']})
 				except KeyError:
 					an_error = traceback.format_exc()
-					log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+					log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
 					raise EpisodeNotFound("TVRage: No Data Episode Found - {SeriesName}  Season: {SeasonNum}  Episode(s): {EpisodeNums}".format(**SeriesDetails))
 		else:
 			try:
@@ -567,7 +568,7 @@ class SeriesInfo(Library):
 															 'DateAired': episode.airdate})
 			except KeyError:
 				an_error = traceback.format_exc()
-				log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+				log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
 				raise EpisodeNotFound("TVRage: No Data Episode Found - {SeriesName}  Season: {SeasonNum}  Episode(s): {EpisodeNums}".format(**SeriesDetails))
 		return SeriesDetails
 
@@ -613,7 +614,7 @@ class SeriesInfo(Library):
 			_seriesinfo_answer = library.getShowInfo(_seriesinfo_answer)
 		except Exception:
 			an_error = traceback.format_exc()
-			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+			log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
 			sys.exc_clear()
 			return
 
