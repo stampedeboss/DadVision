@@ -64,20 +64,18 @@ def _del_dir(pathname, Tree=False):
 	if not os.path.isdir(pathname):
 		raise InvalidPath('Invalid Path was requested for deletion: {}'.format(pathname))
 
+	_curr_dir = pathname
 	_base_dir = library.settings.NewSeriesDir
-	if not re.match('^{}.*'.format(_base_dir), pathname):
-		return
+	if not re.match('^{}.*'.format(_base_dir), pathname): return
 
 	try:
 		if Tree:
 			shutil.rmtree(pathname)
 		else:
-			_curr_dir = os.path.dirname(pathname)
 			while _curr_dir != _base_dir:
-				if len(os.listdir(_curr_dir)) != 0:
-					return
+				if len(os.listdir(_curr_dir)) != 0: return
 				os.rmdir(pathname)
-				_curr_dir = os.path.split(_curr_dir)[0]
+				_curr_dir = os.path.dirname(_curr_dir)
 	except:
 		log.warn('Delete Directory: Unable to Delete requested directory: %s' % (sys.exc_info()[1]))
 
@@ -151,7 +149,7 @@ class RenameSeries(Library):
 					if self._ignored(_dir):
 						log.debug("Ignoring %r" % os.path.join(_root, _dir))
 						_del_dir(os.path.join(_root, _dir), Tree=True)
-						_dirs.remove(_dir)
+						continue
 
 				if _dirs == [] and _files == []:
 					_del_dir(_root)
@@ -166,9 +164,8 @@ class RenameSeries(Library):
 					log.debug("Filename: %s" % _path_name)
 					ext = os.path.splitext(_path_name)[1][1:]
 					if self._ignored(pathname) or os.path.splitext(_path_name)[1][1:] not in self.settings.MediaExt:
-						if not self.regex_SeriesDir.match(_file_name):
-							_del_file(_path_name)
-							_del_dir(_root)
+						_del_file(_path_name)
+						_del_dir(_root)
 						continue
 					try:
 						self._rename_file(_path_name)
