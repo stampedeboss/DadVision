@@ -101,7 +101,7 @@ class SeriesInfo(Library):
 		super(SeriesInfo, self).__init__()
 
 		seriesinfo_group = self.options.parser.add_argument_group("Episode Detail Options", description=None)
-		seriesinfo_group.add_argument("--series-name", type=str, dest='series_name')
+		seriesinfo_group.add_argument("-sn", "--name", type=str, dest='series_name')
 		seriesinfo_group.add_argument("--season", type=int, dest='season')
 		seriesinfo_group.add_argument("--epno", type=int, action='append', dest='epno')
 		seriesinfo_group.add_argument("--tvdb", dest="processes",
@@ -131,6 +131,12 @@ class SeriesInfo(Library):
 
 		if type(request) == dict:
 			if 'SeriesName' in request and request['SeriesName'] is not None:
+				if self.args.series_name:
+					request['SeriesName'] = self.args.series_name
+				if self.args.season:
+					request['SeasonNum'] = self.args.season
+				if self.args.epno:
+					request['EpisodeNums'] = self.args.epno
 				_suffix = self._check_suffix.match(request['SeriesName'])
 				if _suffix:
 					_series_name = '{} ({})'.format(_suffix.group('SeriesName'), _suffix.group('year').upper())
