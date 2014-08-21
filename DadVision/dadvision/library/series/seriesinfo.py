@@ -101,7 +101,7 @@ class SeriesInfo(Library):
 		super(SeriesInfo, self).__init__()
 
 		seriesinfo_group = self.options.parser.add_argument_group("Episode Detail Options", description=None)
-		seriesinfo_group.add_argument("-sn", "--name", type=str, dest='series_name')
+		seriesinfo_group.add_argument("--sn", "--name", type=str, dest='series_name')
 		seriesinfo_group.add_argument("--season", type=int, dest='season')
 		seriesinfo_group.add_argument("--epno", type=int, action='append', dest='epno')
 		seriesinfo_group.add_argument("--tvdb", dest="processes",
