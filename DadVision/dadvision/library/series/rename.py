@@ -58,14 +58,14 @@ def useLibraryLogging(func):
 	return wrapper
 
 
-def _del_dir(pathname, Tree=False):
+def _del_dir(pathname, Tree=False, base_dir='/srv/DadVision/Series/New/'):
 	log.trace("_del_dir: pathname:{!s}".format(pathname))
 
 	if not os.path.isdir(pathname):
 		raise InvalidPath('Invalid Path was requested for deletion: {}'.format(pathname))
 
 	_curr_dir = pathname
-	_base_dir = library.settings.NewSeriesDir
+	_base_dir = base_dir
 	if not re.match('^{}.*'.format(_base_dir), pathname): return
 
 	try:
@@ -205,7 +205,7 @@ class RenameSeries(Library):
 
 		_repack = self.regex_repack.search(_file_details['FileName'])
 		if _repack:
-			_new_name = self.settings.ConversionsPatterns['proper_fqn'] % file_details
+			_new_name = self.settings.ConversionsPatterns['proper_fqn'] % _file_details
 		else:
 			_new_name = self.settings.ConversionsPatterns['std_fqn'] % _file_details
 		_season_folder = os.path.dirname(_new_name)
