@@ -131,11 +131,11 @@ class SeriesInfo(Library):
 
 		if type(request) == dict:
 			if 'SeriesName' in request and request['SeriesName'] is not None:
-				if self.args.series_name:
+				if self.args.series_name is not None:
 					request['SeriesName'] = self.args.series_name
-				if self.args.season:
+				if self.args.season is not None:
 					request['SeasonNum'] = self.args.season
-				if self.args.epno:
+				if self.args.epno is not None:
 					request['EpisodeNums'] = self.args.epno
 				_suffix = self._check_suffix.match(request['SeriesName'])
 				if _suffix:
