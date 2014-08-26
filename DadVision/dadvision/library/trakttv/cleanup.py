@@ -169,7 +169,7 @@ class CleanUp(Library):
 		#Cleanup Seen Shows
 		for _item in _trakt_shows_needing_unseen:
 			try:
-				_series_details = self.seriesinfo.getShowInfo({'SeriesName': _item.title})
+				_series_details = self.seriesinfo.getShowInfo({'SeriesName': _item.title}, sources=['tvdb'])
 			except (SeriesNotFound, EpisodeNotFound):
 				continue
 
@@ -192,7 +192,7 @@ class CleanUp(Library):
 		_remove_watchlist = {'shows': []}
 		for _item in _trakt_shows_needing_unwatchlist:
 			try:
-				_series_details = self.seriesinfo.getShowInfo({'SeriesName': _item.title})
+				_series_details = self.seriesinfo.getShowInfo({'SeriesName': _item.title}, sources=['tvdb'], epdetail=False)
 			except (SeriesNotFound, EpisodeNotFound):
 				continue
 
@@ -291,19 +291,17 @@ class CleanUp(Library):
 			if _dir in _trakt_top_shows_names:
 				continue
 			try:
-				show = TVShow(_dir)
-				if show.ended:
+				_series_details = self.seriesinfo.getShowInfo({'SeriesName': _dir}, sources=['tvdb'], epdetail=False)
+				if _series_details['status'] == 'Canceled/Ended':
 					continue
-				raise GetOutOfLoop
-			except (AttributeError, ValueError):
-				an_error = traceback.format_exc(1)
+			except (SeriesNotFound, EpisodeNotFound):
 				log.warn('{}: Show Not Found' .format(_dir))
-			except GetOutOfLoop:
-				show_entry = {}
-				show_entry['type'] = 'show'
-				show_entry['title'] = show.title
-				show_entry['tvdb_id'] = show.tvdb_id
-				_load_shows['items'].append(show_entry)
+				continue
+			show_entry = {}
+			show_entry['type'] = 'show'
+			show_entry['title'] = _series_details['SeriesName']
+			show_entry['tvdb_id'] = _series_details['tvdb_id']
+			_load_shows['items'].append(show_entry)
 
 		if _load_shows['items']:
 			_type = 'lists'

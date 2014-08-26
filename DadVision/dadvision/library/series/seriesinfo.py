@@ -127,7 +127,7 @@ class SeriesInfo(Library):
 		self.confidenceFactor = 90
 		self.last_request = {'LastRequestName': ''}
 
-	def getShowInfo(self, request):
+	def getShowInfo(self, request, sources=['tvdb', 'trakt', 'tvrage'], epdetail=True):
 		log.trace('getShowInfo: Input Parm: {}'.format(request))
 
 		if type(request) == dict:
@@ -160,9 +160,14 @@ class SeriesInfo(Library):
 		except IndexError:
 			sys.exc_clear()
 
+		if not self.args.processes:
+			_process_order = sources
+		else:
+			_process_order = self.args.processes
+
 		#Valid Request: Locate Show IDs
 		try:
-			SeriesDetails = self._identify_show(SeriesDetails)
+			SeriesDetails = self._identify_show(SeriesDetails, _process_order)
 		except :
 			an_error = traceback.format_exc()
 			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
@@ -171,7 +176,7 @@ class SeriesInfo(Library):
 				SeriesDetails['SeriesName'] = _suffix.group('SeriesName')
 				SeriesDetails = self._identify_show(SeriesDetails)
 
-		if self.args.get_episodes:
+		if self.args.get_episodes and epdetail:
 			if 'tvdb_id' in SeriesDetails  and SeriesDetails['tvdb_id']:
 				try:
 					SeriesDetails = self.getEpisodeInfo(SeriesDetails)
@@ -185,7 +190,7 @@ class SeriesInfo(Library):
 
 		return SeriesDetails
 
-	def _identify_show(self, SeriesDetails):
+	def _identify_show(self, SeriesDetails, _process_order):
 
 		_series_name = SeriesDetails['SeriesName'].rstrip()
 		if self.last_request['LastRequestName'] == _series_name:
@@ -193,11 +198,6 @@ class SeriesInfo(Library):
 			return SeriesDetails
 		else:
 			self.last_request = {'LastRequestName': _series_name}
-
-		if not self.args.processes:
-			_process_order = ['tvdb', 'trakt', 'tvrage']
-		else:
-			_process_order = self.args.processes
 
 		options = {'tvdb': self._get_tvdb_id,
 				   'trakt': self._get_trakt_id,
@@ -447,6 +447,8 @@ class SeriesInfo(Library):
 			results['imdb_id'] = series.imdb_id
 		if series.tvrage_id and 'tvrage_id' not in results:
 			results['tvrage_id'] = series.tvrage_id
+		if series.status and 'status' not in results:
+			results['status'] = series.status
 		return results
 
 	def _get_pytvrage_id(self, series_name, **kwargs):
