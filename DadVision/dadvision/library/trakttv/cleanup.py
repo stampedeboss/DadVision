@@ -12,6 +12,7 @@ Current functions:
  Remove entries from the watchlist that have been delivered.
  Repopulate the std-shows list
 """
+from __future__ import division
 from exceptions import ValueError, AttributeError
 import logging
 import os
@@ -23,6 +24,7 @@ import hashlib
 import traceback
 import fnmatch
 import unicodedata
+import pprint
 
 from pytvdbapi import api
 import tmdb3
@@ -286,6 +288,8 @@ class CleanUp(Library):
 
 		#Reload entries to std-shows, exclude top-shows and shows that have ended
 		_load_shows = {'slug': 'stdshows', 'items': []}
+		_shows_processed = 0
+		_shows_ended = 0
 		for _dir in os.listdir(self.settings.SeriesDir):
 			if _ignored(_dir): continue
 			if _dir in _trakt_top_shows_names:
@@ -293,15 +297,26 @@ class CleanUp(Library):
 			try:
 				_series_details = self.seriesinfo.getShowInfo({'SeriesName': _dir}, sources=['tvdb'], epdetail=False)
 				if _series_details['status'] == 'Canceled/Ended':
+					_shows_ended += 1
 					continue
 			except (SeriesNotFound, EpisodeNotFound):
 				log.warn('{}: Show Not Found' .format(_dir))
 				continue
+			except:
+				log.warn('Issue with Series Info: {}'.format(pprint.pformat(_series_details, indent=1, depth=1)))
+				an_error = traceback.format_exc()
+				log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
+				continue
+			_shows_processed += 1
 			show_entry = {}
 			show_entry['type'] = 'show'
 			show_entry['title'] = _series_details['SeriesName']
 			show_entry['tvdb_id'] = _series_details['tvdb_id']
 			_load_shows['items'].append(show_entry)
+			quotient, remainder = divmod(_shows_processed, 10)
+			if remainder == 0:
+				log.info('CShows Ready Reload: {}  Canceled/Ended: {}'.format(_shows_processed, _shows_ended))
+
 
 		if _load_shows['items']:
 			_type = 'lists'
