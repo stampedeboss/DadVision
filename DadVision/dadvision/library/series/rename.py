@@ -163,7 +163,7 @@ class RenameSeries(Library):
 					log.debug("-----------------------------------------------")
 					log.debug("Filename: %s" % _path_name)
 					ext = os.path.splitext(_path_name)[1][1:]
-					if self._ignored(pathname) or os.path.splitext(_path_name)[1][1:] not in self.settings.MediaExt:
+					if self._ignored(_path_name) or os.path.splitext(_path_name)[1][1:] not in self.settings.MediaExt:
 						_del_file(_path_name)
 						_del_dir(_root)
 						continue
@@ -414,7 +414,10 @@ class RenameSeries(Library):
 	def _ignored(self, name):
 		""" Check for ignored pathnames.
 		"""
-		return any(fnmatch.fnmatch(name.lower(), pattern) for pattern in self.settings.ExcludeList)
+		_skip = []
+		_skip.append(any(fnmatch.fnmatch(name.lower(), pattern) for pattern in self.settings.IgnoreGlob))
+		_skip.append(any(fnmatch.fnmatch(name.lower(), pattern) for pattern in self.settings.ExcludeList))
+		return any(_skip)
 
 	def _get_date_aired(self, file_details):
 		if 'DateAired' in file_details:
