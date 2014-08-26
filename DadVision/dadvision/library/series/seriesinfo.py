@@ -118,8 +118,8 @@ class SeriesInfo(Library):
 				action="store_false", default=True,
 				help="Information to come from trakt.tv")
 
-#		trakt.api_key = self.settings.TraktAPIKey
-#		trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
+		trakt.api_key = self.settings.TraktAPIKey
+		trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
 		self.db = api.TVDB("959D8E76B796A1FB")
 		self.tvrage = TVRage(api_key='XwJ7KGdTfep9EpsZBf8m')
 
