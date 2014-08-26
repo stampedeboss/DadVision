@@ -264,12 +264,11 @@ class SeriesInfo(Library):
 				_matches = self.db.search(SeriesDetails['SeriesName'], "en")
 			if not _matches: raise SeriesNotFound
 			if len(_matches) == 1:
-				if _matching(SeriesDetails['SeriesName'].lower(), _decode(_matches[0].SeriesName), factor=90):
-					_results = {}
+				if _matching(SeriesDetails['SeriesName'].lower(), _decode(_matches[0].SeriesName).lower(), factor=90):
 					_matches[0].update()
 					_series = TVSeries(_matches[0].SeriesName, tvdb=_matches[0])
-					_results = self._load_series_info(_series, _results)
-					return _results
+					SeriesDetails = self._load_series_info(_series, SeriesDetails, 'tvdb')
+					return SeriesDetails
 				else:
 					raise SeriesNotFound
 			for _show in _matches:
@@ -311,11 +310,10 @@ class SeriesInfo(Library):
 			if not _matches: raise SeriesNotFound
 			if len(_matches) == 1:
 				if _matching(SeriesDetails['SeriesName'].lower(), _matches[0].name.lower(), factor=90):
-					_results = {}
 					_series = TVSeries(_matches[0].name, tvrage=_matches[0])
-					_results = self._load_series_info(_series, _results)
-					_results['service'] = 'tvrage'
-					return _results
+					SeriesDetails = self._load_series_info(_series, SeriesDetails)
+					SeriesDetails['service'] = 'tvrage'
+					return SeriesDetails
 				else:
 					raise SeriesNotFound
 			for _show in _matches:
@@ -347,11 +345,11 @@ class SeriesInfo(Library):
 		_series_name['base'] = unicode(SeriesDetails['SeriesName'])
 		_series_name['suffix'] = None
 		_series_name['type'] = None
-		_series_name['check'] = self._check_suffix.match(SeriesDetails['SeriesName'])
-		if _series_name['check']:
-			_series_name['base'] = _series_name['check'].group('SeriesName')
-			_series_name['suffix'] = _series_name['check'].group('Suffix')
-			if _series_name['check'].group('Suffix').isdigit():
+		_series_suffix = self._check_suffix.match(SeriesDetails['SeriesName'])
+		if _series_suffix:
+			_series_name['base'] = _series_suffix.group('SeriesName')
+			_series_name['suffix'] = _series_suffix.group('Suffix')
+			if _series_suffix.group('Suffix').isdigit():
 				_series_name['type'] = 'Year'
 			else:
 				_series_name['type'] = 'Country'

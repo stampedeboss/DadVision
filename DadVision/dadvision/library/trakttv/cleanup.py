@@ -20,7 +20,6 @@ import urllib2
 import json
 import base64
 import hashlib
-import socket
 import traceback
 import fnmatch
 import unicodedata
@@ -33,7 +32,7 @@ from trakt.tv import TVShow
 
 from library import Library
 from common import logger
-from common.exceptions import MovieNotFound, SeriesNotFound
+from common.exceptions import MovieNotFound, SeriesNotFound, EpisodeNotFound
 from library.series.seriesinfo import SeriesInfo
 from library.movie.gettmdb import TMDBInfo
 
@@ -136,6 +135,8 @@ class CleanUp(Library):
 				self.args.TraktAPIKey = profiles[hostname]['TraktAPIKey']
 				self.args.TraktBase64Key = base64.encodestring(self.args.TraktUserID+':'+self.args.TraktPassWord)
 
+				log.info('Processing entires for: {}'.format(self.args.TraktUserID))
+
 				if self.args.TraktAPIKey:
 					trakt.api_key = self.args.TraktAPIKey
 					trakt.authenticate(self.args.TraktUserID, self.args.TraktPassWord)
@@ -150,7 +151,6 @@ class CleanUp(Library):
 				self.cleanup_movies()
 				if hostname == 'grumpy':
 					self.cleanup_lists()
-
 		return
 
 	def cleanup_shows(self):
@@ -170,13 +170,15 @@ class CleanUp(Library):
 		for _item in _trakt_shows_needing_unseen:
 			try:
 				_series_details = self.seriesinfo.getShowInfo({'SeriesName': _item.title})
-			except SeriesNotFound:
+			except (SeriesNotFound, EpisodeNotFound):
 				continue
 
 			_show_entry = {}
 			_show_entry['title'] = _series_details['SeriesName']
-			_show_entry['tvdb_id'] = _series_details['tvdb_id']
-			_show_entry['imdb_id'] = _series_details['imdb_id']
+			if 'tvdb_id' in _series_details:
+				_show_entry['tvdb_id'] = _series_details['tvdb_id']
+			if 'imdb_id' in _series_details:
+				_show_entry['imdb_id'] = _series_details['imdb_id']
 
 			_episodes = []
 			for episode in _series_details['EpisodeData']:
@@ -191,18 +193,19 @@ class CleanUp(Library):
 		for _item in _trakt_shows_needing_unwatchlist:
 			try:
 				_series_details = self.seriesinfo.getShowInfo({'SeriesName': _item.title})
-			except SeriesNotFound:
+			except (SeriesNotFound, EpisodeNotFound):
 				continue
 
 			_show_entry = {}
 			_show_entry['title'] = _series_details['SeriesName']
-			_show_entry['tvdb_id'] = _series_details['tvdb_id']
-			_show_entry['imdb_id'] = _series_details['imdb_id']
+			if 'tvdb_id' in _series_details:
+				_show_entry['tvdb_id'] = _series_details['tvdb_id']
+			if 'imdb_id' in _series_details:
+				_show_entry['imdb_id'] = _series_details['imdb_id']
 			_remove_watchlist['shows'].append(_show_entry)
 
-
 		if _remove_watchlist['shows']:
-			response = self.post_data(_show_entry, 'show', 'unwatchlist')
+			response = self.post_data(_remove_watchlist, 'show', 'unwatchlist')
 			log.info('{}: {}'.format(_series_details['SeriesName'], response))
 
 		return
@@ -223,7 +226,7 @@ class CleanUp(Library):
 		for _item in _trakt_movies_needing_unseen:
 			try:
 				_movie_details = self.tmdbinfo._get_details({'MovieName': _item.title, 'Year': _item.year})
-			except:
+			except MovieNotFound:
 				log.warn('Movie Not Found: {} ({})'.format(_item.title, _item.year))
 				continue
 
@@ -243,7 +246,7 @@ class CleanUp(Library):
 		for _item in _trakt_movies_needing_unwatchlist:
 			try:
 				_movie_details = self.tmdbinfo._get_details({'MovieName': _item.title, 'Year': _item.year})
-			except:
+			except MovieNotFound:
 				log.warn('Movie Not Found: {} ({})'.format(_item.title, _item.year))
 				continue
 
@@ -315,7 +318,7 @@ class CleanUp(Library):
 		return
 
 	def post_data(self, request, type, target):
-		pydata = {'username': self.settings.TraktUserID, 'password': self.settings.TraktHashPswd}
+		pydata = {'username': self.args.TraktUserID, 'password': self.args.TraktHashPswd}
 		pydata.update(request)
 		json_data = json.dumps(pydata)
 		clen = len(json_data)
@@ -327,7 +330,7 @@ class CleanUp(Library):
 		return response
 
 	def post_show(self, request, type, target):
-		pydata = {'username': self.settings.TraktUserID, 'password': self.settings.TraktHashPswd}
+		pydata = {'username': self.args.TraktUserID, 'password': self.args.TraktHashPswd}
 		pydata.update(request)
 		json_data = json.dumps(pydata)
 		clen = len(json_data)

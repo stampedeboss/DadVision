@@ -77,11 +77,11 @@ class TVSeries(object):
 	def _set_title(self, key, title):
 		setattr(self, 'title', unicode(title))
 		setattr(self, 'title_base', unicode(title))
-		_suffix_present = TVSeries.__check_suffix.match(title.encode('ascii', 'ignore'))
-		if _suffix_present:
-			setattr(self, 'title_base', unicode(_suffix_present.group('SeriesName')))
-			setattr(self, 'title_suffix', _suffix_present.group('Suffix'))
-			if _suffix_present.group('Suffix').isdigit():
+		__suffix_present = TVSeries.__check_suffix.match(title.encode('ascii', 'ignore'))
+		if __suffix_present:
+			setattr(self, 'title_base', unicode(__suffix_present.group('SeriesName')))
+			setattr(self, 'title_suffix', __suffix_present.group('Suffix'))
+			if __suffix_present.group('Suffix').isdigit():
 				setattr(self, 'title_type', 'Year')
 			else:
 				setattr(self, 'title_type', 'Country')
