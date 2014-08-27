@@ -352,10 +352,6 @@ class CheckSeries(Library):
 		dup_choose = '\n{0: <8.8s} {1: <8.8s} SERIES: {2: <25.25s} SEASON:{3:2d} FILE TO DELETE:  1: {4: <35.35s} 2: {5: <35.35s}\n'
 		root_logger = logging.getLogger()
 
-#		log.info(fmt_dups.format('Delete', '',
-#		                         keep['series'], delete['season'],
-#		                         os.path.basename(keep['file']), os.path.basename(delete['file'])))
-
 		root_logger.disabled = True
 		self._list_dir(os.path.dirname(keep['file']))
 
@@ -389,7 +385,6 @@ class CheckSeries(Library):
 										'Y/N',
 										keep['series'], delete['season'],
 										os.path.basename(keep['file']), os.path.basename(delete['file'])))
-	#				_delete = raw_input("\nKeeping: {} Delete: {} (y/n): \n".format(keep['ext'], delete['file']))
 				if _delete.lower() == 'y':
 					try:
 						os.remove(delete['file'])
