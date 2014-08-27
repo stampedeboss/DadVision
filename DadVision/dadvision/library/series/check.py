@@ -340,6 +340,8 @@ class CheckSeries(Library):
 									self.rename._rename_file(file_2['file'])
 						except SeriesNotFound, EpisodeNotFound:
 							continue
+						except KeyboardInterrupt:
+							sys.exit(8)
 						except:
 							an_error = traceback.format_exc()
 							log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
