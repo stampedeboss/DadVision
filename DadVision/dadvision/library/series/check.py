@@ -296,7 +296,7 @@ class CheckSeries(Library):
 
 	def _handle_dups(self, dups):
 
-		fmt_dups = '{0: <8.8s} {1: <8.8s} SERIES: {2: <25.25s} SEA: {3:02d} KEEPING: {4: <35.35s} REMOVING: {5: <35.35s}'
+		fmt_dups = '{0: <8.8s} {1: <8.8s} SERIES: {2: <25.25s} SEA:{3:2d} 1: {4: <35.35s} 2: {5: <35.35s}'
 
 		_prefered_fmts = ['mp4', 'mkv']
 
@@ -310,6 +310,12 @@ class CheckSeries(Library):
 				else:
 					_TOP_SHOW = False
 
+				if not self.args.remove:
+					log.info(fmt_dups.format('Duplicate', 'Found',
+										file_1['series'], file_1['season'],
+										os.path.basename(file_1['file']),
+						                os.path.basename(file_2['file'])))
+					continue
 				if file_1['ext'] == file_2['ext']:
 					if self.regex_repack.search(file_1['file']):
 						self. _delete_dup(file_1, file_2)
@@ -365,7 +371,8 @@ class CheckSeries(Library):
 					_delete = raw_input(dup_choose.format('Delete',
 										'(1/2/n)',
 										keep['series'], delete['season'],
-										os.path.basename(keep['file']), os.path.basename(delete['file'])))
+										os.path.basename(keep['file']),
+										os.path.basename(delete['file'])))
 				if _delete == '2':
 					try:
 						self.rename._rename_file(delete['file'])
@@ -384,10 +391,10 @@ class CheckSeries(Library):
 						_delete = 'e'
 			else:
 				while _delete.lower() not in ['y', 'n']:
-					_delete = raw_input(fmt_dups.format('Delete',
-										'Y/N',
-										keep['series'], delete['season'],
-										os.path.basename(keep['file']), os.path.basename(delete['file'])))
+					_delete = raw_input(fmt_dups.format('Delete', 'Y/N',
+														keep['series'], delete['season'],
+														os.path.basename(keep['file']),
+														os.path.basename(delete['file'])))
 				if _delete.lower() == 'y':
 					try:
 						os.remove(delete['file'])
@@ -400,19 +407,23 @@ class CheckSeries(Library):
 		if _delete.lower() in ['y', '2']:
 			log.info(fmt_dups.format('Delete', 'Complete',
 									 keep['series'], delete['season'],
-									 os.path.basename(keep['file']), os.path.basename(delete['file'])))
+									 os.path.basename(keep['file']),
+									 os.path.basename(delete['file'])))
 		elif _delete.lower() in ['1']:
 			log.info(fmt_dups.format('Delete', 'Complete',
 									 delete['series'], keep['season'],
-									 os.path.basename(delete['file']), os.path.basename(keep['file'])))
+									 os.path.basename(delete['file']),
+									 os.path.basename(keep['file'])))
 		elif _delete.lower() == 'e':
 			log.info(fmt_dups.format('Delete', 'ERROR',
 									 keep['series'], delete['season'],
-									 os.path.basename(keep['file']), os.path.basename(delete['file'])))
+									 os.path.basename(keep['file']),
+									 os.path.basename(delete['file'])))
 		else:
 			log.info(fmt_dups.format('Delete', 'Skipped',
 									 keep['series'], delete['season'],
-									 os.path.basename(keep['file']), os.path.basename(delete['file'])))
+									 os.path.basename(keep['file']),
+									 os.path.basename(delete['file'])))
 
 	def _rename_dup(self, keep, delete):
 		return
