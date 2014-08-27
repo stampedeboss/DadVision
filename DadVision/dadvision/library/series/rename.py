@@ -198,16 +198,8 @@ class RenameSeries(Library):
 #			log.error('Unable to Rename File: {}'.format(msg))
 #			raise
 
-		_file_details['EpisodeNumFmt'] = self._format_episode_numbers(_file_details)
-		_file_details['EpisodeTitle'] = self._format_episode_name(_file_details['EpisodeData'], join_with=self.settings.ConversionsPatterns['multiep_join_name_with'])
-		_file_details['DateAired'] = self._get_date_aired(_file_details)
-		_file_details['BaseDir'] = self.settings.SeriesDir
+		_new_name, _file_details = self.getFileName(_file_details)
 
-		_repack = self.regex_repack.search(_file_details['FileName'])
-		if _repack:
-			_new_name = self.settings.ConversionsPatterns['proper_fqn'] % _file_details
-		else:
-			_new_name = self.settings.ConversionsPatterns['std_fqn'] % _file_details
 		_season_folder = os.path.dirname(_new_name)
 		_series_folder = os.path.dirname(_season_folder)
 		try:
@@ -258,6 +250,21 @@ class RenameSeries(Library):
 				raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, _file_details))
 
 		return
+
+	def getFileName(self, _file_details):
+
+		_file_details['EpisodeNumFmt'] = self._format_episode_numbers(_file_details)
+		_file_details['EpisodeTitle'] = self._format_episode_name(_file_details['EpisodeData'], join_with=self.settings.ConversionsPatterns['multiep_join_name_with'])
+		_file_details['DateAired'] = self._get_date_aired(_file_details)
+		_file_details['BaseDir'] = self.settings.SeriesDir
+
+		_repack = self.regex_repack.search(_file_details['FileName'])
+		if _repack:
+			_new_name = self.settings.ConversionsPatterns['proper_fqn'] % _file_details
+		else:
+			_new_name = self.settings.ConversionsPatterns['std_fqn'] % _file_details
+
+		return _new_name, _file_details
 
 	def _handle_dups(self, file_details, _new_name):
 

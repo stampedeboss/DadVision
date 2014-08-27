@@ -315,7 +315,7 @@ class CleanUp(Library):
 			_load_shows['items'].append(show_entry)
 			quotient, remainder = divmod(_shows_processed, 10)
 			if remainder == 0:
-				log.info('CShows Ready Reload: {}  Canceled/Ended: {}'.format(_shows_processed, _shows_ended))
+				log.info('Ready for Reload: {}  Skipped-Canceled/Ended: {}'.format(_shows_processed, _shows_ended))
 
 
 		if _load_shows['items']:
