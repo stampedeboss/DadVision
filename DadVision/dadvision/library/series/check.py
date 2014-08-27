@@ -334,6 +334,9 @@ class CheckSeries(Library):
 									self.rename._rename_file(file_2['file'])
 						except SeriesNotFound, EpisodeNotFound:
 							continue
+						except:
+							an_error = traceback.format_exc()
+							log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
 				elif file_1['ext'] == 'avi' and file_2['ext'] in _prefered_fmts:
 					self. _delete_dup(file_2, file_1)
 				elif file_2['ext'] == 'avi' and file_1['ext'] in _prefered_fmts:
