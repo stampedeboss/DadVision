@@ -230,6 +230,8 @@ class SeriesInfo(Library):
 		except GetOutOfLoop:
 			sys.exc_clear()
 
+		SeriesDetails['TVSeries'] = TVSeries(seriesdetails=SeriesDetails)
+
 		self.last_request['SeriesName'] = SeriesDetails['SeriesName']
 		if 'tvdb_id' in SeriesDetails:
 			self.last_request['tvdb_id'] = SeriesDetails['tvdb_id']
@@ -238,8 +240,8 @@ class SeriesInfo(Library):
 			self.last_request['imdb_id'] = SeriesDetails['imdb_id']
 		if 'tvrage_id' in SeriesDetails:
 			self.last_request['tvrage_id'] = SeriesDetails['tvrage_id']
-
-		SeriesDetails['TVSeries'] = TVSeries(seriesdetails=SeriesDetails)
+		if 'TVSeries' in SeriesDetails:
+			self.last_request['TVSeries'] = SeriesDetails['TVSeries']
 
 		return SeriesDetails
 
