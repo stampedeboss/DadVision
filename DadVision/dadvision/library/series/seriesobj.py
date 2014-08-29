@@ -5,7 +5,13 @@ Purpose:
 """
 
 import re
-import datetime
+from datetime import date
+from time import mktime, strptime
+from tvrage import feeds
+from tvrage.util import _fetch, parse_synopsis
+from tvrage.exceptions import (ShowHasEnded, FinaleMayNotBeAnnouncedYet,
+                                ShowNotFound, NoNewEpisodesAnnounced)
+
 
 __pgmname__ = 'TVSeries'
 __version__ = '@version: $Rev: 418 $'
@@ -56,7 +62,7 @@ class TVSeries(object):
 								setattr(self, key2.lower(), val2)
 							continue
 				elif key == 'tvrage':
-					for key2, val2 in vars(val).iteritems():
+					for key2, val2 in val.iteritems():
 						try: __options[key2](key2, val2)
 						except KeyError:
 							if key2 in attrs:
@@ -118,7 +124,7 @@ class TVSeries(object):
 		return
 
 	def _set_year(self, key, FirstAired):
-		if type(FirstAired) is datetime.date:
+		if type(FirstAired) is date:
 			setattr(self, 'year', FirstAired.year)
 		return
 
@@ -138,9 +144,7 @@ class TVSeries(object):
 
 	def __str__(self):
 		"""Return a string representation of a :class:`TVShow`"""
-		return '<TVSeries> {},  tvdb_id: {}, imdb_id: {}  tvrage_id: {}  Status: {}'.format(self.title.encode('ascii', 'ignore'),
-		                                                                        self.tvdb_id, self.imdb_id.encode('ascii', 'ignore'),
-		                                                                        self.tvrage_id, self.status.encode('ascii', 'ignore'))
+		return '<TVSeries> {}'.format(self.title.encode('ascii', 'ignore'))
 	__repr__ = __str__
 
 
@@ -162,7 +166,7 @@ class TVSeason(object):
 		pass
 
 	def __str__(self):
-		title = ['<TVSeason>:', self.series, 'Season', self.season]
+		title = '<TVSeason>: {0}  Season: {1:04d}'.format(self.series, self.season)
 		title = map(str, title)
 		return ' '.join(title)
 	__repr__ = __str__
@@ -186,7 +190,7 @@ class TVEpisode(object):
 		pass
 
 	def __repr__(self):
-		return '<TVEpisode>: {0} S{1:02d}E{2:02d} {3}'.format(self.series, self.season,
+		return '<TVEpisode>: {0} S{1:04d}E{2:02d} {3}'.format(self.series, self.season,
 												  self.episode, self.title)
 	__str__ = __repr__
 
@@ -198,3 +202,4 @@ class TVEpisode(object):
 	# 	return {'imdb_id': self.imdb_id, 'tvdb_id': self.tvdb_id,
 	# 			'title': self.title, 'year': self.year,
 	# 			'episodes': [{'season': self.season, 'episode': self.episode}]}
+

@@ -11,6 +11,7 @@ from common.exceptions import SeriesNotFound, EpisodeNotFound
 from library.series.seriesobj import TVSeries, TVSeason, TVEpisode
 from common import logger
 from fuzzywuzzy import fuzz
+import common
 import datetime
 import difflib
 import errno
@@ -27,9 +28,12 @@ from trakt.users import User, UserList
 from trakt.tv import TVShow #, TVSeason, TVEpisode, trending_shows, TraktRating, TraktStats, rate_shows, rate_episodes, genres, get_recommended_shows, dismiss_recommendation
 
 from pytvdbapi import api
-from TVRage import TVRage, Show, ShowInfo, Season, EpisodeList, Episode, EpisodeInfo
+from TVRage import TVRage
+
 from tvrage import feeds
-from xml.etree.ElementTree import tostring
+from tvrage.exceptions import ShowHasEnded, NoNewEpisodesAnnounced, FinaleMayNotBeAnnouncedYet, ShowNotFound
+from tvrage.api import Show, Season, Episode
+from xml.etree.ElementTree import tostring, tostringlist
 
 __pgmname__ = 'seriesinfo'
 __version__ = '@version: $Rev$'
@@ -45,6 +49,28 @@ __credits__ = []
 
 FlexGetConfig = os.path.join(os.path.expanduser('~'), '.flexget', 'config.series')
 log = logging.getLogger(__pgmname__)
+
+
+from collections import defaultdict
+def etree_to_dict(t):
+	d = {t.tag: {} if t.attrib else None}
+	children = list(t)
+	if children:
+		dd = defaultdict(list)
+		for dc in map(etree_to_dict, children):
+			for k, v in dc.iteritems():
+				dd[k].append(v)
+		d = {t.tag: {k:v[0] if len(v) == 1 else v for k, v in dd.iteritems()}}
+	if t.attrib:
+		d[t.tag].update(('@' + k, v) for k, v in t.attrib.iteritems())
+	if t.text:
+		text = t.text.strip()
+		if children or t.attrib:
+			if text:
+			  d[t.tag]['#text'] = text
+		else:
+			d[t.tag] = text
+	return d
 
 
 def _decode(coded_text):
@@ -128,13 +154,20 @@ class SeriesInfo(Library):
 	def getShowInfo(self, request, sources=['tvdb', 'trakt', 'tvrage'], epdetail=True):
 		log.trace('getShowInfo: Input Parm: {}'.format(request))
 
-		if not type(sources) == list:
+		if not epdetail:
+			self.args.get_episodes = False
+
+		std_processes = ['tvdb', 'trakt', 'tvrage']
+		if self.args.processes:
+			_process_order = self.args.processes
+		elif not type(sources) == list:
 			raise InvalidArgumentType('sources must be list, received: {}'.format(type(sources)))
 		else:
-			_s = set(['tvdb', 'trakt', 'tvrage'])
+			_s = set(std_processes)
 			_diff = [_x for _x in sources if _x not in _s]
 			if _diff:
-				raise InvalidArgumentValue('sources must be: tvdb, trakt, tvrage')
+				raise InvalidArgumentValue('sources must be: {}'.format(std_processes))
+			_process_order = sources
 
 		if type(request) == dict:
 			if 'SeriesName' in request and request['SeriesName'] is not None:
@@ -166,33 +199,35 @@ class SeriesInfo(Library):
 		except IndexError:
 			sys.exc_clear()
 
-		if not self.args.processes:
-			_process_order = sources
-		else:
-			_process_order = self.args.processes
-
 		#Valid Request: Locate Show IDs
 		try:
 			SeriesDetails = self._identify_show(SeriesDetails, _process_order)
-		except :
-			an_error = traceback.format_exc()
-			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
-			_suffix = self._check_suffix.match(request['SeriesName'])
+		except (common.exceptions.SeriesNotFound, EpisodeNotFound):
 			if _suffix:
 				SeriesDetails['SeriesName'] = _suffix.group('SeriesName')
 				SeriesDetails = self._identify_show(SeriesDetails)
+		except KeyboardInterrupt:
+			sys.exit(8)
+		except:
+			an_error = traceback.format_exc()
+			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+			raise
 
-		if self.args.get_episodes and epdetail:
-			if 'tvdb_id' in SeriesDetails  and SeriesDetails['tvdb_id']:
-				try:
-					SeriesDetails = self.getEpisodeInfo2(SeriesDetails)
-				except EpisodeNotFound, SeriesNotFound:
-					if 'tvrage_id' in SeriesDetails and SeriesDetails['tvrage_id']:
-						SeriesDetails = self._retrieve_tvrage_info(SeriesDetails)
-			elif 'tvrage_id' in SeriesDetails and SeriesDetails['tvrage_id']:
-				self._retrieve_tvrage_info(SeriesDetails)
-			else:
+		if self.args.get_episodes:
+			ep_get = {'tvdb_id': self._tvdbEpisodeInfo, 'tvrage_id': self._tvrageEpisideInfo}
+
+			try:
+				if 'tvdb_id' in SeriesDetails  and SeriesDetails['tvdb_id']:
+					service = 'tvdb_id'
+				elif 'tvrage_id' in SeriesDetails and SeriesDetails['tvrage_id']:
+					service = 'tvrage_id'
+				else:
+					raise common.exceptions.SeriesNotFound
+				SeriesDetails = ep_get[service](SeriesDetails)
+			except EpisodeNotFound, SeriesNotFound:
 				raise EpisodeNotFound
+			except KeyboardInterrupt:
+				sys.exit(8)
 
 		return SeriesDetails
 
@@ -207,22 +242,24 @@ class SeriesInfo(Library):
 
 		options = {'tvdb': self._get_tvdb_id,
 				   'trakt': self._get_trakt_id,
-				   'tvrage': self._get_tvrage_id
-		}
+				   'tvrage': self._get_tvrage_id}
 
 		try:
 			for service in _process_order:
 				try:
 					SeriesDetails = options[service](SeriesDetails)
 					if 'tvrage_id' in SeriesDetails:
+						if 'tvdb_id' not in SeriesDetails and 'tvdb' in _process_order:
+							SeriesDetails = options['tvdb'](SeriesDetails)
 						raise GetOutOfLoop
 				except SeriesNotFound:
 					sys.exc_clear()
 				except GetOutOfLoop:
 					raise GetOutOfLoop
-				except:
-					an_error = traceback.format_exc()
-					log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+#				except:
+#					an_error = traceback.format_exc()
+#					log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+#					raise
 			if any([key in SeriesDetails for key in ['tvrage_id', 'tvdb_id']]):
 				raise GetOutOfLoop
 			self.last_request = {'LastRequestName': ''}
@@ -301,9 +338,10 @@ class SeriesInfo(Library):
 				_show.update()
 				_series = TVSeries(tvdb=_show)
 				_candidates[_series.title] = _series
-		except:
+		except (TVDBAttributeError, TVDBIndexError, TVDBValueError):
 			an_error = traceback.format_exc()
 			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+			raise SeriesNotFound
 
 		if not _candidates:
 			raise SeriesNotFound
@@ -322,32 +360,30 @@ class SeriesInfo(Library):
 		try:
 			_title_suffix = self._check_suffix.match(SeriesDetails['SeriesName'])
 			if _title_suffix:
-				_matches = self.tvrage.search(_title_suffix.group('SeriesName'))
+				_matches = feeds.search(_title_suffix.group('SeriesName'))
 			else:
-				_matches = self.tvrage.search(SeriesDetails['SeriesName'])
+				_matches = feeds.search(SeriesDetails['SeriesName'])
 			if not _matches: raise SeriesNotFound
 			if len(_matches) == 1:
-				if _matching(SeriesDetails['SeriesName'].lower(), _matches[0].name.lower(), factor=90):
-					_series = TVSeries(tvrage=_matches[0])
+				_series = TVSeries(tvrage=etree_to_dict(_matches[0])['show'])
+				if _matching(SeriesDetails['SeriesName'].lower(), _series.title.lower(), factor=90):
 					SeriesDetails = self._load_series_info(_series, SeriesDetails)
 					SeriesDetails['service'] = 'tvrage'
 					return SeriesDetails
 				else:
 					raise SeriesNotFound
 			for _show in _matches:
-				_title_suffix = self._check_suffix.match(_show.name)
-				if _title_suffix:
-					if not _matching(SeriesDetails['SeriesName'].lower(), _decode(_title_suffix.group('SeriesName').lower())):
-						continue
+				_series = TVSeries(tvrage=etree_to_dict(_show)['show'])
+				if _series.title_suffix:
+					if _matching(SeriesDetails['SeriesName'].lower(), _decode(_series.title_base.lower())):
+						_candidates[_series.title] = _series
 				else:
-					if not _matching(SeriesDetails['SeriesName'].lower(), _decode(_show.name).lower()):
-						continue
-
-				_series = TVSeries(tvrage=_show)
-				_candidates[_series.title] = _series
-		except:
+					if _matching(SeriesDetails['SeriesName'].lower(), _decode(_series.title).lower()):
+						_candidates[_series.title] = _series
+		except ShowNotFound:
 			an_error = traceback.format_exc()
 			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+			raise SeriesNotFound
 
 		if not _candidates:
 			raise SeriesNotFound
@@ -469,30 +505,6 @@ class SeriesInfo(Library):
 			results['status'] = series.status
 		return results
 
-	def _get_pytvrage_id(self, series_name, **kwargs):
-
-		results = {}
-		try:
-#			if 'tvrage_id' in kwargs:
-#				return results
-			show_list = feeds.full_search(series_name)
-			for show in show_list:
-				if _matching(series_name, show.name):
-					raise GetOutOfLoop
-			raise SeriesNotFound
-		except GetOutOfLoop:
-			sys.exc_clear()
-		except:
-			an_error = traceback.format_exc()
-			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
-			raise SeriesNotFound(an_error)
-
-		results['title'] = show.name
-		results['tvrage_id'] = show.showid
-
-		results['service'] = 'tvrage'
-		return results
-
 	def _check_for_alias(self, series_name):
 		# Check for Alias
 		try:
@@ -515,79 +527,16 @@ class SeriesInfo(Library):
 						return SeriesDetails
 		return SeriesDetails
 
-	def getEpisodeInfo(self, SeriesDetails):
-		log.trace("getEpisodeInfo: Retrieving Episodes - %s ID: %s" % (SeriesDetails['SeriesName'], SeriesDetails['tvdb_id']))
+	def _tvdbEpisodeInfo(self, SeriesDetails):
+		log.trace("_tvdbEpisodeInfo: Retrieving Episodes - %s ID: %s" % (SeriesDetails['SeriesName'], SeriesDetails['tvdb_id']))
 
-		_err_msg_1 = "getEpisodeInfo: Season/Episode Not Found - {SeriesName}  ID: {tvdb_id}"
-		_err_msg_2 = "getEpisodeInfo: Connection Issues Retrieving Series and Episode Info - {SeriesName}, ID: {tvdb_id}"
-		_err_msg_3 = "getEpisodeInfo: Unknown Error Retrieving Series and Episode Info - {SeriesName}, ID: {tvdb_id}"
-		_err_msg_4 = "getEpisodeInfo: No Episode Data Found - {SeriesName}, ID: {tvdb_id}"
-		_trace_msg_1 = 'getEpisodeInfo: Checking for SeasonNum & EpisodeNum Match: {SeriesName} {tvdv_id}'
-
-		SeriesDetails['EpisodeData'] = []
+		_err_msg_1 = "TVDB: No Episode Data Found - {SeriesName}, ID: {tvdb_id}"
+		_err_msg_2 = "TVDB: Connection Issues Retrieving Series and Episode Info - {SeriesName}, ID: {tvdb_id}"
 
 		try:
+			SeriesDetails['EpisodeData'] = []
 			_series = self.db.get_series( SeriesDetails['tvdb_id'], "en" )
-			if 'SeasonNum' in SeriesDetails:
-				_season = _series[SeriesDetails['SeasonNum']]
-				if 'EpisodeNums' in SeriesDetails:
-					for epno in SeriesDetails['EpisodeNums']:
-						_episode = _season[epno]
-						self._load_data(_season, _episode, SeriesDetails)
-				else:
-					for _episode in _season:
-						self._load_data(_season, _episode, SeriesDetails)
-			else:
-				for _season in _series:
-					log.debug('Season: {}'.format(_season.season_number))
-					for _episode in _season:
-						self._load_data(_season, _episode, SeriesDetails)
-		except TVDBIndexError, message:
-			an_error = traceback.format_exc()
-			log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
-			log.debug(_err_msg_1.format(**SeriesDetails))
-			raise EpisodeNotFound(_err_msg_1.format(**SeriesDetails))
-		except IOError, message:
-			an_error = traceback.format_exc()
-			log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
-			log.debug(_err_msg_2.format(**SeriesDetails))
-			raise DataRetrievalError(_err_msg_2.format(**SeriesDetails))
-
-		if len(SeriesDetails['EpisodeData']) > 0:
-			return SeriesDetails
-		else:
-			an_error = traceback.format_exc()
-			log.debu(traceback.format_exception_only(type(an_error), an_error)[-1])
-			log.debug(_err_msg_4.format(**SeriesDetails))
-			raise EpisodeNotFound(_err_msg_4.format(**SeriesDetails))
-
-	def _load_data(self, _season, _episode, SeriesDetails):
-		if type(_episode.EpisodeName) == unicode:
-			_episode_name = unicodedata.normalize('NFKD', _episode.EpisodeName).encode('ascii', 'ignore')
-			_episode_name = _episode_name.replace("&amp;", "&").replace("/", "_")
-		else:
-			_episode_name = str(_episode.EpisodeName)
-
-		SeriesDetails['EpisodeData'].append({'SeasonNum'    : _season.season_number,
-											 'EpisodeNum'   : _episode.EpisodeNumber,
-											 'EpisodeTitle' : _episode_name,
-											 'DateAired'    :  _episode.FirstAired})
-		log.debug('{} {} {} {}'.format(_season.season_number, _episode.EpisodeNumber, _episode_name, _episode.FirstAired))
-
-	def getEpisodeInfo2(self, SeriesDetails):
-		log.trace("getEpisodeInfo2: Retrieving Episodes - %s ID: %s" % (SeriesDetails['SeriesName'], SeriesDetails['tvdb_id']))
-
-		_err_msg_1 = "getEpisodeInfo: Season/Episode Not Found - {SeriesName}  ID: {tvdb_id}"
-		_err_msg_2 = "getEpisodeInfo: Connection Issues Retrieving Series and Episode Info - {SeriesName}, ID: {tvdb_id}"
-		_err_msg_3 = "getEpisodeInfo: Unknown Error Retrieving Series and Episode Info - {SeriesName}, ID: {tvdb_id}"
-		_err_msg_4 = "getEpisodeInfo: No Episode Data Found - {SeriesName}, ID: {tvdb_id}"
-		_trace_msg_1 = 'getEpisodeInfo: Checking for SeasonNum & EpisodeNum Match: {SeriesName} {tvdv_id}'
-
-		SeriesDetails['EpisodeData'] = []
-
-		try:
-			_series = self.db.get_series( SeriesDetails['tvdb_id'], "en" )
-			_seasons = self._load_tvseries(_series, SeriesDetails)
+			_seasons = self._build_tvseason_tvdb(_series, SeriesDetails)
 			SeriesDetails['TVSeries'].seasons = _seasons
 			if 'SeasonNum' in SeriesDetails:
 				_season = _series[SeriesDetails['SeasonNum']]
@@ -614,18 +563,12 @@ class SeriesInfo(Library):
 			log.debug(_err_msg_2.format(**SeriesDetails))
 			raise DataRetrievalError(_err_msg_2.format(**SeriesDetails))
 
-		if len(SeriesDetails['EpisodeData']) > 0:
-			return SeriesDetails
-		else:
-			an_error = traceback.format_exc()
-			log.debu(traceback.format_exception_only(type(an_error), an_error)[-1])
-			log.debug(_err_msg_4.format(**SeriesDetails))
-			raise EpisodeNotFound(_err_msg_4.format(**SeriesDetails))
+		return SeriesDetails
 
-	def _load_tvseries(self, _series, SeriesDetails):
+	def _build_tvseason_tvdb(self, _series, SeriesDetails):
 		_seasons = {}
 		for _season in _series:
-			_season_number = u'<Season {0:02}>'.format(_season.season_number)
+			_season_number = u'<Season {0:04}>'.format(_season.season_number)
 			_myseason = {"season": _season.season_number}
 			_myseason['episodes'] = {}
 			for _episode in _season:
@@ -649,7 +592,7 @@ class SeriesInfo(Library):
 			_seasons[_season_number] = _my_tv_season
 		return _seasons
 
-	def _load_data2(self, _season, _episode, SeriesDetails):
+	def _load_data(self, _season, _episode, SeriesDetails):
 		if type(_episode.EpisodeName) == unicode:
 			_episode_name = unicodedata.normalize('NFKD', _episode.EpisodeName).encode('ascii', 'ignore')
 			_episode_name = _episode_name.replace("&amp;", "&").replace("/", "_")
@@ -660,12 +603,16 @@ class SeriesInfo(Library):
 											 'EpisodeNum'   : _episode.EpisodeNumber,
 											 'EpisodeTitle' : _episode_name,
 											 'DateAired'    :  _episode.FirstAired})
-		log.debug('{} {} {} {}'.format(_season.season_number, _episode.EpisodeNumber, _episode_name, _episode.FirstAired))
 
-	def _retrieve_tvrage_info(self, SeriesDetails):
-		log.debug('_retrieve_tvrage_info: Input Parm: {!s}'.format(SeriesDetails))
+	def _tvrageEpisideInfo(self, SeriesDetails):
+		log.debug('_tvrageEpisideInfo: Input Parm: {!s}'.format(SeriesDetails))
 
 		SeriesDetails['EpisodeData'] = []
+
+		_epinfo = etree_to_dict(feeds.episode_list(SeriesDetails['tvrage_id'], node='Episodelist'))['Episodelist']['Season']
+		_seasons = self._build_tvseason_tvrage(_epinfo, SeriesDetails)
+		SeriesDetails['TVSeries'].seasons = _seasons
+
 		if 'EpisodeNums' in SeriesDetails:
 			for epno in SeriesDetails['EpisodeNums']:
 				try:
@@ -694,6 +641,48 @@ class SeriesInfo(Library):
 				log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
 				raise EpisodeNotFound("TVRage: No Data Episode Found - {SeriesName}  Season: {SeasonNum}  Episode(s): {EpisodeNums}".format(**SeriesDetails))
 		return SeriesDetails
+
+	def _build_tvseason_tvrage(self, _epinfo, SeriesDetails):
+		_seasons = {}
+		for _season in _epinfo:
+			_season_number = u'<Season {0:04}>'.format(int(_season['@no']))
+			_myseason = {"season": int(_season['@no'])}
+			_myseason['episodes'] = {}
+			if type(_season['episode']) is list:
+				for _episode in _season['episode']:
+					_myepisode = {}
+					_episode_number = 'E{0:02d}'.format(int(_episode['seasonnum']))
+					_myepisode['season'] = int(_season['@no'])
+					_myepisode['episode'] = int(_episode['seasonnum'])
+					_myepisode['title'] = _episode['title']
+					_myepisode['first_aired'] = datetime.datetime.strptime(_episode['airdate'], '%Y-%m-%d').date()
+					_myepisode['tvdb_episode_id'] = None
+					if _myepisode["season"] == 0:
+						_myepisode['special'] = True
+					else:
+						_myepisode['special'] = False
+					_my_tv_episode = TVEpisode(series=SeriesDetails['SeriesName'], **_myepisode)
+					_myseason['episodes'][_episode_number] = _my_tv_episode
+				_my_tv_season = TVSeason(series=SeriesDetails['SeriesName'], **_myseason)
+				_seasons[_season_number] = _my_tv_season
+			else:
+				_myepisode = {}
+				_episode = _season['episode']
+				_episode_number = 'E{0:02d}'.format(int(_episode['seasonnum']))
+				_myepisode['season'] = int(_season['@no'])
+				_myepisode['episode'] = int(_episode['seasonnum'])
+				_myepisode['title'] = _episode['title']
+				_myepisode['first_aired'] = datetime.datetime.strptime(_episode['airdate'], '%Y-%m-%d').date()
+				_myepisode['tvdb_episode_id'] = None
+				if _myepisode["season"] == 0:
+					_myepisode['special'] = True
+				else:
+					_myepisode['special'] = False
+				_my_tv_episode = TVEpisode(series=SeriesDetails['SeriesName'], **_myepisode)
+				_myseason['episodes'][_episode_number] = _my_tv_episode
+			_my_tv_season = TVSeason(series=SeriesDetails['SeriesName'], **_myseason)
+			_seasons[_season_number] = _my_tv_season
+		return _seasons
 
 	def check_series_name(self, pathname):
 		log.trace("="*30)

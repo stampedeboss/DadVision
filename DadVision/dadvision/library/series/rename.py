@@ -220,10 +220,10 @@ class RenameSeries(Library):
 			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
 			raise InvalidFilename(an_error)
 
-		log.info('Renamed: CURRENT {}'.format(os.path.basename(_file_details['FileName'])))
 		log.info('Renamed: SERIES: {}'.format(_file_details['SeriesName']))
 		log.info('Renamed: SEASON: {}'.format(_file_details['SeasonNum']))
 		log.info('Renamed:   FILE: {}'.format(os.path.basename(_new_name)))
+		log.info('Renamed: CURRENT {}'.format(os.path.basename(_file_details['FileName'])))
 
 		self._update_date(_file_details, _new_name)
 		_del_dir(os.path.dirname(_file_details['FileName']))
@@ -330,7 +330,7 @@ class RenameSeries(Library):
 												 _file,
 												 _new_name,
 												 file_details['FileName'],
-				                                 _skip_rename
+												 _skip_rename
 				)
 			except KeyError:
 				_skip_rename = self.new_other(_ext_new,
@@ -340,7 +340,7 @@ class RenameSeries(Library):
 											  _file,
 											  _new_name,
 											  file_details['FileName'],
-				                              _skip_rename
+											  _skip_rename
 				)
 
 		return _skip_rename
