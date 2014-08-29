@@ -27,7 +27,7 @@ import trakt
 from trakt.users import User, UserList
 from trakt.tv import TVShow #, TVSeason, TVEpisode, trending_shows, TraktRating, TraktStats, rate_shows, rate_episodes, genres, get_recommended_shows, dismiss_recommendation
 
-from pytvdbapi import api
+from pytvdbapi import api, error
 from TVRage import TVRage
 
 from tvrage import feeds
@@ -338,7 +338,7 @@ class SeriesInfo(Library):
 				_show.update()
 				_series = TVSeries(tvdb=_show)
 				_candidates[_series.title] = _series
-		except (TVDBAttributeError, TVDBIndexError, TVDBValueError):
+		except (TVDBAttributeError, TVDBIndexError, TVDBValueError, error.BadData):
 			an_error = traceback.format_exc()
 			log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
 			raise SeriesNotFound
