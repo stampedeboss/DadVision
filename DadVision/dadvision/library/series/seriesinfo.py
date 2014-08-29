@@ -94,14 +94,14 @@ def _matching(value1, value2, factor=85):
 	fuzzy.append(fuzz.token_set_ratio(value1, value2))
 	fuzzy.append(fuzz.token_sort_ratio(value1, value2))
 
-	log.verbose("=" * 50)
-	log.verbose('Fuzzy Compare: {} - {}'.format(value1, value2))
-	log.verbose("-" * 50)
-	log.verbose('{}: Simple Ratio'.format(fuzzy[0]))
-	log.verbose('{}: Partial Ratio'.format(fuzzy[1]))
-	log.verbose('{}: Token Set Ratio'.format(fuzzy[2]))
-	log.verbose('{}: Token Sort Ratio'.format(fuzzy[3]))
-	log.verbose(any([fr > factor for fr in fuzzy]))
+	log.trace("=" * 50)
+	log.trace('Fuzzy Compare: {} - {}'.format(value1, value2))
+	log.trace("-" * 50)
+	log.trace('{}: Simple Ratio'.format(fuzzy[0]))
+	log.trace('{}: Partial Ratio'.format(fuzzy[1]))
+	log.trace('{}: Token Set Ratio'.format(fuzzy[2]))
+	log.trace('{}: Token Sort Ratio'.format(fuzzy[3]))
+	log.trace(any([fr > factor for fr in fuzzy]))
 
 	return any([fr >= factor for fr in fuzzy])
 
@@ -210,7 +210,7 @@ class SeriesInfo(Library):
 			sys.exit(8)
 		except:
 			an_error = traceback.format_exc()
-			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+			log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
 			raise
 
 		if self.args.get_episodes:
@@ -258,7 +258,7 @@ class SeriesInfo(Library):
 					raise GetOutOfLoop
 #				except:
 #					an_error = traceback.format_exc()
-#					log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+#					log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
 #					raise
 			if any([key in SeriesDetails for key in ['tvrage_id', 'tvdb_id']]):
 				raise GetOutOfLoop
@@ -340,7 +340,7 @@ class SeriesInfo(Library):
 				_candidates[_series.title] = _series
 		except (TVDBAttributeError, TVDBIndexError, TVDBValueError):
 			an_error = traceback.format_exc()
-			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+			log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
 			raise SeriesNotFound
 
 		if not _candidates:
@@ -382,7 +382,7 @@ class SeriesInfo(Library):
 						_candidates[_series.title] = _series
 		except ShowNotFound:
 			an_error = traceback.format_exc()
-			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+			log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
 			raise SeriesNotFound
 
 		if not _candidates:
@@ -513,7 +513,7 @@ class SeriesInfo(Library):
 		except IndexError:
 			an_error = traceback.format_exc()
 			sys.exc_clear()
-#			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+#			log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
 
 		return series_name
 
@@ -568,7 +568,7 @@ class SeriesInfo(Library):
 	def _build_tvseason_tvdb(self, _series, SeriesDetails):
 		_seasons = {}
 		for _season in _series:
-			_season_number = u'<Season {0:04}>'.format(_season.season_number)
+			_season_number = u'<Season {0:02}>'.format(_season.season_number)
 			_myseason = {"season": _season.season_number}
 			_myseason['episodes'] = {}
 			for _episode in _season:

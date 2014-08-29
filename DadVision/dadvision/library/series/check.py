@@ -55,14 +55,14 @@ def _matching(value1, value2, factor=85):
 	fuzzy.append(fuzz.token_set_ratio(value1, value2))
 	fuzzy.append(fuzz.token_sort_ratio(value1, value2))
 
-	log.verbose("=" * 50)
-	log.verbose('Fuzzy Compare: {} - {}'.format(value1, value2))
-	log.verbose("-" * 50)
-	log.verbose('{}: Simple Ratio'.format(fuzzy[0]))
-	log.verbose('{}: Partial Ratio'.format(fuzzy[1]))
-	log.verbose('{}: Token Set Ratio'.format(fuzzy[2]))
-	log.verbose('{}: Token Sort Ratio'.format(fuzzy[3]))
-	log.verbose(any([fr > factor for fr in fuzzy]))
+	log.trace("=" * 50)
+	log.trace('Fuzzy Compare: {} - {}'.format(value1, value2))
+	log.trace("-" * 50)
+	log.trace('{}: Simple Ratio'.format(fuzzy[0]))
+	log.trace('{}: Partial Ratio'.format(fuzzy[1]))
+	log.trace('{}: Token Set Ratio'.format(fuzzy[2]))
+	log.trace('{}: Token Sort Ratio'.format(fuzzy[3]))
+	log.verbose('Match {}: {}'.format(any([fr > factor for fr in fuzzy]), fuzzy))
 
 	return any([fr > factor for fr in fuzzy])
 
@@ -143,7 +143,7 @@ class CheckSeries(Library):
 				_tv_series = self.seriesinfo.getShowInfo({'SeriesName': _show_name}, sources=['tvdb'])['TVSeries']
 			except (SeriesNotFound, EpisodeNotFound):
 				an_error = traceback.format_exc()
-				log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+				log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
 				log.warn("Skipping series: %s" % (_show_name))
 
 			date_boundry = date.today() - timedelta(days=self.args.age_limit)
@@ -171,7 +171,7 @@ class CheckSeries(Library):
 			if _total_missing > 0:
 				log.warning(message)
 			else:
-				log.info(message)
+				log.verbose(message)
 
 			season_message = "         Season: {}  Episode: ALL"
 			message = "         Season: {}  Episode: {}  Aired: {} Title: {}"
@@ -180,7 +180,7 @@ class CheckSeries(Library):
 				_episodes = _tv_series.seasons[_season_number].episodes
 				_season_num_msg = "S%2.2d" % key
 				if len(val) == len(_episodes):
-					log.error(season_message.format(_season_num_msg))
+					log.warning(season_message.format(_season_num_msg))
 				else:
 					for _ep_no in sorted(val):
 						_ep_no_fmt = "E%2.2d" % _ep_no
@@ -189,7 +189,7 @@ class CheckSeries(Library):
 							_first_aired = _episode.first_aired
 						else:
 							_first_aired = "Unknown"
-						log.error(message.format(_episode.episode,
+						log.warning(message.format(_episode.episode,
 												 _ep_no,
 												 _first_aired,
 												 _episode.title.encode('utf8', 'replace').replace("&amp;", "&")))
@@ -386,7 +386,7 @@ class CheckSeries(Library):
 #						os.remove(delete['file'])
 					except OSError:
 						an_error = traceback.format_exc()
-						log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+						log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
 						_delete = 'e'
 				elif _delete == '1':
 					try:
@@ -394,7 +394,7 @@ class CheckSeries(Library):
 #						os.remove(keep['file'])
 					except OSError:
 						an_error = traceback.format_exc()
-						log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+						log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
 						_delete = 'e'
 			else:
 				while _delete.lower() not in ['y', 'n']:
@@ -407,7 +407,7 @@ class CheckSeries(Library):
 						os.remove(delete['file'])
 					except OSError:
 						an_error = traceback.format_exc()
-						log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+						log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
 						_delete = 'e'
 
 		root_logger.disabled = False

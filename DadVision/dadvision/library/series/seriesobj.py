@@ -166,7 +166,7 @@ class TVSeason(object):
 		pass
 
 	def __str__(self):
-		title = '<TVSeason>: {0}  Season: {1:04d}'.format(self.series, self.season)
+		title = '<TVSeason>: {0}  Season: {1:2d}'.format(self.series, self.season)
 		title = map(str, title)
 		return ' '.join(title)
 	__repr__ = __str__
@@ -190,7 +190,7 @@ class TVEpisode(object):
 		pass
 
 	def __repr__(self):
-		return '<TVEpisode>: {0} S{1:04d}E{2:02d} {3}'.format(self.series, self.season,
+		return '<TVEpisode>: {0} S{1:02d}E{2:02d} {3}'.format(self.series, self.season,
 												  self.episode, self.title)
 	__str__ = __repr__
 
