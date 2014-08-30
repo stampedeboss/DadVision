@@ -287,7 +287,7 @@ class RenameSeries(Library):
 		if not self.dup_queue: return False
 		_last_file = self._clean_out_queue(file_details['top_show'])
 
-		if _last_file is None:
+		if _last_file is None or file_details['FileName'] == _last_file:
 			return False
 
 		_selected_file = self._evaluate_keeper(file_details['FileName'],
