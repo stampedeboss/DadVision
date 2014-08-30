@@ -51,7 +51,7 @@ class TVSeries(object):
 		self.network = None
 		self.aliasnames = None
 		attrs = ['tvdb_id', 'tvrage_id', 'imdb_id', 'IMDB_ID', 'seasons', 'year',
-		        'started', 'ended', 'country', 'network', 'Network', 'AliasNames']
+		        'started', 'ended', 'country', 'network', 'Network', 'AliasNames', 'top_show']
 		if len(kwargs) > 0:
 			for key, val in kwargs.items():
 				if key in ['seriesdetails']:
@@ -144,7 +144,10 @@ class TVSeries(object):
 
 	def __str__(self):
 		"""Return a string representation of a :class:`TVShow`"""
-		return '<TVSeries> {}'.format(self.title.encode('ascii', 'ignore'))
+		header = '<TVSeries>'
+	 	header = map(str, header)
+	 	header = ' '.join(header)
+		return '{}: {}'.format(header, self.title.encode('ascii', 'ignore'))
 	__repr__ = __str__
 
 
@@ -166,9 +169,10 @@ class TVSeason(object):
 		pass
 
 	def __str__(self):
-		title = '<TVSeason>: {0}  Season: {1:2d}'.format(self.series, self.season)
-		title = map(str, title)
-		return ' '.join(title)
+		header = '<TVSeason>'
+	 	header = map(str, header)
+	 	header = ' '.join(header)
+		return '{0}: {1}  Season: {2:2d}'.format(header, self.series, self.season)
 	__repr__ = __str__
 
 

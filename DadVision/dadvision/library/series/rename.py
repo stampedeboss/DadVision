@@ -9,16 +9,14 @@ Program to rename and update Modification Time to Air Date
 """
 from library import Library
 from common import logger
-from common.exceptions import (DataRetrievalError, EpisodeNotFound,
-	SeriesNotFound, DuplicateFilesFound, InvalidFilename, RegxSelectionError,
-	ConfigValueError, UnexpectedErrorOccured, DuplicateRecord, InvalidPath)
+from common.exceptions import (EpisodeNotFound, SeriesNotFound,
+	DataRetrievalError, DuplicateFilesFound, InvalidFilename, RegxSelectionError,
+	UnexpectedErrorOccured, InvalidPath)
 from common.chkvideo import chkVideoFile
 from library.series.fileparser import FileParser
 from library.series.seriesinfo import SeriesInfo
-from common.cmdoptions import CmdOptions
 from exceptions import IOError
 import datetime
-import filecmp
 import fnmatch
 import logging
 import os
@@ -30,6 +28,9 @@ import sqlite3
 import socket
 import traceback
 import shutil
+
+import trakt
+from trakt.users import User
 
 __pgmname__ = 'rename'
 __version__ = '$Rev$'
@@ -75,6 +76,7 @@ def _del_dir(pathname, Tree=False, base_dir='/srv/DadVision/Series/New/'):
 			while _curr_dir != _base_dir:
 				if len(os.listdir(_curr_dir)) != 0: return
 				os.rmdir(pathname)
+				log.verbose('Deleting Directory as Requested: {}'.format(pathname))
 				_curr_dir = os.path.dirname(_curr_dir)
 	except:
 		log.warn('Delete Directory: Unable to Delete requested directory: %s' % (sys.exc_info()[1]))
@@ -90,7 +92,7 @@ def _del_file(pathname):
 		raise InvalidPath('Path was requested for deletion: {}'.format(pathname))
 
 	try:
-		log.info('Deleting File as Requested: {}'.format(pathname))
+		log.verbose('Deleting File as Requested: {}'.format(pathname))
 		os.remove(pathname)
 	except:
 		log.warn('Delete File: Unable to Delete requested file: %s' % (sys.exc_info()[1]))
@@ -120,8 +122,6 @@ class RenameSeries(Library):
 		self.seriesinfo = SeriesInfo()
 		self.parser = FileParser()
 
-		self.xbmc_update_required = False
-
 		self.regex_repack = re.compile('^.*(repack|proper).*$', re.IGNORECASE)
 		self.check_suffix = re.compile('^(?P<seriesname>.+?)[ \._\-](?P<year>[0-9][0-9][0-9][0-9]|US|us|Us)$', re.VERBOSE)
 		self.regex_SeriesDir = re.compile('^{}.*$'.format(self.settings.SeriesDir), re.IGNORECASE)
@@ -129,6 +129,10 @@ class RenameSeries(Library):
 #        self.check_US = re.compile('^(?P<seriesname>.+?)[ \._\-](?P<country>US)$', re.VERBOSE)
 
 		self.hostname = socket.gethostname()
+		self.xbmc_update_required = False
+
+		self.dup_queue = []
+		self.dup_better_queue = []
 
 		return
 
@@ -182,7 +186,7 @@ class RenameSeries(Library):
 		else:
 			raise InvalidFilename('Invalid Request, Neither File or Directory: %s' % pathname)
 
-	def _rename_file(self, pathname):
+	def _rename_file(self, pathname, bypass_dup_check=False):
 
 		if self.args.check_video:
 			if chkVideoFile(pathname):
@@ -195,37 +199,42 @@ class RenameSeries(Library):
 			_dir_details = self.parser.getFileDetails(os.path.join(os.path.dirname(pathname), 'E01.txt'))
 			_file_details['SeriesName'] = _dir_details['SeriesName']
 			_file_details = self.seriesinfo.getShowInfo(_file_details)
-#			log.error('Unable to Rename File: {}'.format(msg))
-#			raise
 
 		_new_name, _file_details = self.getFileName(_file_details)
 
 		_season_folder = os.path.dirname(_new_name)
 		_series_folder = os.path.dirname(_season_folder)
+		_file_exists = False
 		try:
 			if os.path.exists(_season_folder):
-				if self._handle_dups(_file_details, _new_name):
-					return
+				if not bypass_dup_check:
+					_file_exists = self._check_for_dups(_file_details, _new_name)
 			else:
 				os.makedirs(_season_folder)
 				os.chmod(_season_folder, 0775)
 				os.chown(_season_folder, 1000, 100)
 				os.chmod(_series_folder, 0775)
 				os.chown(_series_folder, 1000, 100)
-			os.rename(_file_details['FileName'], _new_name)
-			os.chmod(_new_name, 0664)
-			os.chown(_new_name, 1000, 100)
+			if _file_exists:
+				log.info('Updated: SERIES: {}'.format(_file_details['SeriesName']))
+				log.info('Updated: SEASON: {}'.format(_file_details['SeasonNum']))
+				log.info('Updated:   FILE: {}'.format(os.path.basename(_new_name)))
+			else:
+				os.rename(_file_details['FileName'], _new_name)
+				os.chmod(_new_name, 0664)
+				os.chown(_new_name, 1000, 100)
+				log.info('Renamed: SERIES: {}'.format(_file_details['SeriesName']))
+				log.info('Renamed: SEASON: {}'.format(_file_details['SeasonNum']))
+				log.info('Renamed:   FILE: {}'.format(os.path.basename(_new_name)))
+				log.info('Renamed: CURRENT {}'.format(os.path.basename(_file_details['FileName'])))
 		except OSError:
 			an_error = traceback.format_exc(1)
 			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
 			raise InvalidFilename(an_error)
 
-		log.info('Renamed: SERIES: {}'.format(_file_details['SeriesName']))
-		log.info('Renamed: SEASON: {}'.format(_file_details['SeasonNum']))
-		log.info('Renamed:   FILE: {}'.format(os.path.basename(_new_name)))
-		log.info('Renamed: CURRENT {}'.format(os.path.basename(_file_details['FileName'])))
-
 		self._update_date(_file_details, _new_name)
+		if os.path.exists(_file_details['FileName']) and self.args.force_delete:
+			_del_file(_file_details['FileName'])
 		_del_dir(os.path.dirname(_file_details['FileName']))
 		self.xbmc_update_required = True
 
@@ -266,137 +275,108 @@ class RenameSeries(Library):
 
 		return _new_name, _file_details
 
-	def _handle_dups(self, file_details, _new_name):
+	def _check_for_dups(self, file_details, _new_name):
 
-		_title_new, _ext_new = os.path.splitext(os.path.basename(_new_name))
-		_ext_new = _ext_new[1:].lower()
-		_ep_new, _title_new = _title_new.split(None, 1)
+		_directory = os.path.dirname(_new_name)
+		_title_new = os.path.splitext(os.path.basename(_new_name))[0]
+		_ep_new = _title_new.split(None, 1)[0]
 
-		options = {'avi': self._new_avi,
-				   'mkv': self._new_mkv,
-				   'mp4': self._new_mp4
-		}
+		for _file in [f for f in os.listdir(_directory) if f.split(None, 1)[0] == _ep_new]:
+			self.dup_queue.append(os.path.join(_directory, _file))
 
-		_skip_rename = False
-		for _file in [f for f in os.listdir(os.path.dirname(_new_name)) if f.startswith(_ext_new)]:
-			_title_cur, _ext_cur = os.path.splitext(_file)
-			_ext_cur = _ext_cur[1:].lower()
-			if re.search(r"\s", _title_cur):
-				_ep_cur, _title_cur = _title_cur.split(None, 1)
+		if not self.dup_queue: return False
+		_last_file = self._clean_out_queue(file_details['top_show'])
+
+		if _last_file is None:
+			return False
+
+		_selected_file = self._evaluate_keeper(file_details['FileName'],
+		                                       _last_file,
+		                                       file_details['top_show'] )
+
+		if _selected_file == file_details['FileName']:
+			_del_file(_last_file)
+			return False
+		else:
+			if os.path.splitext(os.path.basename(_selected_file))[0] != _title_new:
+				self._rename_file(_selected_file, bypass_dup_check=True)
+
+		return True
+
+	def _evaluate_keeper(self, file_1, file_2, top_show):
+
+		_ext_1 = os.path.splitext(os.path.basename(file_1))[1][1:].lower()
+		_ext_2 = os.path.splitext(os.path.basename(file_2))[1][1:].lower()
+
+		if _ext_1 == _ext_2:
+			if self.regex_repack.search(file_1):
+				return file_1
+			elif self.regex_repack.search(file_2):
+				return file_2
+		if _ext_1 == 'avi':
+			if _ext_2 in ['avi']:
+				if os.path.getsize(file_1) < os.path.getsize(file_2): return file_2
+				else: return file_1
+			if _ext_2 in ['mp4', 'mkv']: return file_2
+			if _ext_2 in ['bup', 'divx', 'ifo', 'mpeg', 'mpg', 'img', 'iso', 'vob', '3gp', 'ts']:
+				if os.path.getsize(file_1) > 100000000: return file_1
+				else: return file_2
+		elif _ext_1 == 'mp4':
+			if top_show and _ext_2 in ['mkv']: return file_2
+			if _ext_2 in ['mp4']:
+				if os.path.getsize(file_1) < os.path.getsize(file_2): return file_2
+			return file_1
+		elif _ext_1 == 'mkv':
+			if not top_show and _ext_2 in ['mp4']: return file_2
+			if _ext_2 in ['mkv']:
+				if os.path.getsize(file_1) < os.path.getsize(file_2): return file_2
+			return file_1
+		elif _ext_2 in ['mp4', 'mkv', 'avi']:
+			return file_2
+		else:
+			return file_1
+
+	def _clean_out_queue(self, top_show):
+
+		if len(self.dup_queue) == 1: return self.dup_queue.pop()
+
+		if top_show:
+			_desired_quality = ['mkv']
+			_acceptable_quality = ['mp4', 'avi']
+		else:
+			_desired_quality = ['mp4']
+			_acceptable_quality = ['mkv', 'avi']
+
+		_available = [x for x in self.dup_queue if os.path.splitext(x)[1][1:] in _desired_quality]
+		if not _available:
+			_available = [x for x in self.dup_queue if os.path.splitext(x)[1][1:] in _acceptable_quality]
+
+		while len(self.dup_queue) > 0:
+			_file_1 = self.dup_queue.pop()
+			if _file_1 not in _available:
+				_del_file(_file_1)
+
+		if not _available:
+			return None
+
+		if len(_available) == 1: return _available[0]
+
+		_file_1 = _available.pop()
+		while len(_available) > 0:
+			_file_2 = _available.pop()
+			_selected_file = self._evaluate_keeper(_file_1,
+			                                       _file_2,
+			                                       top_show )
+			if _selected_file == _file_2:
+				_del_file(_file_1)
+				_file_1 = _file_2
 			else:
-				_ep_cur = _title_cur
-				_title_cur = ' '
+				_del_file(_file_2)
 
-			# If not same episode, continue
-			if _ep_new != _ep_cur: continue
-
-			if _ext_new == _ext_cur:
-				if os.path.dirname(_new_name) == os.path.dirname(file_details['FileName']):
-					if _title_new == _title_cur:
-						log.info('Exists, Updating Timestamp')
-						log.info('   Series: {}'.format(file_details['SeriesName']))
-						log.info('   Season: {}  Episode: {}'.format(file_details['SeasonNum'], file_details['EpisodeNumFmt']))
-						self._update_date(file_details, _new_name)
-						_skip_rename = True
-						continue
-					else:
-						if os.path.exists(_new_name):
-							_del_file(os.path.join(os.path.dirname(_new_name), _file))
-							continue
-				else:
-					if os.path.getsize(file_details['FileName']) > os.path.getsize(os.path.join(os.path.dirname(_new_name), _file)):
-						_del_file(os.path.join(os.path.dirname(_new_name), _file))
-						continue
-
-					if self.args.force_rename:
-						_del_file(os.path.join(os.path.dirname(_new_name), _file))
-						continue
-
-					if _title_new != _title_cur:
-						self._rename_file(os.path.join(os.path.dirname(_new_name), _file))
-
-					if self.args.force_delete:
-						log.info("Deleting %r, already at destination!" % (os.path.split(file_details['FileName'])[1],))
-						_del_file(file_details['FileName'])
-						_del_dir(os.path.dirname(file_details['FileName']))
-					_skip_rename = True
-					continue
-
-			try:
-				_skip_rename = options[_ext_new](_ext_new,
-												 _ext_cur,
-												 _title_new,
-												 _title_cur,
-												 _file,
-												 _new_name,
-												 file_details['FileName'],
-												 _skip_rename
-				)
-			except KeyError:
-				_skip_rename = self.new_other(_ext_new,
-											  _ext_cur,
-											  _title_new,
-											  _title_cur,
-											  _file,
-											  _new_name,
-											  file_details['FileName'],
-											  _skip_rename
-				)
-
-		return _skip_rename
-
-	def _new_avi(self, _ext_new, _ext_cur, _title_new, _title_cur, _file, _new_name, _cur_name, _skip_rename):
-		if _ext_cur in ['mkv', 'mp4', 'm2ts', 'm4v', 'ts']:
-			_del_file(_cur_name)
-			_del_dir(os.path.dirname(_cur_name))
-			if _title_new != _title_cur:
-				self. _rename_file(os.path.join(os.path.dirname(_new_name), _file))
-			_skip_rename = True
-			return _skip_rename
-		if _ext_cur in ['bup', 'ifo', 'vob', 'img', 'iso']:
-			if os.path.getsize(_cur_name) > 100000000:
-				_del_file(os.path.join(os.path.dirname(_new_name), _file))
-			else:
-				_del_file(_cur_name)
-				_del_dir(os.path.dirname(_cur_name))
-				_skip_rename = True
-				if _title_new != _title_cur and _ext_cur in ['img', 'iso']:
-					self. _rename_file(os.path.join(os.path.dirname(_new_name), _file))
-		else:
-			_del_file(os.path.join(os.path.dirname(_new_name), _file))
-
-		return _skip_rename
-
-	def _new_mp4(self, _ext_new, _ext_cur, _title_new, _title_cur, _file, _new_name, _cur_name, _skip_rename):
-		if _ext_cur in ['mkv', 'mp4', 'm2ts', 'ts']:
-			_del_file(_cur_name)
-			_del_dir(os.path.dirname(_cur_name))
-			if _title_new != _title_cur:
-				self. _rename_file(os.path.join(os.path.dirname(_new_name), _file))
-			_skip_rename = True
-			return _skip_rename
-		else:
-			_del_file(os.path.join(os.path.dirname(_new_name), _file))
-		return _skip_rename
-
-	def _new_mkv(self, _ext_new, _ext_cur, _title_new, _title_cur, _file, _new_name, _cur_name, _skip_rename):
-
-		_del_file(os.path.join(os.path.dirname(_new_name), _file))
-		return _skip_rename
-
-	def _new_other(self, _ext_new, _ext_cur, _title_new, _title_cur, _file, _new_name, _cur_name, _skip_rename):
-		if _ext_cur in ['mkv', 'mp4', 'm2ts', 'ts', 'avi']:
-			_del_file(_cur_name)
-			_del_dir(os.path.dirname(_cur_name))
-			if _title_new != _title_cur:
-				self. _rename_file(os.path.join(os.path.dirname(_new_name), _file))
-			_skip_rename = True
-			return _skip_rename
-		else:
-			_del_file(os.path.join(os.path.dirname(_new_name), _file))
-		return _skip_rename
+		return _file_1
 
 	def _update_date(self, file_details, new_name):
+
 		if 'DateAired' not in file_details:
 			log.warn('_update_date: Unable to update the Date Aired, Missing Information')
 			return

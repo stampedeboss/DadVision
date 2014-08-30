@@ -5,16 +5,15 @@ Purpose:
 		Configuration and Run-time settings for the XBMC Support Programs
 """
 from library import Library
-from pytvdbapi.error import TVDBAttributeError, TVDBIndexError, TVDBValueError
+from common import logger
 from common.exceptions import InvalidArgumentType, InvalidArgumentValue, DictKeyError, DataRetrievalError
 from common.exceptions import SeriesNotFound, EpisodeNotFound
 from library.series.seriesobj import TVSeries, TVSeason, TVEpisode
-from common import logger
+from pytvdbapi.error import TVDBAttributeError, TVDBIndexError, TVDBValueError
 from fuzzywuzzy import fuzz
 import common
 import datetime
 import difflib
-import errno
 import logging
 import os.path
 import re
@@ -24,15 +23,13 @@ import unicodedata
 import traceback
 
 import trakt
-from trakt.users import User, UserList
-from trakt.tv import TVShow #, TVSeason, TVEpisode, trending_shows, TraktRating, TraktStats, rate_shows, rate_episodes, genres, get_recommended_shows, dismiss_recommendation
+from trakt.users import User
+from trakt.tv import TVShow
 
 from pytvdbapi import api, error
-from TVRage import TVRage
 
 from tvrage import feeds
 from tvrage.exceptions import ShowHasEnded, NoNewEpisodesAnnounced, FinaleMayNotBeAnnouncedYet, ShowNotFound
-from tvrage.api import Show, Season, Episode
 from xml.etree.ElementTree import tostring, tostringlist
 
 __pgmname__ = 'seriesinfo'
@@ -145,9 +142,15 @@ class SeriesInfo(Library):
 				help="Information to come from trakt.tv")
 
 		self.db = api.TVDB("959D8E76B796A1FB")
-		self.tvrage = TVRage(api_key='XwJ7KGdTfep9EpsZBf8m')
+
+		trakt.api_key = self.settings.TraktAPIKey
+		trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
+		self.trakt_user = User(self.settings.TraktUserID)
+
+#		self.tvrage = TVRage(api_key='XwJ7KGdTfep9EpsZBf8m')
 
 		self._check_suffix = re.compile('^(?P<SeriesName>.*)[ \._\-][\(]?(?P<Suffix>(?:19|20)\d{2}|us).*$', re.I)
+
 		self.confidenceFactor = 90
 		self.last_request = {'LastRequestName': ''}
 
@@ -283,9 +286,6 @@ class SeriesInfo(Library):
 		return SeriesDetails
 
 	def _get_trakt_id(self, series_name, **kwargs):
-
-		trakt.api_key = self.settings.TraktAPIKey
-		trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
 
 		_results = {}
 		show = TVShow(series_name)
@@ -494,6 +494,11 @@ class SeriesInfo(Library):
 		if 'source' not in results:
 			results['SeriesName'] = series.title
 			results['source'] = [source]
+			_trakt_top_shows = self.trakt_user.get_list('topshows')
+			_trakt_top_shows_names = {_item.title: _item for _item in _trakt_top_shows.items}
+			results['top_show'] = False
+			if series.title in _trakt_top_shows_names:
+				results['top_show'] = True
 		if series.tvdb_id and 'tvdb_id' not in results:
 			results['tvdb_id'] = series.tvdb_id
 			#TODO: Delete	results['TVDBSeriesID'] = series.tvdb_id
@@ -503,6 +508,7 @@ class SeriesInfo(Library):
 			results['tvrage_id'] = series.tvrage_id
 		if series.status and 'status' not in results:
 			results['status'] = series.status
+
 		return results
 
 	def _check_for_alias(self, series_name):
@@ -680,105 +686,23 @@ class SeriesInfo(Library):
 					_myepisode['special'] = False
 				_my_tv_episode = TVEpisode(series=SeriesDetails['SeriesName'], **_myepisode)
 				_myseason['episodes'][_episode_number] = _my_tv_episode
+
+
 			_my_tv_season = TVSeason(series=SeriesDetails['SeriesName'], **_myseason)
 			_seasons[_season_number] = _my_tv_season
 		return _seasons
 
-	def check_series_name(self, pathname):
-		log.trace("="*30)
-		log.trace("check_movie_names method: pathname:{}".format(pathname))
-
-		self.regex_repack = re.compile('^.*(repack|proper).*$', re.IGNORECASE)
-
-		pathname = os.path.abspath(pathname)
-
-		if os.path.isfile(pathname):
-			log.debug("-"*30)
-			log.debug("Series Directory: %s" % os.path.split(pathname)[0])
-			log.debug("Series Filename:  %s" % os.path.split(pathname)[1])
-			self.check_file(pathname)
-		elif os.path.isdir(pathname):
-			log.debug("-"*30)
-			log.debug("Series Directory: %s" % pathname)
-			for _root, _dirs, _files in os.walk(os.path.abspath(pathname)):
-				_dirs.sort()
-				for _dir in _dirs[:]:
-					# Process Enbedded Directories
-					if _ignored(_dir):
-						_dirs.remove(_dir)
-
-				_files.sort()
-				for _file in _files:
-					# _path_name = os.path.join(_root, _file)
-					log.trace("Series Filename: %s" % _file)
-					if _ignored(_file):
-						continue
-					self.check_file(_root, _file)
-		return None
-
-	def check_file(self, directory, filename):
-		pathname = os.path.join(directory, filename)
-		try:
-			# Get File Details
-			_last_series = self.last_request['LastRequestName']
-			_parse_details = parser.getFileDetails(pathname)
-			_seriesinfo_answer = parser.getFileDetails(pathname)
-			_seriesinfo_answer = library.getShowInfo(_seriesinfo_answer)
-		except Exception:
-			an_error = traceback.format_exc()
-			log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
-			sys.exc_clear()
-			return
-
-		log.trace('processing: {} vs {}'.format(_parse_details['SeriesName'], _seriesinfo_answer['SeriesName']))
-		if _parse_details['SeriesName'] != _seriesinfo_answer['SeriesName']:
-			if _last_series != _parse_details['SeriesName']:
-				log.info('-'*40)
-				log.info('Rename Required: {} (Current)'.format(_parse_details['SeriesName']))
-				log.info('                 {} (Correct)'.format(_seriesinfo_answer['SeriesName']))
-
-		if not library.args.quick:
-			_seriesinfo_answer['EpisodeNumFmt'] = rename._format_episode_numbers(_seriesinfo_answer)
-			_seriesinfo_answer['EpisodeTitle'] = rename._format_episode_name(_seriesinfo_answer['EpisodeData'], join_with=self.settings.ConversionsPatterns['multiep_join_name_with'])
-	#		_seriesinfo_answer['DateAired'] = rename._get_date_aired(_seriesinfo_answer)
-			_seriesinfo_answer['BaseDir'] = self.settings.SeriesDir
-
-			_repack = self.regex_repack.search(pathname)
-			if _repack: pathname_2 = self.settings.ConversionsPatterns['proper_fqn'] % _seriesinfo_answer
-			else: pathname_2 = self.settings.ConversionsPatterns['std_fqn'] % _seriesinfo_answer
-			if pathname != pathname_2:
-				if os.path.basename(pathname) != os.path.basename(pathname_2):
-					log.info('-'*40)
-					log.info('{} (Series)'.format(_seriesinfo_answer['SeriesName']))
-					log.info('Rename Required: {} (Correct)'.format(os.path.basename(pathname_2)))
-					log.info('                 {} (Current)'.format(filename))
-
-		s = pathname.decode('ascii', 'ignore')
-		if s != pathname:
-			log.warning('INVALID CHARs: {} vs {}'.format(pathname - s, pathname))
-
-
-	def check_series_name_quick(self, pathname):
-		log.trace("="*30)
-		log.trace("check_series_names_quick method: pathname:{}".format(pathname))
-
-		self.regex_repack = re.compile('^.*(repack|proper).*$', re.IGNORECASE)
-		pathname = os.path.abspath(pathname)
-
-		if os.path.isfile(pathname):
-			log.error("-"*30)
-			log.error("File name passed must be Directory:  %s" % pathname)
-			sys.exit()
-
-		log.debug("-"*30)
-		log.debug("Series Directory: %s" % pathname)
-		for _dir in sorted(os.listdir(os.path.abspath(pathname))):
-			if _ignored(_dir):
-					continue
-			_path_name = os.path.join(os.path.abspath(pathname), _dir, 'Season 1')
-			self.check_file(_path_name, 'E01 Test.mkv')
-
-		return None
+def __printAnswer(answer):
+	print '-'*40
+	pp = pprint.PrettyPrinter(indent=1, depth=1)
+	pp.pprint(answer)
+	print '-'*40
+	print '-'*60
+	pp.pprint(answer['TVSeries'])
+	for season, val in sorted(answer['TVSeries'].seasons.iteritems()):
+		pp.pprint(val)
+		for episode, val2 in sorted(val.episodes.iteritems()):
+				pp.pprint(val2)
 
 
 if __name__ == "__main__":
@@ -787,17 +711,14 @@ if __name__ == "__main__":
 
 	log.trace("MAIN: -------------------------------------------------")
 	from library.series.fileparser import FileParser
-	from library.series.rename import RenameSeries
 	import pprint
 
 	library = SeriesInfo()
 	parser = FileParser()
-	rename = RenameSeries()
+
 	__main__group = library.options.parser.add_argument_group("Get SeriesInfo Information Options", description=None)
 	__main__group.add_argument("--Error-Log", dest="errorlog", action="store_true", default=False,
 								help="Create Seperate Log for Errors")
-	__main__group.add_argument("-q", "--quick", dest="quick", action="store_true", default=False,
-								help="Perform Quick Check, only evaluate Show Names")
 
 	Library.args = library.options.parser.parse_args(sys.argv[1:])
 	log.debug("Parsed command line: {!s}".format(library.args))
@@ -816,28 +737,23 @@ if __name__ == "__main__":
 	logger.start(log_file, log_level, timed=False, errorlog=library.args.errorlog)
 
 	myrequest = {}
-	if library.args.season:
-		myrequest['SeasonNum'] = library.args.season
-	if library.args.epno:
-		myrequest['EpisodeNums'] = library.args.epno
-	if library.args.series_name:
-		myrequest['SeriesName'] = library.args.series_name
-		answer = library.getShowInfo(myrequest)
-		print '-'*40
-		pp = pprint.PrettyPrinter(indent=1, depth=1)
-		pp.pprint(answer)
-		print '-'*40
-		print '-'*60
-		pp.pprint(answer['TVSeries'])
-		for season, val in sorted(answer['TVSeries'].seasons.iteritems()):
-			pp.pprint(val)
-			for episode, val2 in sorted(val.episodes.iteritems()):
-				pp.pprint(val2)
-		sys.exit(0)
-
-	elif len(library.args.library) > 0:
+	if len(library.args.library) > 0:
 		for pathname in library.args.library:
-			if library.args.quick:
-				library.check_series_name_quick(pathname)
-			else:
-				library.check_series_name(pathname)
+			myrequest = parser.getFileDetails(pathname)
+			if library.args.series_name:
+				myrequest['SeriesName'] = library.args.series_name
+			if library.args.season:
+				myrequest['SeasonNum'] = library.args.season
+			if library.args.epno:
+				myrequest['EpisodeNums'] = library.args.epno
+				answer = library.getShowInfo(myrequest)
+				__printAnswer(answer)
+	elif library.args.series_name:
+			if library.args.season:
+				myrequest['SeasonNum'] = library.args.season
+			if library.args.epno:
+				myrequest['EpisodeNums'] = library.args.epno
+			if library.args.series_name:
+				myrequest['SeriesName'] = library.args.series_name
+				answer = library.getShowInfo(myrequest)
+				__printAnswer(answer)
