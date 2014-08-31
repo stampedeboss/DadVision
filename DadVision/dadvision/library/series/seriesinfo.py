@@ -251,7 +251,7 @@ class SeriesInfo(Library):
 			for service in _process_order:
 				try:
 					SeriesDetails = options[service](SeriesDetails)
-					if 'tvrage_id' in SeriesDetails:
+					if 'tvdb_id' in SeriesDetails or 'tvrage_id' in SeriesDetails:
 						if 'tvdb_id' not in SeriesDetails and 'tvdb' in _process_order:
 							SeriesDetails = options['tvdb'](SeriesDetails)
 						raise GetOutOfLoop
