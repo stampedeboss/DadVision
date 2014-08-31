@@ -367,7 +367,7 @@ class SeriesInfo(Library):
 			if len(_matches) == 1:
 				_series = TVSeries(tvrage=etree_to_dict(_matches[0])['show'])
 				if _matching(SeriesDetails['SeriesName'].lower(), _series.title.lower(), factor=90):
-					SeriesDetails = self._load_series_info(_series, SeriesDetails)
+					SeriesDetails = self._load_series_info(_series, SeriesDetails, 'tvrage')
 					SeriesDetails['service'] = 'tvrage'
 					return SeriesDetails
 				else:
