@@ -9,7 +9,7 @@ Program to rename and update Modification Time to Air Date
 """
 from library import Library
 from common import logger
-from common.exceptions import (RegxSelectionError, SeriesNotFound, EpisodeNotFound, 
+from common.exceptions import (RegxSelectionError, SeriesNotFound, EpisodeNotFound, DuplicateFilesFound,
 							   FailedVideoCheck, InvalidFilename, UnexpectedErrorOccured, InvalidPath)
 from common.chkvideo import chkVideoFile
 from library.series.fileparser import FileParser
@@ -218,14 +218,14 @@ class RenameSeries(Library):
 			os.chown(_series_folder, 1000, 100)
 
 		if _file_exists:
-			log.info('Updated: SERIES: {}'.format(_file_details['SeriesName']))
+			log.info('SERIES:  {}'.format(_file_details['SeriesName']))
 			log.info('Updated: SEASON: {}'.format(_file_details['SeasonNum']))
 			log.info('Updated:   FILE: {}'.format(os.path.basename(_new_name)))
 		else:
 			os.rename(_file_details['FileName'], _new_name)
 			os.chmod(_new_name, 0664)
 			os.chown(_new_name, 1000, 100)
-			log.info('Renamed: SERIES: {}'.format(_file_details['SeriesName']))
+			log.info('SERIES:  {}'.format(_file_details['SeriesName']))
 			log.info('Renamed: SEASON: {}'.format(_file_details['SeasonNum']))
 			log.info('Renamed:   FILE: {}'.format(os.path.basename(_new_name)))
 			log.info('Renamed: CURRENT {}'.format(os.path.basename(_file_details['FileName'])))
@@ -261,7 +261,7 @@ class RenameSeries(Library):
 	def getFileName(self, _file_details):
 
 		_file_details['EpisodeNumFmt'] = self._format_episode_numbers(_file_details)
-		_file_details['EpisodeTitle'] = self._format_episode_name(_file_details['EpisodeData'], 
+		_file_details['EpisodeTitle'] = self._format_episode_name(_file_details['EpisodeData'],
 																  join_with=self.settings.ConversionsPatterns['multiep_join_name_with'])
 		_file_details['DateAired'] = self._get_date_aired(_file_details)
 		_file_details['BaseDir'] = self.settings.SeriesDir
@@ -280,6 +280,13 @@ class RenameSeries(Library):
 		_title_new = os.path.splitext(os.path.basename(_new_name))[0]
 		_ep_new = _title_new.split(None, 1)[0]
 
+		for _file in [f for f in os.listdir(_directory)
+		              if f.split(None, 1)[0] == _ep_new and os.path.join(_directory, f) != file_details['FileName']]:
+			self.dup_queue.append(os.path.join(_directory, _file))
+
+		if not self.dup_queue: return False
+
+		_min_met = False
 		if file_details['top_show']:
 			_desired_quality = ['mkv']
 			_acceptable_quality = ['mp4', 'avi']
@@ -287,19 +294,11 @@ class RenameSeries(Library):
 			_desired_quality = ['mp4']
 			_acceptable_quality = ['mkv', 'avi']
 
-		if _ep_new in _desired_quality:
-		for _file in [f for f in os.listdir(_directory) if f.split(None, 1)[0] == _ep_new]:
-			self.dup_queue.append(os.path.join(_directory, _file))
+		if file_details['Ext'] in _desired_quality + _acceptable_quality:
+			_min_met = True
+		_last_file = self._clean_out_queue(_desired_quality, _acceptable_quality, _min_met)
 
-		if not self.dup_queue: return False
-
-		_last_file = self._clean_out_queue(_desired_quality, _acceptable_quality)
-
-		if _last_file is None:
-			return False 
-
-		if file_details['FileName'] == _last_file:
-			return True
+		if _last_file is None: return False
 
 		_selected_file = self._evaluate_keeper(file_details['FileName'],
 		                                       _last_file,
@@ -347,7 +346,7 @@ class RenameSeries(Library):
 		else:
 			return file_1
 
-	def _clean_out_queue(self, _desired_quality, _acceptable_quality):
+	def _clean_out_queue(self, _desired_quality, _acceptable_quality, _min_met):
 
 		if len(self.dup_queue) == 1: return self.dup_queue.pop()
 
@@ -355,10 +354,18 @@ class RenameSeries(Library):
 		if not _available:
 			_available = [x for x in self.dup_queue if os.path.splitext(x)[1][1:] in _acceptable_quality]
 
-		while len(self.dup_queue) > 0:
-			_file_1 = self.dup_queue.pop()
-			if _file_1 not in _available:
-				_del_file(_file_1)
+		if _min_met:
+			while len(self.dup_queue) > 0:
+				_file_1 = self.dup_queue.pop()
+				if _file_1 not in _available:
+					_del_file(_file_1)
+		elif _available:
+			while len(self.dup_queue) > 0:
+				_file_1 = self.dup_queue.pop()
+				if _file_1 not in _available:
+					_del_file(_file_1)
+		else:
+			raise DuplicateFilesFound
 
 		if not _available:
 			return None

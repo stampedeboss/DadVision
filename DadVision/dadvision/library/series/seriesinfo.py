@@ -205,7 +205,7 @@ class SeriesInfo(Library):
 		except SeriesNotFound:
 			if _suffix:
 				SeriesDetails['SeriesName'] = _suffix.group('SeriesName')
-				SeriesDetails = self._identify_show(SeriesDetails)
+				SeriesDetails = self._identify_show(SeriesDetails, _process_order)
 		except KeyboardInterrupt:
 			sys.exit(8)
 
@@ -284,15 +284,15 @@ class SeriesInfo(Library):
 		except:
 			raise SeriesNotFound('trakt: Unable to connect to trakt service: {}'.format(self.settings.TraktUserID))
 
-		show = TVShow(series_name)
-		if not show.tvdb_id: 
-			raise SeriesNotFound('trakt: Unable to locate series: {}'.format(series_name))
+		show = TVShow(SeriesDetails['SeriesName'])
+		if not show.tvdb_id:
+			raise SeriesNotFound('trakt: Unable to locate series: {}'.format(SeriesDetails['SeriesName']))
 
 		_title = _decode(show.title)
-		if not _matching(series_name.lower(), _title.lower()):
-			raise SeriesNotFound('trakt: Unable to locate series: {}'.format(series_name))
+		if not _matching(SeriesDetails['SeriesName'].lower(), _title.lower()):
+			raise SeriesNotFound('trakt: Unable to locate series: {}'.format(SeriesDetails['SeriesName']))
 
-		if 'source' not in results:
+		if 'source' not in SeriesDetails:
 			SeriesDetails['source'] = 'trakt'
 			SeriesDetails['SeriesName'] = show.title
 
@@ -316,7 +316,7 @@ class SeriesInfo(Library):
 			SeriesDetails['top_show'] = True
 		else:
 			SeriesDetails['top_show'] = False
-			
+
 		return SeriesDetails
 
 	def _get_tvdb_id(self, SeriesDetails):
@@ -329,7 +329,7 @@ class SeriesInfo(Library):
 				_matches = self.db.search(_title_suffix.group('SeriesName'), "en")
 			else:
 				_matches = self.db.search(SeriesDetails['SeriesName'], "en")
-			if not _matches: raise SeriesNotFound
+			if len(_matches) == 0: raise SeriesNotFound
 			if len(_matches) == 1:
 				if _matching(SeriesDetails['SeriesName'].lower(), _decode(_matches[0].SeriesName).lower(), factor=90):
 					_matches[0].update()
@@ -457,6 +457,12 @@ class SeriesInfo(Library):
 
 	def _compare_entries(self, _candidates, SeriesDetails, _series_name, source):
 
+		if _series_name['type'] is 'Country':
+			_candidates_nosuffix = [x for x in _candidates if x.title_type is None and x.title == _series_name['base']]
+			if len(_candidates_nosuffix) == 1:
+				SeriesDetails = self._load_series_info(_candidates_nosuffix[0], SeriesDetails, source)
+				return True, SeriesDetails
+
 		if _series_name['type'] is None:
 			_candidates_suffix = [x for x in _candidates if x.title_type is not None and x.title_base == _series_name['base']]
 			if _candidates_suffix:
@@ -464,13 +470,13 @@ class SeriesInfo(Library):
 		try:
 			for _series in _candidates:
 				if fuzz.ratio(_series.title.lower(), _series_name['title'].lower()) >= 90:
-					_results = self._load_series_info(_series, SeriesDetails, source)
+					SeriesDetails = self._load_series_info(_series, SeriesDetails, source)
 					raise GetOutOfLoop
 
 			for _series in _candidates:
 				if _series_name['type'] is None and _series.title_suffix is None:
 					if fuzz.ratio(_series.title.lower(), _series_name['title'].lower()) >= 90:
-						_results = self._load_series_info(_series, SeriesDetails, source)
+						SeriesDetails = self._load_series_info(_series, SeriesDetails, source)
 						raise GetOutOfLoop
 					else:
 						continue
@@ -514,7 +520,7 @@ class SeriesInfo(Library):
 					results['top_show'] = False
 		except:
 			results['top_show'] = False
-			
+
 		if series.tvdb_id and 'tvdb_id' not in results:
 			results['tvdb_id'] = series.tvdb_id
 		if series.imdb_id and 'imdb_id' not in results:
