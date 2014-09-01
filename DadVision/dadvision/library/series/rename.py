@@ -87,7 +87,6 @@ def _del_dir(pathname, Tree=False, base_dir='/srv/DadVision/Series/New/'):
 def _del_file(pathname, base_dir='/srv/DadVision/Series/New/'):
 	log.trace("_del_file: pathname:{!s}".format(pathname))
 
-	if not re.match('^{}.*'.format(base_dir), pathname): return
 	if os.path.isdir(pathname):
 		raise InvalidPath('Path was requested for deletion: {}'.format(pathname))
 
@@ -132,7 +131,7 @@ class RenameSeries(Library):
 		self.xbmc_update_required = False
 
 		self.dup_queue = []
-		self.dup_better_queue = []
+		self.dup_renamed = None
 
 		return
 
@@ -188,7 +187,7 @@ class RenameSeries(Library):
 		else:
 			raise InvalidFilename('Invalid Request, Neither File or Directory: %s' % pathname)
 
-	def _rename_file(self, pathname, bypass_dup_check=False):
+	def _rename_file(self, pathname):
 
 		if self.args.check_video:
 			if chkVideoFile(pathname):
@@ -208,8 +207,7 @@ class RenameSeries(Library):
 		_file_exists = False
 
 		if os.path.exists(_season_folder):
-			if not bypass_dup_check:
-				_file_exists = self._check_for_dups(_file_details, _new_name)
+			_file_exists = self._check_for_dups(_file_details, _new_name)
 		else:
 			os.makedirs(_season_folder)
 			os.chmod(_season_folder, 0775)
@@ -218,23 +216,34 @@ class RenameSeries(Library):
 			os.chown(_series_folder, 1000, 100)
 
 		if _file_exists:
-			log.info('SERIES:  {}'.format(_file_details['SeriesName']))
+			log.info('SERIES: {}'.format(_file_details['SeriesName']))
 			log.info('Updated: SEASON: {}'.format(_file_details['SeasonNum']))
 			log.info('Updated:   FILE: {}'.format(os.path.basename(_new_name)))
-		else:
+			self._update_date(_file_details, _new_name)
+		elif _file_exists is not None:
 			os.rename(_file_details['FileName'], _new_name)
 			os.chmod(_new_name, 0664)
 			os.chown(_new_name, 1000, 100)
-			log.info('SERIES:  {}'.format(_file_details['SeriesName']))
+			log.info('SERIES: {}'.format(_file_details['SeriesName']))
 			log.info('Renamed: SEASON: {}'.format(_file_details['SeasonNum']))
 			log.info('Renamed:   FILE: {}'.format(os.path.basename(_new_name)))
 			log.info('Renamed: CURRENT {}'.format(os.path.basename(_file_details['FileName'])))
+			self._update_date(_file_details, _new_name)
+			self.xbmc_update_required = True
 
-		self._update_date(_file_details, _new_name)
-		if os.path.exists(_file_details['FileName']) and self.args.force_delete:
-			_del_file(_file_details['FileName'])
-		_del_dir(os.path.dirname(_file_details['FileName']))
-		self.xbmc_update_required = True
+		if os.path.exists(_file_details['FileName']):
+			if _file_exists is None:
+				log.info('SERIES: {}'.format(_file_details['SeriesName']))
+				log.info('Exists: SEASON: {}'.format(_file_details['SeasonNum']))
+				log.info('Exists: FILE: {}'.format(os.path.basename(_new_name)))
+				if self.dup_renamed:
+					log.info('Renamed: FILE: {}'.format(os.path.basename(self.dup_renamed)))
+				if re.match('^{}.*'.format(self.settings.SeriesDir), os.path.dirname(_new_name)):
+					_del_file(_file_details['FileName'])
+			elif self.args.force_delete:
+				_del_file(_file_details['FileName'])
+		else:
+			_del_dir(os.path.dirname(_file_details['FileName']))
 
 		if self.hostname == 'grumpy':
 			try:
@@ -281,7 +290,7 @@ class RenameSeries(Library):
 		_ep_new = _title_new.split(None, 1)[0]
 
 		for _file in [f for f in os.listdir(_directory)
-		              if f.split(None, 1)[0] == _ep_new and os.path.join(_directory, f) != file_details['FileName']]:
+					  if f.split(None, 1)[0] == _ep_new and os.path.join(_directory, f) != file_details['FileName']]:
 			self.dup_queue.append(os.path.join(_directory, _file))
 
 		if not self.dup_queue: return False
@@ -301,17 +310,23 @@ class RenameSeries(Library):
 		if _last_file is None: return False
 
 		_selected_file = self._evaluate_keeper(file_details['FileName'],
-		                                       _last_file,
-		                                       file_details['top_show'] )
+											   _last_file,
+											   file_details['top_show'] )
 
 		if _selected_file == file_details['FileName']:
 			_del_file(_last_file)
-			return False
+			return True
 		else:
+			file_details_new = file_details.copy()
+			file_details_new['FileName'] = _selected_file
+			_new_name, _file_details_new = self.getFileName(file_details_new)
+			_title_new = os.path.splitext(os.path.basename(_new_name))[0]
 			if os.path.splitext(os.path.basename(_selected_file))[0] != _title_new:
-				self._rename_file(_selected_file, bypass_dup_check=True)
-
-		return True
+				os.rename(_selected_file, _new_name)
+				os.chmod(_new_name, 0664)
+				os.chown(_new_name, 1000, 100)
+				self.dup_renamed = _selected_file
+			return None
 
 	def _evaluate_keeper(self, file_1, file_2, top_show):
 
@@ -376,8 +391,8 @@ class RenameSeries(Library):
 		while len(_available) > 0:
 			_file_2 = _available.pop()
 			_selected_file = self._evaluate_keeper(_file_1,
-			                                       _file_2,
-			                                       top_show )
+												   _file_2,
+												   top_show )
 			if _selected_file == _file_2:
 				_del_file(_file_1)
 				_file_1 = _file_2
