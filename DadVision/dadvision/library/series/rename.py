@@ -296,7 +296,7 @@ class RenameSeries(Library):
 
 		if file_details['Ext'] in _desired_quality + _acceptable_quality:
 			_min_met = True
-		_last_file = self._clean_out_queue(_desired_quality, _acceptable_quality, _min_met)
+		_last_file = self._clean_out_queue(_desired_quality, _acceptable_quality, _min_met, file_details['top_show'])
 
 		if _last_file is None: return False
 
@@ -346,7 +346,7 @@ class RenameSeries(Library):
 		else:
 			return file_1
 
-	def _clean_out_queue(self, _desired_quality, _acceptable_quality, _min_met):
+	def _clean_out_queue(self, _desired_quality, _acceptable_quality, _min_met, top_show):
 
 		if len(self.dup_queue) == 1: return self.dup_queue.pop()
 
