@@ -20,6 +20,7 @@ import re
 import shutil
 import subprocess
 import sys
+import traceback
 
 __pgmname__ = 'library.distribute'
 __version__ = '@version: $Rev$'
@@ -97,13 +98,13 @@ class Distribute(Library):
 
         if _fmt == 'file':
             log.trace("%s file - %r..." % (type, pathname))
-			try:
-            	pathname = self._distribute_file(pathname, _dest_dir)
+            try:
+                pathname = self._distribute_file(pathname, _dest_dir)
             except:
-				an_error = traceback.format_exc(1)
-				log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
-				log.error('Distribute skipped for: {}'.format(os.path.basename(pathname))
-				return 
+                an_error = traceback.format_exc(1)
+                log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
+                log.error('Distribute skipped for: {}'.format(os.path.basename(pathname)))
+                return
         elif _fmt == 'dir':  # a folder
             log.trace("%s directory ...%r" % (type, os.path.basename(pathname)))
             _dest_dir = self._distribute_directory(pathname, _dest_dir)
@@ -119,20 +120,20 @@ class Distribute(Library):
             try:
                 self.rename_series.renameSeries(_tgt_rename)
             except:
-				an_error = traceback.format_exc(1)
-				log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
-				log.error('Rename skipped for: {}'.format(os.path.basename(pathname))
-				return 
+                an_error = traceback.format_exc(1)
+                log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
+                log.error('Rename skipped for: {}'.format(os.path.basename(pathname)))
+                return
         elif self.type == "Movie":
             if self.args.suppress_movies:
                log.info('Suppression of Movies Requested: Movie Skipped')
             try:
                 self.rename_movies.renameMovie(_tgt_rename)
             except:
-				an_error = traceback.format_exc(1)
-				log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
-				log.error('Rename skipped for: {}'.format(os.path.basename(pathname)) 
-				return
+                an_error = traceback.format_exc(1)
+                log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
+                log.error('Rename skipped for: {}'.format(os.path.basename(pathname)))
+                return
 
     def _get_type(self, pathname):
         log.trace('_get_type: Pathname: {}'.format(pathname))
@@ -353,8 +354,8 @@ class Distribute(Library):
                             os.rename(os.path.join(dest_dir, _file), os.path.join(dest_dir, _nice_name))
                         except OSError, exc:
                             log.error("Failed to clean up %r to %r (%s)" % (_file, _nice_name, exc))
-							an_error = traceback.format_exc(1)
-							log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
+                            an_error = traceback.format_exc(1)
+                            log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
 
         return
 

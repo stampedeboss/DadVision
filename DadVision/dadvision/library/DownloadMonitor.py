@@ -19,6 +19,7 @@ import logging
 import os
 import pyinotify
 import sys
+import traceback
 
 TRACE = 5
 VERBOSE = 15
@@ -39,8 +40,6 @@ log = logging.getLogger(__pgmname__)
 class MyDaemon(Daemon):
 
 	def __init__(self, pidfile, distribute, stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
-
-		super(MyDaemon, self).__init__()
 
 		self.stdin = stdin
 		self.stdout = stdout
@@ -113,7 +112,11 @@ class PackageHandler(object):
 	def NewDownload(self, pathname):
 		try:
 			self.distribute.distribute(pathname)
-		except
+		except:
+			an_error = traceback.format_exc(1)
+			log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
+			log.error('Rename skipped for: {}'.format(os.path.basename(pathname)))
+
 
 if __name__ == "__main__":
 
