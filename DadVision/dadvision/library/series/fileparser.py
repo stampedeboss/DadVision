@@ -19,7 +19,7 @@ import logging
 import os
 import re
 
-__pgmname__ = 'library.series.fileparser'
+__pgmname__ = 'fileparser'
 __version__ = '$Rev$'
 
 __author__ = "@author: AJ Reynolds"
@@ -107,7 +107,6 @@ class FileParser(Library, dict):
 			else:
 				self.LogHeader = 'RegEx {}'.format(_title)
 				log.verbose('{}: Matched'.format(self.LogHeader))
-				log.verbose(_pattern)
 				return _parse_details
 
 		return None

@@ -430,7 +430,7 @@ class SeriesInfo(Library):
 
 			#Check for imdb_id
 			for _status in _check_order:
-				_candidates = [_series_list[x] for x in _series_list if _series_list[x].status == _status and _series_list[x].imbd_id is not None]
+				_candidates = [_series_list[x] for x in _series_list if _series_list[x].status == _status and _series_list[x].imdb_id is not None]
 				if _candidates:
 					SeriesDetails = self._load_series_info(_candidates[0], SeriesDetails, source)
 					raise GetOutOfLoop
