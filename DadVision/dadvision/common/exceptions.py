@@ -62,14 +62,22 @@ class InvalidArgumentType(BaseDaddyVisionException):
     """Raised when an argument is not expected type of object
     """
     pass
+
 class InvalidArgumentValue(BaseDaddyVisionException):
     """Raised when an argument is not expected value for object
     """
     pass
+
 class NotMediaFile(BaseDaddyVisionException):
     """Raised when an argument is not expected value for object
     """
     pass
+
+class FailedVideoCheck(BaseDaddyVisionException):
+    """Raised when files failed Video Checks.
+    """
+    pass
+
 
 
 # Configuration Exceptions

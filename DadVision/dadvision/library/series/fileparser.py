@@ -12,7 +12,7 @@ Created on Dec 4, 2011
 
 from __future__ import division
 from library import Library
-from common.exceptions import InvalidFilename, RegxSelectionError, SeasonNotFound, EpisodeNotFound
+from common.exceptions import InvalidFilename, RegxSelectionError
 from common import logger
 import datetime
 import logging
@@ -44,7 +44,7 @@ class FileParser(Library, dict):
 
 		self.RegxParse = GetRegx()
 		self.check_suffix = re.compile('^(?P<SeriesName>.+?)[ \._\-](?P<Year>[0-9][0-9][0-9][0-9]|US|us|Us)$', re.VERBOSE)
-		self.regex_SeriesDir = re.compile('^{}$'.format(self.settings.SeriesDir), re.IGNORECASE)
+		self.new_SeriesDir = re.compile('^{}/New/.*$'.format(self.settings.SeriesDir), re.IGNORECASE)
 
 	def getFileDetails(self, fq_name):
 		log.trace("GetFileDetails: File: %s" % (fq_name))
@@ -53,12 +53,12 @@ class FileParser(Library, dict):
 		_check_path = _path
 		_check_name = _file_name
 		_parse_details = None
+
 		while _check_path != os.path.sep:
-			_parse_details = self._parse_file_name(_check_name)
+			_parse_details = self._parse_file_name(os.path.join(_check_path, _check_name))
 			if _parse_details:
 				break
-			_check_path, _new_subname = os.path.split(_check_path)
-			_check_name = os.path.join(_new_subname, _check_name)
+			_check_path = os.path.dirname(_check_path)
 
 		if not _parse_details:
 			_error_msg = "No Matching Regx - Unable to parse Filename: {}".format(fq_name)
@@ -69,45 +69,31 @@ class FileParser(Library, dict):
 		for _key in _parsed_keys:
 			log.debug("{}: {}".format(_key, _parse_details.group(_key)))
 
-		_air_date = ''
+		_series_name = self._get_series_name(_parsed_keys, _parse_details)
+		_season_num = self._get_season_number(_parsed_keys, _parse_details)
+		_episode_nums = self._get_episode_numbers(_parsed_keys, _parse_details)
+		_air_date = self._get_date_aired(_parsed_keys, _parse_details)
+		_ext = self._get_ext(_parsed_keys, _parse_details)
 
-		try:
-			errmsg = '{}: Missing Series Name {}'.format(self.LogHeader, _parse_details)
-			_series_name = self._get_series_name(_parsed_keys, _parse_details)
-			try:
-				_season_num = self._get_season_number(_parsed_keys, _parse_details)
-				errmsg = '{}: Missing Episode Number {}'.format(self.LogHeader, _parse_details)
-				_episode_nums = self._get_episode_numbers(_parsed_keys, _parse_details)
-			except (SeasonNotFound, EpisodeNotFound) as errmsg:
-				errmsg = '{}: Missing Season Number and/or Episode Numbers {}'.format(self.LogHeader, _parse_details)
-				_air_date = self._get_date_aired(_parsed_keys, _parse_details)
-		except InvalidFilename as errmsg:
-			log.trace('{errmsg} Filename: {fq_name}'.format(errmsg, fq_name))
-			raise RegxSelectionError('FileParser: {errmsg} Filename: {fq_name}'.format(errmsg, fq_name))
-
-		if 'Ext' in _parsed_keys:
-			_ext = _parse_details.group('Ext').lower()
-		elif _file_name[-4] == '.':
-			_ext = _file_name[-4:]
-			log.debug('{}: Parse Failed to Locate Extension Using: {}'.format(self.LogHeader, _ext))
-		else:
-			log.trace('{}: Unable to Identify Extension for Filename: {}'.format(self.LogHeader, fq_name))
-			raise RegxSelectionError('FileParser: {}: Unable to Identify Extension for Filename: {}'.format(self.LogHeader, fq_name))
-
-		if self.regex_SeriesDir.match(_check_path):
-			_series_name = _new_subname
+		if not self.new_SeriesDir.match(_check_path):
+			_series_name = os.path.basename(os.path.dirname(_check_path))
 
 		self.File_Details = {}
 		self.File_Details['FileName'] = fq_name
 		self.File_Details['SeriesName'] = _series_name
-		self.File_Details['Ext'] = _ext
-#        self.File_Details['BaseDir'] = '/srv/DadVision/Series'
 
 		if _air_date:
 			self.File_Details['DateAired'] = _air_date
-		else:
+		elif _season_num and _episode_nums:
 			self.File_Details['SeasonNum'] = _season_num
 			self.File_Details['EpisodeNums'] = _episode_nums
+		else:
+			raise RegxSelectionError('FileParser: {}: No Season & Episode Numbers or Date Aired in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
+
+		if _ext:
+			self.File_Details['Ext'] = _ext
+		else:
+			raise RegxSelectionError('FileParser: {}: Unable to Identify Extension for Filename: {}'.format(self.LogHeader, fq_name))
 
 		log.trace('{}: File Details Found: {}'.format(self.LogHeader, self.File_Details))
 
@@ -123,6 +109,7 @@ class FileParser(Library, dict):
 				log.verbose('{}: Matched'.format(self.LogHeader))
 				log.verbose(_pattern)
 				return _parse_details
+
 		return None
 
 	def _get_series_name(self, _parsed_keys, _parse_details):
@@ -131,7 +118,7 @@ class FileParser(Library, dict):
 		if 'SeriesName' in _parsed_keys and _parse_details.group('SeriesName') != None:
 			_series_name = _parse_details.group('SeriesName')
 		else:
-			raise InvalidFilename('FileParser: {}: Parse Did Not Find Series Name: {1}'.format(self.LogHeader, _parsed_keys))
+			raise RegxSelectionError('FileParser: {}: Parse Did Not Find Series Name: {1}'.format(self.LogHeader, _parsed_keys))
 
 		'''
 		Cleans up series name by removing any . and _
@@ -159,10 +146,7 @@ class FileParser(Library, dict):
 		if 'SeasonNum' in _parsed_keys:
 			_season_num = int(_parse_details.group('SeasonNum'))
 		else:
-			log.trace('{}: No Season Number in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
-			raise SeasonNotFound('FileParser: {}: No Season Number in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
-
-		log.trace('{}: Season Number: {}'.format(self.LogHeader, _season_num))
+			_season_num = ''
 
 		return _season_num
 
@@ -187,28 +171,32 @@ class FileParser(Library, dict):
 		elif 'EpisodeNum' in _parsed_keys:
 			_episode_numbers = [int(_parse_details.group('EpisodeNum')), ]
 		else:
-			raise RegxSelectionError(("FileParser: {}:"
-								   "Regex does not contain episode number group, should "
-								   "contain EpisodeNum, EpisodeNum1-9, or "
-								   "EpisodeNumStart and EpisodeNumEnd\n {}"
-								   ).format(self.LogHeader, _parsed_keys))
+			_episode_numbers = []
 
 		return _episode_numbers
 
 	def _get_date_aired(self, _parsed_keys, _parse_details):
 		log.trace("{}: _get_date_aired: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
 
-		if 'year' in _parsed_keys or 'month' in _parsed_keys or 'day' in _parsed_keys:
-			if not all(['year' in _parsed_keys, 'month' in _parsed_keys, 'day' in _parsed_keys]):
-					raise RegxSelectionError("FileParser: {}: Date-based regex must contain groups 'year', 'month' and 'day', Keys Found {}".format(self.LogHeader, _parsed_keys))
-
+		if all(['year' in _parsed_keys, 'month' in _parsed_keys, 'day' in _parsed_keys]):
 			_date_aired = datetime.datetime(int(_parse_details.group('year')),
 											int(_parse_details.group('month')),
 											int(_parse_details.group('day')))
-			return _date_aired
 		else:
-			log.debug()
-			raise InvalidFilename('FileParser: {}: No Season / Episode Numbers or Date Aired in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
+			_date_aired = ''
+
+		return _date_aired
+
+	def _get_ext(self, _parsed_keys, _parse_details):
+		log.trace("{}: _get_date_aired: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
+
+		if 'Ext' in _parsed_keys:
+			_ext = _parse_details.group('Ext').lower()
+		elif _file_name[-4] == '.':
+			_ext = _file_name[-4:]
+		else:
+			_ext = ''
+		return _ext
 
 	def _repl_func(self, m):
 		"""process regular expression match groups for word upper-casing problem"""

@@ -9,9 +9,8 @@ Program to rename and update Modification Time to Air Date
 """
 from library import Library
 from common import logger
-from common.exceptions import (EpisodeNotFound, SeriesNotFound,
-	DataRetrievalError, DuplicateFilesFound, InvalidFilename, RegxSelectionError,
-	UnexpectedErrorOccured, InvalidPath)
+from common.exceptions import (RegxSelectionError, SeriesNotFound, EpisodeNotFound, 
+							   FailedVideoCheck, InvalidFilename, UnexpectedErrorOccured, InvalidPath)
 from common.chkvideo import chkVideoFile
 from library.series.fileparser import FileParser
 from library.series.seriesinfo import SeriesInfo
@@ -85,9 +84,10 @@ def _del_dir(pathname, Tree=False, base_dir='/srv/DadVision/Series/New/'):
 
 
 
-def _del_file(pathname):
+def _del_file(pathname, base_dir='/srv/DadVision/Series/New/'):
 	log.trace("_del_file: pathname:{!s}".format(pathname))
 
+	if not re.match('^{}.*'.format(base_dir), pathname): return
 	if os.path.isdir(pathname):
 		raise InvalidPath('Path was requested for deletion: {}'.format(pathname))
 
@@ -173,7 +173,9 @@ class RenameSeries(Library):
 						continue
 					try:
 						self._rename_file(_path_name)
-					except (IOError, DuplicateFilesFound, RegxSelectionError, DataRetrievalError, EpisodeNotFound, SeriesNotFound), msg:
+					except (IOError, InvalidFilename, RegxSelectionError, SeriesNotFound, EpisodeNotFound), msg:
+						an_error = traceback.format_exc(1)
+						log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
 						log.error('Unable to Rename File: {}'.format(msg))
 						continue
 			if self.xbmc_update_required:
@@ -191,46 +193,42 @@ class RenameSeries(Library):
 		if self.args.check_video:
 			if chkVideoFile(pathname):
 				log.error('File Failed Video Check: {}'.format(pathname))
-				raise IOError('File Failed Video Check: {}'.format(pathname))
+				raise FailedVideoCheck('File Failed Video Check: {}'.format(pathname))
 		try:
 			_file_details = self.parser.getFileDetails(pathname)
 			_file_details = self.seriesinfo.getShowInfo(_file_details)
-		except (RegxSelectionError, EpisodeNotFound, SeriesNotFound), msg:
+		except (InvalidFilename, RegxSelectionError, SeriesNotFound, EpisodeNotFound), msg:
 			_dir_details = self.parser.getFileDetails(os.path.join(os.path.dirname(pathname), 'E01.txt'))
 			_file_details['SeriesName'] = _dir_details['SeriesName']
 			_file_details = self.seriesinfo.getShowInfo(_file_details)
 
 		_new_name, _file_details = self.getFileName(_file_details)
-
 		_season_folder = os.path.dirname(_new_name)
 		_series_folder = os.path.dirname(_season_folder)
 		_file_exists = False
-		try:
-			if os.path.exists(_season_folder):
-				if not bypass_dup_check:
-					_file_exists = self._check_for_dups(_file_details, _new_name)
-			else:
-				os.makedirs(_season_folder)
-				os.chmod(_season_folder, 0775)
-				os.chown(_season_folder, 1000, 100)
-				os.chmod(_series_folder, 0775)
-				os.chown(_series_folder, 1000, 100)
-			if _file_exists:
-				log.info('Updated: SERIES: {}'.format(_file_details['SeriesName']))
-				log.info('Updated: SEASON: {}'.format(_file_details['SeasonNum']))
-				log.info('Updated:   FILE: {}'.format(os.path.basename(_new_name)))
-			else:
-				os.rename(_file_details['FileName'], _new_name)
-				os.chmod(_new_name, 0664)
-				os.chown(_new_name, 1000, 100)
-				log.info('Renamed: SERIES: {}'.format(_file_details['SeriesName']))
-				log.info('Renamed: SEASON: {}'.format(_file_details['SeasonNum']))
-				log.info('Renamed:   FILE: {}'.format(os.path.basename(_new_name)))
-				log.info('Renamed: CURRENT {}'.format(os.path.basename(_file_details['FileName'])))
-		except OSError:
-			an_error = traceback.format_exc(1)
-			log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
-			raise InvalidFilename(an_error)
+
+		if os.path.exists(_season_folder):
+			if not bypass_dup_check:
+				_file_exists = self._check_for_dups(_file_details, _new_name)
+		else:
+			os.makedirs(_season_folder)
+			os.chmod(_season_folder, 0775)
+			os.chown(_season_folder, 1000, 100)
+			os.chmod(_series_folder, 0775)
+			os.chown(_series_folder, 1000, 100)
+
+		if _file_exists:
+			log.info('Updated: SERIES: {}'.format(_file_details['SeriesName']))
+			log.info('Updated: SEASON: {}'.format(_file_details['SeasonNum']))
+			log.info('Updated:   FILE: {}'.format(os.path.basename(_new_name)))
+		else:
+			os.rename(_file_details['FileName'], _new_name)
+			os.chmod(_new_name, 0664)
+			os.chown(_new_name, 1000, 100)
+			log.info('Renamed: SERIES: {}'.format(_file_details['SeriesName']))
+			log.info('Renamed: SEASON: {}'.format(_file_details['SeasonNum']))
+			log.info('Renamed:   FILE: {}'.format(os.path.basename(_new_name)))
+			log.info('Renamed: CURRENT {}'.format(os.path.basename(_file_details['FileName'])))
 
 		self._update_date(_file_details, _new_name)
 		if os.path.exists(_file_details['FileName']) and self.args.force_delete:
@@ -263,7 +261,8 @@ class RenameSeries(Library):
 	def getFileName(self, _file_details):
 
 		_file_details['EpisodeNumFmt'] = self._format_episode_numbers(_file_details)
-		_file_details['EpisodeTitle'] = self._format_episode_name(_file_details['EpisodeData'], join_with=self.settings.ConversionsPatterns['multiep_join_name_with'])
+		_file_details['EpisodeTitle'] = self._format_episode_name(_file_details['EpisodeData'], 
+																  join_with=self.settings.ConversionsPatterns['multiep_join_name_with'])
 		_file_details['DateAired'] = self._get_date_aired(_file_details)
 		_file_details['BaseDir'] = self.settings.SeriesDir
 
@@ -281,14 +280,26 @@ class RenameSeries(Library):
 		_title_new = os.path.splitext(os.path.basename(_new_name))[0]
 		_ep_new = _title_new.split(None, 1)[0]
 
+		if file_details['top_show']:
+			_desired_quality = ['mkv']
+			_acceptable_quality = ['mp4', 'avi']
+		else:
+			_desired_quality = ['mp4']
+			_acceptable_quality = ['mkv', 'avi']
+
+		if _ep_new in _desired_quality:
 		for _file in [f for f in os.listdir(_directory) if f.split(None, 1)[0] == _ep_new]:
 			self.dup_queue.append(os.path.join(_directory, _file))
 
 		if not self.dup_queue: return False
-		_last_file = self._clean_out_queue(file_details['top_show'])
 
-		if _last_file is None or file_details['FileName'] == _last_file:
-			return False
+		_last_file = self._clean_out_queue(_desired_quality, _acceptable_quality)
+
+		if _last_file is None:
+			return False 
+
+		if file_details['FileName'] == _last_file:
+			return True
 
 		_selected_file = self._evaluate_keeper(file_details['FileName'],
 		                                       _last_file,
@@ -336,16 +347,9 @@ class RenameSeries(Library):
 		else:
 			return file_1
 
-	def _clean_out_queue(self, top_show):
+	def _clean_out_queue(self, _desired_quality, _acceptable_quality):
 
 		if len(self.dup_queue) == 1: return self.dup_queue.pop()
-
-		if top_show:
-			_desired_quality = ['mkv']
-			_acceptable_quality = ['mp4', 'avi']
-		else:
-			_desired_quality = ['mp4']
-			_acceptable_quality = ['mkv', 'avi']
 
 		_available = [x for x in self.dup_queue if os.path.splitext(x)[1][1:] in _desired_quality]
 		if not _available:

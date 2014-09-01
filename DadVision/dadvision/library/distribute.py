@@ -7,9 +7,7 @@ Purpose:
 """
 from library import Library
 from common import logger
-from common.exceptions import (BaseDaddyVisionException,
-    DataRetrievalError, EpisodeNotFound, SeriesNotFound, InvalidFilename,
-    RegxSelectionError, ConfigValueError)
+from common.exceptions import (UnexpectedErrorOccured, InvalidFilename)
 from library.movie.rename import RenameMovie
 from library.series.rename import RenameSeries
 
@@ -87,7 +85,7 @@ class Distribute(Library):
             self.RegEx.append(re.compile('(.*)[\._ \-]season[\._ \-]([0-9]+)([^\\/]*)', re.IGNORECASE))
         except re.error, errormsg:
             log.error("Distribute.__init__: Invalid Series RegEx pattern: %s" % (errormsg))
-            raise ConfigValueError("Distribute.__init__: Invalid Series RegEx: %s" % (errormsg))
+            raise UnexpectedErrorOccured("Distribute.__init__: Invalid Series RegEx: %s" % (errormsg))
 
         self.RAR_RE = re.compile(r"\.([rR][aA][rR]|[rR]\d{2,3})$")
         self.RAR_PART_RE = re.compile(r"\.part\d{2,3}\.rar$")
@@ -99,7 +97,13 @@ class Distribute(Library):
 
         if _fmt == 'file':
             log.trace("%s file - %r..." % (type, pathname))
-            pathname = self._distribute_file(pathname, _dest_dir)
+			try:
+            	pathname = self._distribute_file(pathname, _dest_dir)
+            except:
+				an_error = traceback.format_exc(1)
+				log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
+				log.error('Distribute skipped for: {}'.format(os.path.basename(pathname))
+				return 
         elif _fmt == 'dir':  # a folder
             log.trace("%s directory ...%r" % (type, os.path.basename(pathname)))
             _dest_dir = self._distribute_directory(pathname, _dest_dir)
@@ -114,17 +118,21 @@ class Distribute(Library):
         if self.type == "Series":
             try:
                 self.rename_series.renameSeries(_tgt_rename)
-            except (DataRetrievalError, EpisodeNotFound, SeriesNotFound, InvalidFilename,
-                    RegxSelectionError, ConfigValueError), msg:
-                log.error(msg)
+            except:
+				an_error = traceback.format_exc(1)
+				log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
+				log.error('Rename skipped for: {}'.format(os.path.basename(pathname))
+				return 
         elif self.type == "Movie":
             if self.args.suppress_movies:
                log.info('Suppression of Movies Requested: Movie Skipped')
             try:
                 self.rename_movies.renameMovie(_tgt_rename)
             except:
-                raise BaseDaddyVisionException('Unknown Error: {}'.format(sys.exc_info()[1]))
-
+				an_error = traceback.format_exc(1)
+				log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
+				log.error('Rename skipped for: {}'.format(os.path.basename(pathname)) 
+				return
 
     def _get_type(self, pathname):
         log.trace('_get_type: Pathname: {}'.format(pathname))
@@ -209,20 +217,16 @@ class Distribute(Library):
         # make sure target folder exists
         if not os.path.exists(destdir):
             log.debug("Creating %r" % (destdir.rstrip(os.sep) + os.sep,))
-            try:
-                os.makedirs(destdir)
-                os.chmod(destdir, 0775)
-            except OSError, exc:
-                log.error("Failed to create %r (%s)" % (destdir, exc))
+            os.makedirs(destdir)
+            os.chmod(destdir, 0775)
 
         # copy file, possibly across devices.
         log.verbose("Copying: {}".format(destdir))
         log.verbose("         {}".format(indicator))
         log.verbose("         {}".format(srcfile))
-        try:
-            action(srcfile, destfile)
-        except OSError, exc:
-            log.error("Failed to copy %r (%s)" % (os.path.basename(srcfile), exc))
+
+        action(srcfile, destfile)
+
         return destfile
 
     @useLibraryLogging
@@ -251,16 +255,13 @@ class Distribute(Library):
 
             # Build Directory Structure
             _sub_dir = _root[len(os.path.split(src_dir)[0]):].lstrip(os.sep)
-#            _sub_dir = os.path.split(_root.rstrip(os.sep))[1]
             dest_dir = os.path.join(_tgt_dir, _sub_dir)
+
             # create destination directory
             if not os.path.exists(dest_dir):
                 log.debug("Creating %r" % dest_dir)
-                try:
-                    os.makedirs(dest_dir)
-                    os.chmod(dest_dir, 0775)
-                except OSError, exc:
-                    log.error("Failed to create %r (%s)" % (dest_dir, exc))
+                os.makedirs(dest_dir)
+                os.chmod(dest_dir, 0775)
 
             # find RARed files
             _rar_list = []
@@ -351,7 +352,10 @@ class Distribute(Library):
                         try:
                             os.rename(os.path.join(dest_dir, _file), os.path.join(dest_dir, _nice_name))
                         except OSError, exc:
-                            log.error("Failed to rename %r to %r (%s)" % (_file, _nice_name, exc))
+                            log.error("Failed to clean up %r to %r (%s)" % (_file, _nice_name, exc))
+							an_error = traceback.format_exc(1)
+							log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
+
         return
 
     def _ignored(self, name):
@@ -366,17 +370,17 @@ class Distribute(Library):
 
         cmd = ["unrar", "e", "-idq", "-ep", "-o-", "-ts", "-x *.rar", os.path.abspath(rar_file)]
         log.trace("Calling %s" % cmd)
-        try:
-            process = Popen(cmd, shell=False, stdin=None, stdout=PIPE, stderr=PIPE, cwd=dest_dir)
-            process.wait()
-            output = process.stdout.read()
-            if output:
-                log.trace('unrar: %s' % output)
-            output = process.stderr.read()
-            if output:
-                log.trace('unrar: %s' % output)
-        except subprocess.CalledProcessError, exc:
-            log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
+        process = Popen(cmd, shell=False, stdin=None, stdout=PIPE, stderr=PIPE, cwd=dest_dir)
+        process.wait()
+
+        output = process.stdout.read()
+        if output:
+            log.verbose('unrar: %s' % output)
+
+        output = process.stderr.read()
+        if output:
+            log.error('unrar: %s' % output)
+
         return
 
 

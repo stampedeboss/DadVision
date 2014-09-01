@@ -143,11 +143,8 @@ class SeriesInfo(Library):
 
 		self.db = api.TVDB("959D8E76B796A1FB")
 
-		trakt.api_key = self.settings.TraktAPIKey
-		trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
-		self.trakt_user = User(self.settings.TraktUserID)
-
 #		self.tvrage = TVRage(api_key='XwJ7KGdTfep9EpsZBf8m')
+		self.trakt_user = None
 
 		self._check_suffix = re.compile('^(?P<SeriesName>.*)[ \._\-][\(]?(?P<Suffix>(?:19|20)\d{2}|us).*$', re.I)
 
@@ -205,16 +202,12 @@ class SeriesInfo(Library):
 		#Valid Request: Locate Show IDs
 		try:
 			SeriesDetails = self._identify_show(SeriesDetails, _process_order)
-		except (common.exceptions.SeriesNotFound, EpisodeNotFound):
+		except SeriesNotFound:
 			if _suffix:
 				SeriesDetails['SeriesName'] = _suffix.group('SeriesName')
 				SeriesDetails = self._identify_show(SeriesDetails)
 		except KeyboardInterrupt:
 			sys.exit(8)
-		except:
-			an_error = traceback.format_exc()
-			log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
-			raise
 
 		if self.args.get_episodes:
 			ep_get = {'tvdb_id': self._tvdbEpisodeInfo, 'tvrage_id': self._tvrageEpisideInfo}
@@ -224,11 +217,8 @@ class SeriesInfo(Library):
 					service = 'tvdb_id'
 				elif 'tvrage_id' in SeriesDetails and SeriesDetails['tvrage_id']:
 					service = 'tvrage_id'
-				else:
-					raise common.exceptions.SeriesNotFound
+				else: raise SeriesNotFound
 				SeriesDetails = ep_get[service](SeriesDetails)
-			except EpisodeNotFound, SeriesNotFound:
-				raise EpisodeNotFound
 			except KeyboardInterrupt:
 				sys.exit(8)
 
@@ -259,10 +249,10 @@ class SeriesInfo(Library):
 					sys.exc_clear()
 				except GetOutOfLoop:
 					raise GetOutOfLoop
-#				except:
-#					an_error = traceback.format_exc()
-#					log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
-#					raise
+				except:
+					an_error = traceback.format_exc()
+					log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
+					raise SeriesNotFound
 			if any([key in SeriesDetails for key in ['tvrage_id', 'tvdb_id']]):
 				raise GetOutOfLoop
 			self.last_request = {'LastRequestName': ''}
@@ -275,7 +265,6 @@ class SeriesInfo(Library):
 		self.last_request['SeriesName'] = SeriesDetails['SeriesName']
 		if 'tvdb_id' in SeriesDetails:
 			self.last_request['tvdb_id'] = SeriesDetails['tvdb_id']
-			#TODO: Delete	self.last_request['TVDBSeriesID'] = SeriesDetails['tvdb_id']
 		if 'imdb_id' in SeriesDetails:
 			self.last_request['imdb_id'] = SeriesDetails['imdb_id']
 		if 'tvrage_id' in SeriesDetails:
@@ -285,27 +274,50 @@ class SeriesInfo(Library):
 
 		return SeriesDetails
 
-	def _get_trakt_id(self, series_name, **kwargs):
+	def _get_trakt_id(self, SeriesDetails):
 
-		_results = {}
+		try:
+			if not self.trakt_user:
+				trakt.api_key = self.settings.TraktAPIKey
+				trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
+				self.trakt_user = User(self.settings.TraktUserID)
+		except:
+			raise SeriesNotFound('trakt: Unable to connect to trakt service: {}'.format(self.settings.TraktUserID))
+
 		show = TVShow(series_name)
-
-		if not show.tvdb_id: raise SeriesNotFound
-		if 'tvdb_id' in kwargs:
-			if int(kwargs['tvdb_id']) <> show.tvdb_id:
-				raise SeriesNotFound('trakt: Unable to locate series: {}'.format(series_name))
-		else:
-			_results['title'] = _decode(show.title)
-
-		if not _matching(series_name.lower(), _decode(show.title).lower()):
+		if not show.tvdb_id: 
 			raise SeriesNotFound('trakt: Unable to locate series: {}'.format(series_name))
 
-		if hasattr(show, 'tvdb_id') and show.tvdb_id: _results['tvdb_id'] = show.tvdb_id
-		if hasattr(show, 'tvrage_id') and show.tvrage_id: _results['tvrage_id'] = show.tvrage_id
-		if hasattr(show, 'imdb_id') and show.imdb_id: _results['imdb_id'] = _decode(show.imdb_id)
+		_title = _decode(show.title)
+		if not _matching(series_name.lower(), _title.lower()):
+			raise SeriesNotFound('trakt: Unable to locate series: {}'.format(series_name))
 
-		_results['service'] = 'trakt'
-		return _results
+		if 'source' not in results:
+			SeriesDetails['source'] = 'trakt'
+			SeriesDetails['SeriesName'] = show.title
+
+		if show.tvdb_id and 'tvdb_id' not in SeriesDetails:
+			SeriesDetails['tvdb_id'] = show.tvdb_id
+
+		if hasattr(show, 'tvrage_id') and show.tvrage_id:
+			if 'tvrage_id' not in SeriesDetails:
+				SeriesDetails['tvrage_id'] = show.tvrage_id
+
+		if hasattr(show, 'imdb_id') and show.imdb_id:
+			if 'imdb_id' not in SeriesDetails:
+				SeriesDetails['imdb_id'] = _decode(show.imdb_id)
+
+#		if show.status and 'status' not in results:
+#			results['status'] = series.status
+
+		_trakt_top_shows = self.trakt_user.get_list('topshows')
+		_trakt_top_shows_names = {_item.title: _item for _item in _trakt_top_shows.items}
+		if show.title in _trakt_top_shows_names:
+			SeriesDetails['top_show'] = True
+		else:
+			SeriesDetails['top_show'] = False
+			
+		return SeriesDetails
 
 	def _get_tvdb_id(self, SeriesDetails):
 
@@ -357,33 +369,28 @@ class SeriesInfo(Library):
 
 		_candidates = {}
 
-		try:
-			_title_suffix = self._check_suffix.match(SeriesDetails['SeriesName'])
-			if _title_suffix:
-				_matches = feeds.search(_title_suffix.group('SeriesName'))
+		_title_suffix = self._check_suffix.match(SeriesDetails['SeriesName'])
+		if _title_suffix:
+			_matches = feeds.search(_title_suffix.group('SeriesName'))
+		else:
+			_matches = feeds.search(SeriesDetails['SeriesName'])
+		if not _matches: raise SeriesNotFound
+		if len(_matches) == 1:
+			_series = TVSeries(tvrage=etree_to_dict(_matches[0])['show'])
+			if _matching(SeriesDetails['SeriesName'].lower(), _series.title.lower(), factor=90):
+				SeriesDetails = self._load_series_info(_series, SeriesDetails, 'tvrage')
+				SeriesDetails['service'] = 'tvrage'
+				return SeriesDetails
 			else:
-				_matches = feeds.search(SeriesDetails['SeriesName'])
-			if not _matches: raise SeriesNotFound
-			if len(_matches) == 1:
-				_series = TVSeries(tvrage=etree_to_dict(_matches[0])['show'])
-				if _matching(SeriesDetails['SeriesName'].lower(), _series.title.lower(), factor=90):
-					SeriesDetails = self._load_series_info(_series, SeriesDetails, 'tvrage')
-					SeriesDetails['service'] = 'tvrage'
-					return SeriesDetails
-				else:
-					raise SeriesNotFound
-			for _show in _matches:
-				_series = TVSeries(tvrage=etree_to_dict(_show)['show'])
-				if _series.title_suffix:
-					if _matching(SeriesDetails['SeriesName'].lower(), _decode(_series.title_base.lower())):
-						_candidates[_series.title] = _series
-				else:
-					if _matching(SeriesDetails['SeriesName'].lower(), _decode(_series.title).lower()):
-						_candidates[_series.title] = _series
-		except ShowNotFound:
-			an_error = traceback.format_exc()
-			log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
-			raise SeriesNotFound
+				raise SeriesNotFound
+		for _show in _matches:
+			_series = TVSeries(tvrage=etree_to_dict(_show)['show'])
+			if _series.title_suffix:
+				if _matching(SeriesDetails['SeriesName'].lower(), _decode(_series.title_base.lower())):
+					_candidates[_series.title] = _series
+			else:
+				if _matching(SeriesDetails['SeriesName'].lower(), _decode(_series.title).lower()):
+					_candidates[_series.title] = _series
 
 		if not _candidates:
 			raise SeriesNotFound
@@ -494,14 +501,22 @@ class SeriesInfo(Library):
 		if 'source' not in results:
 			results['SeriesName'] = series.title
 			results['source'] = [source]
-			_trakt_top_shows = self.trakt_user.get_list('topshows')
-			_trakt_top_shows_names = {_item.title: _item for _item in _trakt_top_shows.items}
+		try:
+			if not self.trakt_user:
+				trakt.api_key = self.settings.TraktAPIKey
+				trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
+				self.trakt_user = User(self.settings.TraktUserID)
+				_trakt_top_shows = self.trakt_user.get_list('topshows')
+				_trakt_top_shows_names = {_item.title: _item for _item in _trakt_top_shows.items}
+				if series.title in _trakt_top_shows_names:
+					results['top_show'] = True
+				else:
+					results['top_show'] = False
+		except:
 			results['top_show'] = False
-			if series.title in _trakt_top_shows_names:
-				results['top_show'] = True
+			
 		if series.tvdb_id and 'tvdb_id' not in results:
 			results['tvdb_id'] = series.tvdb_id
-			#TODO: Delete	results['TVDBSeriesID'] = series.tvdb_id
 		if series.imdb_id and 'imdb_id' not in results:
 			results['imdb_id'] = series.imdb_id
 		if series.tvrage_id and 'tvrage_id' not in results:
@@ -519,7 +534,6 @@ class SeriesInfo(Library):
 		except IndexError:
 			an_error = traceback.format_exc()
 			sys.exc_clear()
-#			log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
 
 		return series_name
 
@@ -567,7 +581,7 @@ class SeriesInfo(Library):
 			an_error = traceback.format_exc()
 			log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
 			log.debug(_err_msg_2.format(**SeriesDetails))
-			raise DataRetrievalError(_err_msg_2.format(**SeriesDetails))
+			raise EpisodeNotFound(_err_msg_2.format(**SeriesDetails))
 
 		return SeriesDetails
 

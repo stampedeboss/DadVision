@@ -39,6 +39,9 @@ log = logging.getLogger(__pgmname__)
 class MyDaemon(Daemon):
 
     def __init__(self, pidfile, distribute, stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
+
+		super(MyDaemon, self).__init__()
+
         self.stdin = stdin
         self.stdout = stdout
         self.stderr = stderr
@@ -71,10 +74,16 @@ class MyDaemon(Daemon):
                 try:
                     self.notifier.loop()
                 except:
-                    log.error('{}'.format(sys.exc_info()[1]))
-                    pass
+					an_error = traceback.format_exc(1)
+					log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
             else:
-                self.notifier.loop()
+                try:
+                    self.notifier.loop()
+				except KeyboardInterrupt:
+					sys.exit(8)
+                except:
+					an_error = traceback.format_exc(1)
+					log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
 
 class EventHandler(pyinotify.ProcessEvent):
     ''' Handle Events related to new files being moved or added to the watched folder
@@ -102,7 +111,9 @@ class PackageHandler(object):
         log.debug('PackageHandler Initialized')
 
     def NewDownload(self, pathname):
-        self.distribute.distribute(pathname)
+		try:
+	        self.distribute.distribute(pathname)
+		except
 
 if __name__ == "__main__":
 
