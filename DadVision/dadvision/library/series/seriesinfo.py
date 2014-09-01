@@ -416,6 +416,26 @@ class SeriesInfo(Library):
 				_series_name['type'] = 'Country'
 
 		try:
+
+			if _series_name['type'] is 'Country':
+				_candidates_subset = [x for x in _series_list.itervalues() if x.title_type is 'Country' and x.title == _series_name['title']]
+				if len(_candidates_subset) == 1:
+					SeriesDetails = self._load_series_info(_candidates_subset[0], SeriesDetails, source)
+					return SeriesDetails
+
+			if _series_name['type'] is None:
+				_candidates_subset = [x for x in _series_list.itervalues() if x.title_type is 'Country' and x.title_base == _series_name['base']]
+				if len(_candidates_subset) == 1:
+					SeriesDetails = self._load_series_info(_candidates_subset[0], SeriesDetails, source)
+					return SeriesDetails
+
+
+			if _series_name['type'] is 'Country':
+				_candidates_subset = [x for x in _series_list.itervalues() if x.title_type is 'Country' and x.title == _series_name['title']]
+				if len(_candidates_subset) == 1:
+					SeriesDetails = self._load_series_info(_candidates_subset[0], SeriesDetails, source)
+					return SeriesDetails
+
 			#Look for Exact Match in Current Shows
 			_candidates = [_series_list[x] for x in _series_list if _series_list[x].status == _check_order[0]]
 			_found, SeriesDetails = self._compare_entries(_candidates, SeriesDetails, _series_name, source)
@@ -458,9 +478,15 @@ class SeriesInfo(Library):
 	def _compare_entries(self, _candidates, SeriesDetails, _series_name, source):
 
 		if _series_name['type'] is 'Country':
-			_candidates_nosuffix = [x for x in _candidates if x.title_type is None and x.title == _series_name['base']]
-			if len(_candidates_nosuffix) == 1:
-				SeriesDetails = self._load_series_info(_candidates_nosuffix[0], SeriesDetails, source)
+			_candidates_subset = [x for x in _candidates if x.title_type is 'Country' and x.title == _series_name['title']]
+			if len(_candidates_subset) == 1:
+				SeriesDetails = self._load_series_info(_candidates_subset[0], SeriesDetails, source)
+				return True, SeriesDetails
+
+		if _series_name['type'] is 'Country':
+			_candidates_subset = [x for x in _candidates if x.title_type is None and x.title == _series_name['base']]
+			if len(_candidates_subset) == 1:
+				SeriesDetails = self._load_series_info(_candidates_subset[0], SeriesDetails, source)
 				return True, SeriesDetails
 
 		if _series_name['type'] is None:
@@ -713,17 +739,16 @@ class SeriesInfo(Library):
 		return _seasons
 
 def __printAnswer(answer):
-	print '-'*40
 	pp = pprint.PrettyPrinter(indent=1, depth=1)
-	pp.pprint(answer)
-	print '-'*40
 	print '-'*60
 	pp.pprint(answer['TVSeries'])
 	for season, val in sorted(answer['TVSeries'].seasons.iteritems()):
 		pp.pprint(val)
 		for episode, val2 in sorted(val.episodes.iteritems()):
 				pp.pprint(val2)
-
+	print '-'*60
+	pp.pprint(answer)
+	print '-'*60
 
 if __name__ == "__main__":
 
@@ -759,13 +784,18 @@ if __name__ == "__main__":
 	myrequest = {}
 	if len(library.args.library) > 0:
 		for pathname in library.args.library:
-			myrequest = parser.getFileDetails(pathname)
-			if library.args.series_name:
-				myrequest['SeriesName'] = library.args.series_name
-			if library.args.season:
-				myrequest['SeasonNum'] = library.args.season
-			if library.args.epno:
-				myrequest['EpisodeNums'] = library.args.epno
+			print pathname
+			if os.path.exists(pathname):
+				myrequest = parser.getFileDetails(pathname)
+				if library.args.series_name:
+					myrequest['SeriesName'] = library.args.series_name
+				if library.args.season:
+					myrequest['SeasonNum'] = library.args.season
+				if library.args.epno:
+					myrequest['EpisodeNums'] = library.args.epno
+				else:
+					myrequest['SeriesName'] = pathname
+					library.args.series_only = True
 				answer = library.getShowInfo(myrequest)
 				__printAnswer(answer)
 	elif library.args.series_name:
