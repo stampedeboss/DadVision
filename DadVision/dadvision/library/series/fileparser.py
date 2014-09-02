@@ -74,7 +74,7 @@ class FileParser(Library, dict):
 		_air_date = self._get_date_aired(_parsed_keys, _parse_details)
 		_ext = self._get_ext(_parsed_keys, _parse_details, _file_name)
 
-		if not self.new_SeriesDir.match(_check_path):
+		if _check_path != '/srv/DadVision/Series/New':
 			_series_name = _directory_name
 
 		self.File_Details = {}
