@@ -54,11 +54,13 @@ class FileParser(Library, dict):
 		_check_name = _file_name
 		_parse_details = None
 
+		#Walk up the pathname adding to file name if necessary
 		while _check_path != os.path.sep:
-			_parse_details = self._parse_file_name(os.path.join(_check_path, _check_name))
+			_parse_details = self._parse_file_name(_check_name)
 			if _parse_details:
 				break
-			_check_path = os.path.dirname(_check_path)
+			_check_path, _directory_name = os.path.split(_check_path)
+			_check_name = os.path.join(_directory_name, _check_name)
 
 		if not _parse_details:
 			_error_msg = "No Matching Regx - Unable to parse Filename: {}".format(fq_name)
@@ -66,17 +68,14 @@ class FileParser(Library, dict):
 			raise InvalidFilename('FileParser:' + _error_msg)
 
 		_parsed_keys = _parse_details.groupdict().keys()
-		for _key in _parsed_keys:
-			log.debug("{}: {}".format(_key, _parse_details.group(_key)))
-
 		_series_name = self._get_series_name(_parsed_keys, _parse_details)
 		_season_num = self._get_season_number(_parsed_keys, _parse_details)
 		_episode_nums = self._get_episode_numbers(_parsed_keys, _parse_details)
 		_air_date = self._get_date_aired(_parsed_keys, _parse_details)
-		_ext = self._get_ext(_parsed_keys, _parse_details)
+		_ext = self._get_ext(_parsed_keys, _parse_details, _file_name)
 
 		if not self.new_SeriesDir.match(_check_path):
-			_series_name = os.path.basename(os.path.dirname(_check_path))
+			_series_name = _directory_name
 
 		self.File_Details = {}
 		self.File_Details['FileName'] = fq_name
@@ -186,7 +185,7 @@ class FileParser(Library, dict):
 
 		return _date_aired
 
-	def _get_ext(self, _parsed_keys, _parse_details):
+	def _get_ext(self, _parsed_keys, _parse_details, _file_name):
 		log.trace("{}: _get_date_aired: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
 
 		if 'Ext' in _parsed_keys:
@@ -473,8 +472,10 @@ $)
 
 	RegxParse['Single Episode No S: Regx #4'] = re.compile(
     '''                                      # foo.s0101, foo.0201
-^(?P<SeriesName>.+?)[ \._\-]
-[Ss](?P<SeasonNum>[0-9]{2})
+^(/.*/)?                                # Optional Directory
+(?P<SeriesName>.+?)[ \._\-]
+[/\._ \-]+                              # Sep
+(?P<SeasonNum>[0-9]{1,2})
 [\.\- ]?
 (?P<EpisodeNum>[0-9]{2})
 [^0-9]*$
@@ -589,6 +590,7 @@ $)
 if __name__ == '__main__':
 
 	import sys
+	import pprint
 
 	logger.initialize()
 
@@ -617,5 +619,6 @@ if __name__ == '__main__':
 	_lib_path = _lib_paths[0]
 	_answer = library.getFileDetails(_lib_path)
 
-	print
-	print _answer
+	pp = pprint.PrettyPrinter(indent=1, depth=2)
+	print '-'*80
+	pp.pprint(_answer)
