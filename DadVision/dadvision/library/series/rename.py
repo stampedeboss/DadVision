@@ -62,7 +62,8 @@ def _del_dir(pathname, Tree=False, base_dir='/srv/DadVision/Series/New/'):
 	log.trace("_del_dir: pathname:{!s}".format(pathname))
 
 	if not os.path.isdir(pathname):
-		raise InvalidPath('Invalid Path was requested for deletion: {}'.format(pathname))
+		log.error('Invalid Path was requested for deletion: {}'.format(pathname))
+		return
 
 	_curr_dir = pathname
 	_base_dir = base_dir
@@ -88,7 +89,8 @@ def _del_file(pathname, base_dir='/srv/DadVision/Series/New/'):
 	log.trace("_del_file: pathname:{!s}".format(pathname))
 
 	if os.path.isdir(pathname):
-		raise InvalidPath('Path was requested for deletion: {}'.format(pathname))
+		log.error('InvalidPath was requested for deletion: {}'.format(pathname))
+		return
 
 	try:
 		log.verbose('Deleting File as Requested: {}'.format(pathname))

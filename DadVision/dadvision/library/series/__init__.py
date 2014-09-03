@@ -69,7 +69,7 @@ class Series(object):
 							__keysHandler[key2.lower()](key2, val2)
 						except KeyError:
 							if key2 == 'FileName':
-								setattr(self, 'fileName', unicode(val2))
+								setattr(self, 'fileName', val2)
 							elif key2 == 'SeasonNum':
 								setattr(self, 'season', int(val2))
 							elif key2 == 'EpisodeNums':
@@ -227,7 +227,7 @@ class Series(object):
 
 	def copyShow(self, series):
 		for key, val in series.__dict__.iteritems():
-			if key in ['season', 'episodeNums']:
+			if key in ['season', 'episodeNums', 'ext', 'fileName', 'seriesinfo', 'episodeData']:
 				continue
 
 			if val is not None:
