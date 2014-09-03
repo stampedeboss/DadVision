@@ -77,7 +77,7 @@ class Series(object):
 							elif key2 == 'Ext':
 								setattr(self, 'ext', val2)
 							else:
-								setattr(self, key, unicode(val2))
+								setattr(self, key, val2)
 				elif key == 'tvrage':
 					for key2, val2 in val.iteritems():
 						try:
@@ -111,24 +111,26 @@ class Series(object):
 		_title_parts = value.rsplit(None, 1)
 		if len(_title_parts) > 1:
 			_year = __year.match(_title_parts[1])
+			_title_parts[0] = _title_parts[0].encode('ascii', 'ignore')
+			_title_parts[1] = _title_parts[1].replace('(', '').replace(')', '').encode('ascii', 'ignore')
 			if _year:
 				self.titleBase = _title_parts[0]
-				self.titleSuffix = int(_title_parts[1].replace('(', '').replace(')', ''))
+				self.titleSuffix = int(_title_parts[1])
 				self.titleType = "Year"
 				self._title = '{} ({})'.format(self.titleBase, self.titleSuffix)
 				return
-			elif _title_parts[1].upper().replace('(', '').replace(')', '') in ['US']:
+			elif _title_parts[1].upper() in ['US']:
 				self.titleBase = _title_parts[0]
 				self.titleSuffix = _title_parts[1].upper()
 				self.titleType = "Country"
-				self.country = unicode(_title_parts[1].upper().replace('(', '').replace(')', ''))
+				self.country = _title_parts[1].upper()
 				self._title = '{} ({})'.format(self.titleBase, self.titleSuffix)
 				return
 
-		self.titleBase = value
+		self.titleBase = value.encode('ascii', 'ignore')
 		self.titleSuffix = None
 		self.titleType = None
-		self._title = value
+		self._title = value.encode('ascii', 'ignore')
 
 	def _set_title(self, key, val):
 		self.title = val
@@ -192,15 +194,15 @@ class Series(object):
 
 	def _set_tvdb_id(self, key, val):
 		if key == 'SeriesID': return
-		setattr(self, 'tvdb_id', val)
+		setattr(self, 'tvdb_id', int(val))
 		return
 
 	def _set_tvrage_id(self, key, val):
-		setattr(self, 'tvrage_id', val)
+		setattr(self, 'tvrage_id', int(val))
 		return
 
 	def _set_imdb_id(self, key, val):
-		setattr(self, 'imdb_id', unicode(val))
+		setattr(self, 'imdb_id', val.encode('ascii', 'ignore'))
 		return
 
 	def _set_firstAired(self, key, firstAired):
@@ -213,7 +215,7 @@ class Series(object):
 		return
 
 	def _set_network(self, key, val):
-		setattr(self, 'network', val)
+		setattr(self, 'network', val.encode('ascii', 'ignore'))
 		return
 
 	def search(self, show):
@@ -222,7 +224,7 @@ class Series(object):
 	def copy(self, series):
 		for key, val in series.__dict__.iteritems():
 			if val is not None:
-				setattr(self, key, unicode(val))
+				setattr(self, key, val)
 		return
 
 	def copyShow(self, series):
@@ -241,7 +243,10 @@ class Series(object):
 				if getattr(self, key) or val is None:
 					continue
 
-			setattr(self, key, val)
+			if type(val) is unicode:
+				setattr(self, key, val.encode('ascii', 'ignore'))
+			else:
+				setattr(self, key, val)
 		return
 
 	def getDict(self):

@@ -476,7 +476,7 @@ class SeriesInfo(Library):
 	def _tvdbBuildTVSeason(self, _series):
 		_seasons = {}
 		for _season in _series:
-			_season_number = u'<Season {0:02}>'.format(_season.season_number)
+			_season_number = '<Season {0:02}>'.format(_season.season_number)
 			_myseason = {"season": _season.season_number}
 			_myseason['episodes'] = {}
 			for _episode in _season:
@@ -539,7 +539,7 @@ class SeriesInfo(Library):
 	def _tvrageBuildTVSeason(self, _epinfo, SeriesDetails):
 		_seasons = {}
 		for _season in _epinfo:
-			_season_number = u'<Season {0:04}>'.format(int(_season['@no']))
+			_season_number = '<Season {0:04}>'.format(int(_season['@no']))
 			_myseason = {"season": int(_season['@no'])}
 			_myseason['episodes'] = {}
 			if type(_season['episode']) is list:

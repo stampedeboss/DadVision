@@ -8,7 +8,6 @@ Purpose:
 """
 from __future__ import division
 from datetime import datetime, date, timedelta
-from library.series.seriesobj import TVSeries, TVSeason, TVEpisode
 import difflib
 import fnmatch
 import logging
@@ -23,6 +22,7 @@ from library import Library
 from library.series.seriesinfo import SeriesInfo
 from library.series.fileparser import FileParser
 from library.series.rename import RenameSeries
+from library.series.seriesobj import TVSeries, TVSeason, TVEpisode
 from fuzzywuzzy import fuzz
 
 import trakt
@@ -107,10 +107,13 @@ class CheckSeries(Library):
 		check_group1.add_argument("--dco", '--dup-check-only', dest="dup_check_only",
 			action="store_true", default=False,
 			help="Duplicate File Check Only")
+		check_group1.add_argument("--check", '--check-names', dest="check_names",
+			action="store_true", default=False,
+			help="Perform Name Check")
+		check_group1.add_argument("--check-quick", dest="quick",
+			action="store_true", default=False,
+			help="Perform Name Check")
 
-		trakt.api_key = self.settings.TraktAPIKey
-		trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
-		self.trakt_user = User(self.settings.TraktUserID)
 		self.parser = FileParser()
 		self.seriesinfo = SeriesInfo()
 		self.rename = RenameSeries()
@@ -118,6 +121,9 @@ class CheckSeries(Library):
 		self.regex_season = re.compile('^(?:Season).(?P<SeasonNum>[0-9]+)$', re.I)
 		self.regex_episode = re.compile('^(?:E)(?P<EpisodeNum>[0-9][0-9])[\-]?(?:E)?(?P<EpisodeNum2>[0-9][0-9])?(?P<EpisodeName>.+)?\.(?P<Ext>.+?)$', re.I)
 		self.regex_repack = re.compile('^.*(repack|proper).*$', re.IGNORECASE)
+
+		self.last_request = {}
+		self.last_request['LastRequestName'] = ''
 
 		return
 
@@ -127,15 +133,26 @@ class CheckSeries(Library):
 		pathname = os.path.abspath(pathname)
 		_series_details = []
 
+		log.info("==== Begin Scan: {} ====".format(pathname))
+
+		if self.args.check_names:
+			self.check_series_name(pathname)
+			sys.exit(0)
+
+		if self.args.quick:
+			self.check_series_name_quick(pathname)
+			sys.exit(0)
+
+		trakt.api_key = self.settings.TraktAPIKey
+		trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
+		self.trakt_user = User(self.settings.TraktUserID)
 		self._trakt_top_shows = self.trakt_user.get_list('topshows')
 		self._trakt_top_shows_names = {_item.title: _item for _item in self._trakt_top_shows.items}
 
-		log.info("==== Begin Scan: {} ====".format(pathname))
 		_series = self.getSeriesData(pathname)
 
 		if self.args.dup_check_only:
 			sys.exit(0)
-
 
 		for _show_name, _file_data in sorted(_series.iteritems()):
 			DadVision = _file_data['DadVision']
@@ -335,9 +352,9 @@ class CheckSeries(Library):
 								if _new_name == file_2['file']:
 									self. _delete_dup(file_2, file_1)
 								elif os.path.getsize(file_1['file']) > os.path.getsize(file_2['file']):
-									self.rename._rename_file(file_1['file'])
+									self.rename.renameFile(file_1['file'])
 								else:
-									self.rename._rename_file(file_2['file'])
+									self.rename.renameFile(file_2['file'])
 						except SeriesNotFound, EpisodeNotFound:
 							continue
 						except KeyboardInterrupt:
@@ -382,16 +399,20 @@ class CheckSeries(Library):
 										os.path.basename(delete['file'])))
 				if _delete == '2':
 					try:
-						self.rename._rename_file(delete['file'])
+						self.rename.renameFile(delete['file'])
 #						os.remove(delete['file'])
+					except KeyboardInterrupt:
+						sys.exit(8)
 					except OSError:
 						an_error = traceback.format_exc()
 						log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
 						_delete = 'e'
 				elif _delete == '1':
 					try:
-						self.rename._rename_file(keep['file'])
+						self.rename.renameFile(keep['file'])
 #						os.remove(keep['file'])
+					except KeyboardInterrupt:
+						sys.exit(8)
 					except OSError:
 						an_error = traceback.format_exc()
 						log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
@@ -405,6 +426,8 @@ class CheckSeries(Library):
 				if _delete.lower() == 'y':
 					try:
 						os.remove(delete['file'])
+					except KeyboardInterrupt:
+						sys.exit(8)
 					except OSError:
 						an_error = traceback.format_exc()
 						log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
@@ -442,6 +465,104 @@ class CheckSeries(Library):
 	def _list_dir(self, path):
 		from subprocess import call
 		p = call(['ls', '-l', path], shell=False)
+
+
+	def check_series_name(self, pathname):
+		log.trace("="*30)
+		log.trace("check_series_name method: pathname:{}".format(pathname))
+
+		pathname = os.path.abspath(pathname)
+
+		if os.path.isfile(pathname):
+			log.debug("-"*30)
+			log.debug("Series Directory: %s" % os.path.split(pathname)[0])
+			log.debug("Series Filename:  %s" % os.path.split(pathname)[1])
+			self.check_file(pathname)
+		elif os.path.isdir(pathname):
+			log.debug("-"*30)
+			log.debug("Series Directory: %s" % pathname)
+			for _root, _dirs, _files in os.walk(os.path.abspath(pathname)):
+				_dirs.sort()
+				for _dir in _dirs[:]:
+					# Process Enbedded Directories
+					if _ignored(_dir):
+						_dirs.remove(_dir)
+
+				_files.sort()
+				for _file in _files:
+					# _path_name = os.path.join(_root, _file)
+					log.trace("Series Filename: %s" % _file)
+					if _ignored(_file):
+						continue
+					self.check_file(_root, _file)
+		return None
+
+	def check_file(self, directory, filename):
+		pathname = os.path.join(directory, filename)
+		try:
+			# Get File Details
+			_last_series = self.last_request['LastRequestName']
+			_parse_details = self.parser.getFileDetails(pathname)
+			_seriesinfo_answer = self.parser.getFileDetails(pathname)
+			_seriesinfo_answer = self.seriesinfo.getShowInfo(_seriesinfo_answer)
+		except KeyboardInterrupt:
+			sys.exit(8)
+		except Exception:
+			an_error = traceback.format_exc()
+			log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
+			sys.exc_clear()
+			return
+
+		log.trace('processing: {} vs {}'.format(_parse_details['SeriesName'], _seriesinfo_answer['SeriesName']))
+		if _parse_details['SeriesName'] != _seriesinfo_answer['SeriesName']:
+			if _last_series != _parse_details['SeriesName']:
+				log.info('-'*40)
+				log.info('Rename Required: {} (Current)'.format(_parse_details['SeriesName']))
+				log.info('                 {} (Correct)'.format(_seriesinfo_answer['SeriesName']))
+
+		if not self.args.quick:
+			_seriesinfo_answer['EpisodeNumFmt'] = self.rename._format_episode_numbers(_seriesinfo_answer)
+			_seriesinfo_answer['EpisodeTitle'] = self.rename._format_episode_name(_seriesinfo_answer['EpisodeData'], join_with=self.settings.ConversionsPatterns['multiep_join_name_with'])
+	#		_seriesinfo_answer['DateAired'] = self.rename._get_date_aired(_seriesinfo_answer)
+			_seriesinfo_answer['BaseDir'] = self.settings.SeriesDir
+
+			_repack = self.regex_repack.search(pathname)
+			if _repack: pathname_2 = self.settings.ConversionsPatterns['proper_fqn'] % _seriesinfo_answer
+			else: pathname_2 = self.settings.ConversionsPatterns['std_fqn'] % _seriesinfo_answer
+			if pathname != pathname_2:
+				if os.path.basename(pathname) != os.path.basename(pathname_2):
+					log.info('-'*40)
+					log.info('{} (Series)'.format(_seriesinfo_answer['SeriesName']))
+					log.info('Rename Required: {} (Correct)'.format(os.path.basename(pathname_2)))
+					log.info('                 {} (Current)'.format(filename))
+
+		s = pathname.decode('ascii', 'ignore')
+		if s != pathname:
+			log.warning('INVALID CHARs: {} vs {}'.format(pathname - s, pathname))
+
+
+	def check_series_name_quick(self, pathname):
+		log.trace("="*30)
+		log.trace("check_series_names_quick method: pathname:{}".format(pathname))
+
+		self.regex_repack = re.compile('^.*(repack|proper).*$', re.IGNORECASE)
+		pathname = os.path.abspath(pathname)
+
+		if os.path.isfile(pathname):
+			log.error("-"*30)
+			log.error("File name passed must be Directory:  %s" % pathname)
+			sys.exit()
+
+		log.debug("-"*30)
+		log.debug("Series Directory: %s" % pathname)
+		for _dir in sorted(os.listdir(os.path.abspath(pathname))):
+			if _ignored(_dir):
+					continue
+			_path_name = os.path.join(os.path.abspath(pathname), _dir, 'Season 1')
+			self.check_file(_path_name, 'E01 Test.mkv')
+
+		return None
+
 
 if __name__ == "__main__":
 

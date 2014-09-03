@@ -148,7 +148,7 @@ class RenameSeries(Library):
 			log.debug("-----------------------------------------------")
 			log.debug("Directory: %s" % os.path.split(pathname)[0])
 			log.debug("Filename:  %s" % os.path.split(pathname)[1])
-			self._rename_file(pathname)
+			self.renameFile(pathname)
 		elif os.path.isdir(pathname):
 			for _root, _dirs, _files in os.walk(os.path.abspath(pathname), followlinks=False):
 				for _dir in _dirs[:]:
@@ -174,7 +174,7 @@ class RenameSeries(Library):
 						_del_dir(_root)
 						continue
 					try:
-						self._rename_file(_path_name)
+						self.renameFile(_path_name)
 					except (IOError, InvalidFilename, RegxSelectionError, SeriesNotFound, EpisodeNotFound), msg:
 						an_error = traceback.format_exc(1)
 						log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
@@ -190,7 +190,7 @@ class RenameSeries(Library):
 		else:
 			raise InvalidFilename('Invalid Request, Neither File or Directory: %s' % pathname)
 
-	def _rename_file(self, pathname):
+	def renameFile(self, pathname):
 
 		if self.args.check_video:
 			if chkVideoFile(pathname):
@@ -359,7 +359,7 @@ class RenameSeries(Library):
 		elif _ext_1 == 'mp4':
 			if top_show and _ext_2 in ['mkv']: return file_2
 			if _ext_2 in ['mp4']:
-				if os.path.getsize(file_1) < os.path.getsize(file_2): return file_2
+				if os.path.getsize(file_1) <= os.path.getsize(file_2): return file_2
 			return file_1
 		elif _ext_1 == 'mkv':
 			if not top_show and _ext_2 in ['mp4']: return file_2
