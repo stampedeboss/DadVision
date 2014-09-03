@@ -58,7 +58,7 @@ class FileParser(Library, dict):
 
 		#Walk up the pathname adding to file name if necessary
 		while _check_path != os.path.sep:
-			_regex_title, _parse_details = self._parse_file_name(_check_name)
+			_parse_details = self._parse_file_name(_check_name)
 			if _parse_details:
 				break
 			_check_path, _directory_name = os.path.split(_check_path)
@@ -83,7 +83,6 @@ class FileParser(Library, dict):
 		self.File_Details = {}
 		self.File_Details['FileName'] = fq_name
 		self.File_Details['SeriesName'] = _series_name
-		self.File_Details['RegEx'] = _regex_title
 
 		if _air_date:
 			self.File_Details['DateAired'] = _air_date
@@ -110,7 +109,7 @@ class FileParser(Library, dict):
 			else:
 				self.LogHeader = 'RegEx {}'.format(_title)
 				log.verbose('{}: Matched'.format(self.LogHeader))
-				return _title, _parse_details
+				return _parse_details
 
 		return None
 
