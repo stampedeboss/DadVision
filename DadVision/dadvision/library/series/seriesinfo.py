@@ -234,7 +234,7 @@ class SeriesInfo(Library):
 	def _getInfoFromProviders(self, processOrder):
 
 		if self.last_series.title == self.series.title:
-			self.series.copy(self.last_series)
+			self.series.copyShow(self.last_series)
 			return
 		else:
 			self.last_series = Series()

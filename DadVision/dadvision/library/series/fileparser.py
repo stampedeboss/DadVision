@@ -195,7 +195,7 @@ class FileParser(Library, dict):
 		if 'Ext' in _parsed_keys:
 			_ext = _parse_details.group('Ext').lower()
 		elif _file_name[-4] == '.':
-			_ext = _file_name[-4:]
+			_ext = _file_name[-3:]
 		else:
 			_ext = ''
 		return _ext
@@ -518,15 +518,15 @@ $)
 	re.X|re.I)
 
 	RegxParse['Single Episode No S: Regx #8'] = re.compile(
-	'''                                      # foo.103*
-^(/.*/)?                                # Optional Directory
-(?P<SeriesName>.+?)
-[ \._\-]*
-(?P<SeasonNum>\d{1})
-(?P<EpisodeNum>\d{2,3})
+	'''                                 # foo.103*
+^(?:/.*/)?                              # Optional Directory
+(?P<SeriesName>.+?)                     # Series Name
+[ \._\-]*                               # One or More Sep
+(?P<SeasonNum>\d{1})                    # Single Digit Season Number
+(?P<EpisodeNum>\d{2,3})                 # 2-3 Episode Number
 [/\._\ \-]*                             # Optional Sep 1
 (?P<EpisodeName>.+)?                    # Optional Title
-\.(?P<Ext>....?)$                       # extension
+\.(?P<Ext>.{2,4})$                     # extension
 	''',
 	re.X|re.I)
 

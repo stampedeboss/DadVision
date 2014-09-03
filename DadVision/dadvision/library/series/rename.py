@@ -225,7 +225,7 @@ class RenameSeries(Library):
 			if self.dup_renamed:
 				log.info('Renamed: FILE: {}'.format(os.path.basename(self.dup_renamed)))
 			self._update_date(_file_details, _new_name)
-		elif _file_exists is not None:
+		elif not _file_exists:
 			os.rename(_file_details['FileName'], _new_name)
 			os.chmod(_new_name, 0664)
 			os.chown(_new_name, 1000, 100)
@@ -255,7 +255,6 @@ class RenameSeries(Library):
 															 _file_details['FileName']
 															 )
 							   )
-#                file_id = int(self.cursor.lastrowid)
 				self.db.commit()
 				self.db.close()
 			except  sqlite3.IntegrityError, e:
@@ -291,7 +290,6 @@ class RenameSeries(Library):
 
 		for _file in [f for f in os.listdir(_directory)
 					  if f.split(None, 1)[0] == _ep_new and os.path.join(_directory, f) != file_details['FileName']]:
-#		for _file in [f for f in os.listdir(_directory) if f.split(None, 1)[0] == _ep_new]:
 			self.dup_queue.append(os.path.join(_directory, _file))
 
 		for f in self.dup_queue:
