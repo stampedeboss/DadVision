@@ -35,23 +35,28 @@ class TVSeries(object):
 					'SeriesName': self._set_title,
 					'seriesid': self._set_tvdb_id,
 					'showid': self._set_tvrage_id,
+					'IMDB_ID': self._set_imdb_id,
 					'status': self._set_status,
 					'Status': self._set_status,
-					'FirstAired': self._set_year
+					'aliasnames': self._set_alias,
+					'AliasNames': self._set_alias,
+					'Network': self._set_network,
+					'FirstAired': self._set_firstAired
 		}
 		self.title = title
-		self.title_base = self.title_suffix = self.title_type = None
+		self.titleBase = self.titleSuffix = self.titleType = None
 		self.tvdb_id = None
 		self.imdb_id = None
 		self.tvrage_id = None
 		self.status = None
 		self.seasons = {}
-		self.year = None
+		self.firstAired = None
 		self.country = None
 		self.network = None
-		self.aliasnames = None
-		attrs = ['tvdb_id', 'tvrage_id', 'imdb_id', 'IMDB_ID', 'seasons', 'year',
-		        'started', 'ended', 'country', 'network', 'Network', 'AliasNames', 'top_show']
+		self.aliasNames = None
+		self._topShow = None
+		attrs = ['tvdb_id', 'tvrage_id', 'imdb_id', 'seasons', 'firstAired',
+		        'started', 'ended', 'country', 'network', 'topShow']
 		if len(kwargs) > 0:
 			for key, val in kwargs.items():
 				if key in ['seriesdetails']:
@@ -59,14 +64,14 @@ class TVSeries(object):
 						try: __options[key2](key2, val2)
 						except KeyError:
 							if key2 in attrs:
-								setattr(self, key2.lower(), val2)
+								setattr(self, key2, val2)
 							continue
 				elif key == 'tvrage':
 					for key2, val2 in val.iteritems():
 						try: __options[key2](key2, val2)
 						except KeyError:
 							if key2 in attrs:
-								setattr(self, key2.lower(), val2)
+								setattr(self, key2, val2)
 							continue
 				elif key == 'tvdb':
 					for key2, val2 in vars(val).iteritems():
@@ -75,7 +80,7 @@ class TVSeries(object):
 								try: __options[key3](key3, val3)
 								except KeyError:
 									if key3 in attrs:
-										setattr(self, key3.lower(), val3)
+										setattr(self, key3, val3)
 									continue
 				else:
 					setattr(self, key, val)
@@ -90,19 +95,14 @@ class TVSeries(object):
 		__check_suffix = re.compile('^(?P<SeriesName>.*)[ \._\-][\(]?(?P<Suffix>(?:19|20)\d{2}|us).*$', re.I)
 		__suffix_present = __check_suffix.match(value.encode('ascii', 'ignore'))
 		self._title = unicode(value)
-		setattr(self, 'title_base', unicode(value))
+		setattr(self, 'titleBase', unicode(value))
 		if __suffix_present:
-			setattr(self, 'title_base', unicode(__suffix_present.group('SeriesName')))
-			setattr(self, 'title_suffix', __suffix_present.group('Suffix'))
+			setattr(self, 'titleBase', unicode(__suffix_present.group('SeriesName')))
+			setattr(self, 'titleSuffix', __suffix_present.group('Suffix'))
 			if __suffix_present.group('Suffix').isdigit():
-				setattr(self, 'title_type', 'Year')
+				setattr(self, 'titleType', 'Year')
 			else:
-				setattr(self, 'title_type', 'Country')
-		return
-
-	def _set_title(self, key, title):
-		self.title = unicode(title)
-#		setattr(self, '_title', unicode(title))
+				setattr(self, 'titleType', 'Country')
 		return
 
 	def _set_tvdb_id(self, key, tvdb_id):
@@ -113,6 +113,9 @@ class TVSeries(object):
 		setattr(self, 'tvrage_id', tvrage_id)
 		return
 
+	def _set_imdb_id(self, key, tvrage_id):
+		setattr(self, 'imdb_id', tvrage_id)
+		return
 
 	def _set_status(self, key, status):
 		if status in ['New Series', 'Returning Series', 'Continuing', 'Hiatus']:
@@ -123,13 +126,21 @@ class TVSeries(object):
 			setattr(self, 'status', 'Other')
 		return
 
-	def _set_year(self, key, FirstAired):
+	def _set_alias(self, key, val):
+		setattr(self, 'aliasNames', val)
+		return
+
+	def _set_network(self, key, val):
+		setattr(self, 'network', val)
+		return
+
+	def _set_firstAired(self, key, FirstAired):
 		if type(FirstAired) is date:
-			setattr(self, 'year', FirstAired.year)
+			setattr(self, 'firstAired', FirstAired.year)
 		return
 
 	def _set_selected_attr(self, key, val):
-		setattr(self, key, unicode(val))
+		setattr(self, key, val)
 
 	@property
 	def _search_title(self):

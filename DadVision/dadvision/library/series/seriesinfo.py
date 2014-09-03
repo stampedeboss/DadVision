@@ -8,10 +8,10 @@ from library import Library
 from common import logger
 from common.exceptions import InvalidArgumentType, InvalidArgumentValue, DictKeyError, DataRetrievalError
 from common.exceptions import SeriesNotFound, EpisodeNotFound
-from library.series.seriesobj import TVSeries, TVSeason, TVEpisode
-from pytvdbapi.error import TVDBAttributeError, TVDBIndexError, TVDBValueError
+from library.series import Series
+from library.series.seriesobj import TVSeason, TVEpisode
+from collections import OrderedDict, defaultdict
 from fuzzywuzzy import fuzz
-import common
 import datetime
 import difflib
 import logging
@@ -27,6 +27,7 @@ from trakt.users import User
 from trakt.tv import TVShow
 
 from pytvdbapi import api, error
+from pytvdbapi.error import TVDBAttributeError, TVDBIndexError, TVDBValueError
 
 from tvrage import feeds
 from tvrage.exceptions import ShowHasEnded, NoNewEpisodesAnnounced, FinaleMayNotBeAnnouncedYet, ShowNotFound
@@ -48,7 +49,6 @@ FlexGetConfig = os.path.join(os.path.expanduser('~'), '.flexget', 'config.series
 log = logging.getLogger(__pgmname__)
 
 
-from collections import defaultdict
 def etree_to_dict(t):
 	d = {t.tag: {} if t.attrib else None}
 	children = list(t)
@@ -81,7 +81,7 @@ def _decode(coded_text):
 	return decoded_text
 
 
-def _matching(value1, value2, factor=85):
+def _matching(value1, value2, factor=None):
 	log.trace("=================================================")
 	log.trace("_matching: Compare: {} --> {}".format(value1, value2))
 
@@ -100,7 +100,16 @@ def _matching(value1, value2, factor=85):
 	log.trace('{}: Token Sort Ratio'.format(fuzzy[3]))
 	log.trace(any([fr > factor for fr in fuzzy]))
 
-	return any([fr >= factor for fr in fuzzy])
+	if factor:
+		return any([fr >= factor for fr in fuzzy])
+
+	score = 0
+	entries = 0
+	for fr in fuzzy:
+		score += fr
+		if fr > 0: entries += 1
+	score = score/entries
+	return score
 
 
 class GetOutOfLoop(Exception):
@@ -119,7 +128,7 @@ def _ignored(name):
 
 class SeriesInfo(Library):
 
-	def __init__(self):
+	def __init__(self, rtnDict=True):
 		log.trace('SeriesInfo.__init__')
 
 		super(SeriesInfo, self).__init__()
@@ -143,31 +152,30 @@ class SeriesInfo(Library):
 
 		self.db = api.TVDB("959D8E76B796A1FB")
 
-#		self.tvrage = TVRage(api_key='XwJ7KGdTfep9EpsZBf8m')
 		self.trakt_user = None
 
 		self._check_suffix = re.compile('^(?P<SeriesName>.*)[ \._\-][\(]?(?P<Suffix>(?:19|20)\d{2}|us).*$', re.I)
 
-		self.confidenceFactor = 90
-		self.last_request = {'LastRequestName': ''}
+		self.last_series = Series()
+		self.series = Series()
+		self.rtnDict = rtnDict
 
-	def getShowInfo(self, request, sources=['tvdb', 'trakt', 'tvrage'], epdetail=True):
+	def getShowInfo(self, request, processOrder=['tvdb', 'tvrage'], epdetail=True):
 		log.trace('getShowInfo: Input Parm: {}'.format(request))
 
 		if not epdetail:
 			self.args.get_episodes = False
 
-		std_processes = ['tvdb', 'trakt', 'tvrage']
-		if self.args.processes:
-			_process_order = self.args.processes
-		elif not type(sources) == list:
-			raise InvalidArgumentType('sources must be list, received: {}'.format(type(sources)))
-		else:
-			_s = set(std_processes)
-			_diff = [_x for _x in sources if _x not in _s]
-			if _diff:
-				raise InvalidArgumentValue('sources must be: {}'.format(std_processes))
-			_process_order = sources
+		try:
+			if self.args.processes is not None:
+				processOrder = self.args.processes
+			elif type(processOrder) == list:
+				_s = set(['tvdb', 'trakt', 'tvrage'])
+				_diff = [_x for _x in processOrder if _x not in _s]
+				if _diff:
+					raise InvalidArgumentValue('processOrder must be: {}'.format('tvdb, trakt, tvrage'))
+		except:
+			raise InvalidArgumentType('processOrder must be list, received: {}'.format(type(processOrder)))
 
 		if type(request) == dict:
 			if 'SeriesName' in request and request['SeriesName'] is not None:
@@ -177,12 +185,13 @@ class SeriesInfo(Library):
 					request['SeasonNum'] = self.args.season
 				if self.args.epno is not None:
 					request['EpisodeNums'] = self.args.epno
-				_suffix = self._check_suffix.match(request['SeriesName'])
-				if _suffix:
-					_series_name = '{} ({})'.format(_suffix.group('SeriesName'), _suffix.group('Suffix').upper())
-					request['SeriesName'] = _series_name.rstrip()
-					log.debug('getDetailsAll: Request: Modified %s' % request)
-				SeriesDetails = request
+				self.series = Series(seriesinfo=request)
+			elif self.args.series_name is not None:
+				self.series.title = self.args.series_name
+				if self.args.season is not None:
+					self.series.season = self.args.season
+				if self.args.epno is not None:
+					self.series.episodeNums = self.args.epno
 			else:
 				error_msg = 'getDetails: Request Missing "SeriesName" Key: {!s}'.format(request)
 				log.trace(error_msg)
@@ -192,20 +201,17 @@ class SeriesInfo(Library):
 			log.trace(error_msg)
 			raise InvalidArgumentType(error_msg)
 
-		try:
-			SeriesDetails['SeriesName'] = self._check_for_alias(SeriesDetails['SeriesName'])
-			if 'epno' in SeriesDetails:
-				SeriesDetails = self._adj_episode(SeriesDetails)
-		except IndexError:
-			sys.exc_clear()
+		self._checkForAlias()
+		if self.series.episodeNums:
+				self._adjEpisodeNums()
 
 		#Valid Request: Locate Show IDs
 		try:
-			SeriesDetails = self._identify_show(SeriesDetails, _process_order)
+			self._getInfoFromProviders(processOrder)
 		except SeriesNotFound:
-			if _suffix:
-				SeriesDetails['SeriesName'] = _suffix.group('SeriesName')
-				SeriesDetails = self._identify_show(SeriesDetails, _process_order)
+			if self.series.titleSuffix:
+				self.series.title = self.series.titleBase
+				self._getInfoFromProviders(processOrder)
 		except KeyboardInterrupt:
 			sys.exit(8)
 
@@ -213,68 +219,59 @@ class SeriesInfo(Library):
 			ep_get = {'tvdb_id': self._tvdbEpisodeInfo, 'tvrage_id': self._tvrageEpisideInfo}
 
 			try:
-				if 'tvdb_id' in SeriesDetails  and SeriesDetails['tvdb_id']:
+				if self.series.tvdb_id :
 					service = 'tvdb_id'
-				elif 'tvrage_id' in SeriesDetails and SeriesDetails['tvrage_id']:
+				elif self.series.tvrage_id:
 					service = 'tvrage_id'
 				else: raise SeriesNotFound
-				SeriesDetails = ep_get[service](SeriesDetails)
+				ep_get[service]()
 			except KeyboardInterrupt:
 				sys.exit(8)
 
-		return SeriesDetails
+		if self.rtnDict: return self.series.getDict()
+		else: return self.series
 
-	def _identify_show(self, SeriesDetails, _process_order):
+	def _getInfoFromProviders(self, processOrder):
 
-		_series_name = SeriesDetails['SeriesName'].rstrip()
-		if self.last_request['LastRequestName'] == _series_name:
-			SeriesDetails.update(self.last_request)
-			return SeriesDetails
+		if self.last_series.title == self.series.title:
+			self.series.copy(self.last_series)
+			return
 		else:
-			self.last_request = {'LastRequestName': _series_name}
+			self.last_series = Series()
+			self.last_series.title = self.series.title
 
-		options = {'tvdb': self._get_tvdb_id,
-				   'trakt': self._get_trakt_id,
-				   'tvrage': self._get_tvrage_id}
+		options = {'tvdb': self._tvdbGetInfo,
+				   'trakt': self._traktGetInfo,
+				   'tvrage': self._tvrageGetInfo}
 
 		try:
-			for service in _process_order:
+			for service in processOrder:
 				try:
-					SeriesDetails = options[service](SeriesDetails)
-					if 'tvdb_id' in SeriesDetails or 'tvrage_id' in SeriesDetails:
-						if 'tvdb_id' not in SeriesDetails and 'tvdb' in _process_order:
-							SeriesDetails = options['tvdb'](SeriesDetails)
+					options[service]()
+					if self.series.keysFound:
+						if not self.series.tvdb_id and 'tvdb' in processOrder:
+							options['tvdb']()
 						raise GetOutOfLoop
 				except SeriesNotFound:
 					sys.exc_clear()
 				except GetOutOfLoop:
 					raise GetOutOfLoop
 				except:
-					an_error = traceback.format_exc()
-					log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
+					_an_error = traceback.format_exc()
+					log.debug(traceback.format_exception_only(type(_an_error), _an_error)[-1])
 					raise SeriesNotFound
-			if any([key in SeriesDetails for key in ['tvrage_id', 'tvdb_id']]):
+			if self.series.keysFound:
 				raise GetOutOfLoop
 			self.last_request = {'LastRequestName': ''}
-			raise SeriesNotFound('ALL: Unable to locate series: {}'.format(SeriesDetails['SeriesName']))
+			raise SeriesNotFound('ALL: Unable to locate series: {}'.format(self.series.title))
 		except GetOutOfLoop:
 			sys.exc_clear()
 
-		SeriesDetails['TVSeries'] = TVSeries(seriesdetails=SeriesDetails)
+		self.last_series.copyShow(self.series)
 
-		self.last_request['SeriesName'] = SeriesDetails['SeriesName']
-		if 'tvdb_id' in SeriesDetails:
-			self.last_request['tvdb_id'] = SeriesDetails['tvdb_id']
-		if 'imdb_id' in SeriesDetails:
-			self.last_request['imdb_id'] = SeriesDetails['imdb_id']
-		if 'tvrage_id' in SeriesDetails:
-			self.last_request['tvrage_id'] = SeriesDetails['tvrage_id']
-		if 'TVSeries' in SeriesDetails:
-			self.last_request['TVSeries'] = SeriesDetails['TVSeries']
+		return
 
-		return SeriesDetails
-
-	def _get_trakt_id(self, SeriesDetails):
+	def _traktGetInfo(self):
 
 		try:
 			if not self.trakt_user:
@@ -284,340 +281,199 @@ class SeriesInfo(Library):
 		except:
 			raise SeriesNotFound('trakt: Unable to connect to trakt service: {}'.format(self.settings.TraktUserID))
 
-		show = TVShow(SeriesDetails['SeriesName'])
+		show = TVShow(self.series.title)
 		if not show.tvdb_id:
-			raise SeriesNotFound('trakt: Unable to locate series: {}'.format(SeriesDetails['SeriesName']))
+			raise SeriesNotFound('trakt: Unable to locate series: {}'.format(self.series.title))
 
 		_title = _decode(show.title)
-		if not _matching(SeriesDetails['SeriesName'].lower(), _title.lower()):
-			raise SeriesNotFound('trakt: Unable to locate series: {}'.format(SeriesDetails['SeriesName']))
+		if not _matching(self.series.title.lower(), _title.lower(), factor=85):
+			raise SeriesNotFound('trakt: Unable to locate series: {}'.format(self.series.title))
 
-		if 'source' not in SeriesDetails:
-			SeriesDetails['source'] = 'trakt'
-			SeriesDetails['SeriesName'] = show.title
+		if not self.series.source:
+			self.series.source = 'trakt'
+			self.series.title = show.title
 
-		if show.tvdb_id and 'tvdb_id' not in SeriesDetails:
-			SeriesDetails['tvdb_id'] = show.tvdb_id
+		if show.tvdb_id and self.series.tvdb_id is None:
+			self.series.tvdb_id = show.tvdb_id
 
 		if hasattr(show, 'tvrage_id') and show.tvrage_id:
-			if 'tvrage_id' not in SeriesDetails:
-				SeriesDetails['tvrage_id'] = show.tvrage_id
+			if self.series.tvrage_id is None:
+				self.series.tvrage_id = show.tvrage_id
 
 		if hasattr(show, 'imdb_id') and show.imdb_id:
-			if 'imdb_id' not in SeriesDetails:
-				SeriesDetails['imdb_id'] = _decode(show.imdb_id)
+			if self.series.imdb_id is None:
+				self.series.imdb_id = _decode(show.imdb_id)
 
 #		if show.status and 'status' not in results:
 #			results['status'] = series.status
 
-		_trakt_top_shows = self.trakt_user.get_list('topshows')
-		_trakt_top_shows_names = {_item.title: _item for _item in _trakt_top_shows.items}
-		if show.title in _trakt_top_shows_names:
-			SeriesDetails['top_show'] = True
-		else:
-			SeriesDetails['top_show'] = False
+		return
 
-		return SeriesDetails
-
-	def _get_tvdb_id(self, SeriesDetails):
-
-		_candidates = {}
+	def _tvdbGetInfo(self):
 
 		try:
-			_title_suffix = self._check_suffix.match(SeriesDetails['SeriesName'])
-			if _title_suffix:
-				_matches = self.db.search(_title_suffix.group('SeriesName'), "en")
-			else:
-				_matches = self.db.search(SeriesDetails['SeriesName'], "en")
-			if len(_matches) == 0: raise SeriesNotFound
-			if len(_matches) == 1:
-				if _matching(SeriesDetails['SeriesName'].lower(), _decode(_matches[0].SeriesName).lower(), factor=90):
-					_matches[0].update()
-					_series = TVSeries(tvdb=_matches[0])
-					SeriesDetails = self._load_series_info(_series, SeriesDetails, 'tvdb')
-					return SeriesDetails
+			_shows = self.db.search(self.series.titleBase, "en")
+			if len(_shows) == 0: raise SeriesNotFound
+			if len(_shows) == 1:
+				if _matching(self.series.title.lower(), _decode(_shows[0].SeriesName).lower(), factor=85):
+					_shows[0].update()
+					_series = Series(tvdb=_shows[0])
+
+					self.series.update(_series)
+					self.series.source = 'tvdb'
+					self.series.tvdb_info = _series
+					return
 				else:
 					raise SeriesNotFound
-			for _show in _matches:
+
+			_rankings = {}
+			for _show in _shows:
 				_title_suffix = self._check_suffix.match(_decode(_show.SeriesName))
 				if _title_suffix:
-					if not _matching(SeriesDetails['SeriesName'].lower(), _title_suffix.group('SeriesName').lower()):
-						continue
+					_score = _matching(self.series.title.lower(), _title_suffix.group('SeriesName').lower())
 				else:
-					if not _matching(SeriesDetails['SeriesName'].lower(), _decode(_show.SeriesName).lower()):
-						continue
+					_score = _matching(self.series.title.lower(), _decode(_show.SeriesName).lower())
+				if _score < 85:
+					continue
 
 				_show.update()
-				_series = TVSeries(tvdb=_show)
-				_candidates[_series.title] = _series
+				_series = Series(tvdb=_show)
+				if _score in _rankings:
+					_rankings[_score][_series.title] = _series
+				else:
+					_rankings[_score] = {_series.title: _series}
+
 		except (TVDBAttributeError, TVDBIndexError, TVDBValueError, error.BadData):
-			an_error = traceback.format_exc()
-			log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
+			_an_error = traceback.format_exc()
+			log.debug(traceback.format_exception_only(type(_an_error), _an_error)[-1])
 			raise SeriesNotFound
 
-		if not _candidates:
-			raise SeriesNotFound
+		if not _rankings: raise SeriesNotFound
 
-		SeriesDetails = self._find_show(_candidates, SeriesDetails, 'tvdb')
+		self._reviewShowData(_rankings, 'tvdb')
 
-		return SeriesDetails
+		return
 
-	def _get_tvrage_id(self, SeriesDetails):
+	def _tvrageGetInfo(self):
 
-		if 'tvrage_id' in SeriesDetails:
-			return {}
 
-		_candidates = {}
-
-		_title_suffix = self._check_suffix.match(SeriesDetails['SeriesName'])
-		if _title_suffix:
-			_matches = feeds.search(_title_suffix.group('SeriesName'))
-		else:
-			_matches = feeds.search(SeriesDetails['SeriesName'])
-		if not _matches: raise SeriesNotFound
-		if len(_matches) == 1:
-			_series = TVSeries(tvrage=etree_to_dict(_matches[0])['show'])
-			if _matching(SeriesDetails['SeriesName'].lower(), _series.title.lower(), factor=90):
-				SeriesDetails = self._load_series_info(_series, SeriesDetails, 'tvrage')
-				SeriesDetails['service'] = 'tvrage'
-				return SeriesDetails
+		_shows = feeds.search(self.series.titleBase)
+		if not _shows: raise SeriesNotFound
+		if len(_shows) == 1:
+			_series = Series(tvrage=etree_to_dict(_shows[0])['show'])
+			if _matching(self.series.title.lower(), _series.title.lower(), factor=85):
+				_series = Series(tvrage=_shows[0])
+				self.series.update(_series)
+				self.series.source = 'tvrage'
+				self.series.tvrage_info = _series
+				return
 			else:
 				raise SeriesNotFound
-		for _show in _matches:
-			_series = TVSeries(tvrage=etree_to_dict(_show)['show'])
-			if _series.title_suffix:
-				if _matching(SeriesDetails['SeriesName'].lower(), _decode(_series.title_base.lower())):
-					_candidates[_series.title] = _series
-			else:
-				if _matching(SeriesDetails['SeriesName'].lower(), _decode(_series.title).lower()):
-					_candidates[_series.title] = _series
 
-		if not _candidates:
+		_rankings = {}
+		for _show in _shows:
+			_series = Series(tvrage=etree_to_dict(_show)['show'])
+			_score = _matching(self.series.title.lower(), _decode(_series.titleBase.lower()))
+			if _score < 85:
+				continue
+
+			if _score in _rankings:
+				_rankings[_score][_series.title] = _series
+			else:
+				_rankings[_score] = {_series.title: _series}
+
+		if not _rankings:
 			raise SeriesNotFound
 
-		SeriesDetails = self._find_show(_candidates, SeriesDetails, 'tvrage')
+		self._reviewShowData(_rankings, 'tvrage')
 
-		return SeriesDetails
+		return
 
-	def _find_show(self, _series_list, SeriesDetails, source):
+	def _reviewShowData(self, _rankings, source):
 
-		_check_order = ['Continuing', 'Canceled/Ended', 'Other']
-		_series_name = {'title': unicode(SeriesDetails['SeriesName'])}
-		_series_name['base'] = unicode(SeriesDetails['SeriesName'])
-		_series_name['suffix'] = None
-		_series_name['type'] = None
-		_series_suffix = self._check_suffix.match(SeriesDetails['SeriesName'])
-		if _series_suffix:
-			_series_name['base'] = _series_suffix.group('SeriesName')
-			_series_name['suffix'] = _series_suffix.group('Suffix')
-			if _series_suffix.group('Suffix').isdigit():
-				_series_name['type'] = 'Year'
-			else:
-				_series_name['type'] = 'Country'
+		for key in sorted(_rankings, reverse=True):
+			if key < 90: break
 
-		try:
+			_check_order1 = ['Country', 'Year', None]
+			_check_order2 = ['Continuing', 'Canceled/Ended', 'Other']
+			_check_order3 = ['Country', 'Year', None]
 
-			if _series_name['type'] is 'Country':
-				_candidates_subset = [x for x in _series_list.itervalues() if x.title_type is 'Country' and x.title == _series_name['title']]
-				if len(_candidates_subset) == 1:
-					SeriesDetails = self._load_series_info(_candidates_subset[0], SeriesDetails, source)
-					return SeriesDetails
+			test = self.series.titleType
+			test1 = self.series.titleBase
 
-			if _series_name['type'] is None:
-				_candidates_subset = [x for x in _series_list.itervalues() if x.title_type is 'Country' and x.title_base == _series_name['base']]
-				if len(_candidates_subset) == 1:
-					SeriesDetails = self._load_series_info(_candidates_subset[0], SeriesDetails, source)
-					return SeriesDetails
-
-
-			if _series_name['type'] is 'Country':
-				_candidates_subset = [x for x in _series_list.itervalues() if x.title_type is 'Country' and x.title == _series_name['title']]
-				if len(_candidates_subset) == 1:
-					SeriesDetails = self._load_series_info(_candidates_subset[0], SeriesDetails, source)
-					return SeriesDetails
-
-			#Look for Exact Match in Current Shows
-			_candidates = [_series_list[x] for x in _series_list if _series_list[x].status == _check_order[0]]
-			_found, SeriesDetails = self._compare_entries(_candidates, SeriesDetails, _series_name, source)
-			if _found:
-				raise GetOutOfLoop
-
-			#Look for Exact Match in Canceled and Other
-			_candidates = [_series_list[x] for x in _series_list if _series_list[x].status in [_check_order[1], _check_order[2]]]
-			_found, SeriesDetails = self._compare_entries(_candidates, SeriesDetails, _series_name, source)
-			if _found:
-				raise GetOutOfLoop
-
-			#Check for imdb_id
-			for _status in _check_order:
-				_candidates = [_series_list[x] for x in _series_list if _series_list[x].status == _status and _series_list[x].imdb_id is not None]
-				if _candidates:
-					SeriesDetails = self._load_series_info(_candidates[0], SeriesDetails, source)
-					raise GetOutOfLoop
-
-			#Check for country
-			for _status in _check_order:
-				_candidates = [_series_list[x] for x in _series_list if _series_list[x].status == _status and _series_list[x].country == 'US']
-				if _candidates:
-					SeriesDetails = self._load_series_info(_candidates[0], SeriesDetails, source)
-				raise GetOutOfLoop
-
-			#Take 1st item
-			for _status in _check_order:
-				_candidates = [_series_list[x] for x in _series_list if _series_list[x].status == _status]
-				SeriesDetails = self._load_series_info(_candidates[0], SeriesDetails, source)
-				raise GetOutOfLoop
-
-			#TODO: "AliasNames" in _item:
-			raise SeriesNotFound('Unable to locate series: {}'.format(_decode(SeriesDetails['SeriesName'])))
-
-		except GetOutOfLoop:
-			sys.exc_clear()
-			return SeriesDetails
-
-	def _compare_entries(self, _candidates, SeriesDetails, _series_name, source):
-
-		if _series_name['type'] is 'Country':
-			_candidates_subset = [x for x in _candidates if x.title_type is 'Country' and x.title == _series_name['title']]
-			if len(_candidates_subset) == 1:
-				SeriesDetails = self._load_series_info(_candidates_subset[0], SeriesDetails, source)
-				return True, SeriesDetails
-
-		if _series_name['type'] is 'Country':
-			_candidates_subset = [x for x in _candidates if x.title_type is None and x.title == _series_name['base']]
-			if len(_candidates_subset) == 1:
-				SeriesDetails = self._load_series_info(_candidates_subset[0], SeriesDetails, source)
-				return True, SeriesDetails
-
-		if _series_name['type'] is None:
-			_candidates_suffix = [x for x in _candidates if x.title_type is not None and x.title_base == _series_name['base']]
-			if _candidates_suffix:
-				_candidates = _candidates_suffix
-		try:
-			for _series in _candidates:
-				if fuzz.ratio(_series.title.lower(), _series_name['title'].lower()) >= 90:
-					SeriesDetails = self._load_series_info(_series, SeriesDetails, source)
-					raise GetOutOfLoop
-
-			for _series in _candidates:
-				if _series_name['type'] is None and _series.title_suffix is None:
-					if fuzz.ratio(_series.title.lower(), _series_name['title'].lower()) >= 90:
-						SeriesDetails = self._load_series_info(_series, SeriesDetails, source)
-						raise GetOutOfLoop
-					else:
+			for _check_2 in _check_order2:
+				for _series in _rankings[key].itervalues():
+					if _series.status != _check_2:
 						continue
+					for _check_3 in _check_order3:
+						if _series.titleType != _check_3:
+							continue
+						if _series.titleBase == self.series.titleBase:
+							self.series.update(_series)
+							self.series.source = source
+							if source == 'tvdb':
+								self.series.tvdb_info = _series
+							elif source == 'tvrage':
+								self.series.tvrage_info = _series
+							return
+		raise SeriesNotFound
 
-				if _series_name['type'] is None or _series.title_type is None:
-					if fuzz.ratio(_series.title_base.lower(), _series_name['base'].lower()) >= 90:
-						SeriesDetails = self._load_series_info(_series, SeriesDetails, source)
-						raise GetOutOfLoop
-					else:
-						continue
-
-				if fuzz.ratio(_series.title_base.lower(), _series_name['base'].lower()) >= 90:
-					if _series.title_type != _series_name['type']:
-						SeriesDetails = self._load_series_info(_series, SeriesDetails, source)
-						raise GetOutOfLoop
-					elif _series.title_suffix == _series_name['suffix']:
-						SeriesDetails = self._load_series_info(_series, SeriesDetails, source)
-						raise GetOutOfLoop
-			raise SeriesNotFound
-		except GetOutOfLoop:
-			return True, SeriesDetails
-		except SeriesNotFound:
-			return False, SeriesDetails
-
-		raise RuntimeError
-
-	def _load_series_info(self, series, results, source):
-		if 'source' not in results:
-			results['SeriesName'] = series.title
-			results['source'] = [source]
-		try:
-			if not self.trakt_user:
-				trakt.api_key = self.settings.TraktAPIKey
-				trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
-				self.trakt_user = User(self.settings.TraktUserID)
-				_trakt_top_shows = self.trakt_user.get_list('topshows')
-				_trakt_top_shows_names = {_item.title: _item for _item in _trakt_top_shows.items}
-				if series.title in _trakt_top_shows_names:
-					results['top_show'] = True
-				else:
-					results['top_show'] = False
-		except:
-			results['top_show'] = False
-
-		if series.tvdb_id and 'tvdb_id' not in results:
-			results['tvdb_id'] = series.tvdb_id
-		if series.imdb_id and 'imdb_id' not in results:
-			results['imdb_id'] = series.imdb_id
-		if series.tvrage_id and 'tvrage_id' not in results:
-			results['tvrage_id'] = series.tvrage_id
-		if series.status and 'status' not in results:
-			results['status'] = series.status
-
-		return results
-
-	def _check_for_alias(self, series_name):
+	def _checkForAlias(self):
 		# Check for Alias
-		try:
-			alias_name = difflib.get_close_matches(series_name, self.settings.SeriesAliasList, 1, cutoff=0.9)
-			series_name = self.settings.SeriesAliasList[alias_name[0]].rstrip()
-		except IndexError:
-			an_error = traceback.format_exc()
-			sys.exc_clear()
+		alias_name = difflib.get_close_matches(self.series.title, self.settings.SeriesAliasList, 1, cutoff=0.9)
+		if len(alias_name) > 0:
+			self.series.title = self.settings.SeriesAliasList[alias_name[0]].rstrip()
+		return
 
-		return series_name
-
-	def _adj_episode(self, SeriesDetails):
+	def _adjEpisodeNums(self):
 		for _entry in self.settings.EpisodeAdjList:
-			if _entry['SeriesName'] == SeriesDetails['SeriesName'] and 'SeasonNum' in SeriesDetails:
-				if _entry['SeasonNum'] == SeriesDetails['SeasonNum']:
-					if _entry['Begin'] <= SeriesDetails['EpisodeNums'][0] and _entry['End'] >= SeriesDetails['EpisodeNums'][0]:
-						SeriesDetails['SeasonNum'] = SeriesDetails['SeasonNum'] + _entry['AdjSeason']
-						SeriesDetails['EpisodeNums'][0] = SeriesDetails['EpisodeNums'][0] + _entry['AdjEpisode']
-						return SeriesDetails
-		return SeriesDetails
+			if _entry['SeriesName'] == self.series.title and self.series.season:
+				if _entry['SeasonNum'] == self.series.season:
+					if _entry['Begin'] <= self.series.episodeNums[0] and _entry['End'] >= self.series.episodeNums[0]:
+						self.series.season = self.series.season + _entry['AdjSeason']
+						self.series.episodeNums[0] = self.series.episodeNums[0] + _entry['AdjEpisode']
+						return
+		return
 
-	def _tvdbEpisodeInfo(self, SeriesDetails):
-		log.trace("_tvdbEpisodeInfo: Retrieving Episodes - %s ID: %s" % (SeriesDetails['SeriesName'], SeriesDetails['tvdb_id']))
+	def _tvdbEpisodeInfo(self):
+		log.trace("_tvdbEpisodeInfo: Retrieving Episodes - %s ID: %s" % (self.series.title, self.series.tvdb_id))
 
 		_err_msg_1 = "TVDB: No Episode Data Found - {SeriesName}, ID: {tvdb_id}"
 		_err_msg_2 = "TVDB: Connection Issues Retrieving Series and Episode Info - {SeriesName}, ID: {tvdb_id}"
 
 		try:
-			SeriesDetails['EpisodeData'] = []
-			_series = self.db.get_series( SeriesDetails['tvdb_id'], "en" )
-			_seasons = self._build_tvseason_tvdb(_series, SeriesDetails)
-			SeriesDetails['TVSeries'].seasons = _seasons
-			if 'SeasonNum' in SeriesDetails:
-				_season = _series[SeriesDetails['SeasonNum']]
-				if 'EpisodeNums' in SeriesDetails:
-					for epno in SeriesDetails['EpisodeNums']:
+			self.series.episodeData = []
+			_series = self.db.get_series(self.series.tvdb_id, "en" )
+			_seasons = self._tvdbBuildTVSeason(_series)
+			self.series.seasons = _seasons
+			if self.series.season:
+				_season = _series[self.series.season]
+				if self.series.episodeNums:
+					for epno in self.series.episodeNums:
 						_episode = _season[epno]
-						self._load_data(_season, _episode, SeriesDetails)
+						self.series.addEpisode(_season, _episode)
 				else:
 					for _episode in _season:
-						self._load_data(_season, _episode, SeriesDetails)
+						self.series.addEpisode(_season, _episode)
 			else:
 				for _season in _series:
 					log.debug('Season: {}'.format(_season.season_number))
 					for _episode in _season:
-						self._load_data(_season, _episode, SeriesDetails)
+						self.series.addEpisode(_season, _episode)
 		except TVDBIndexError, message:
-			an_error = traceback.format_exc()
-			log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
-			log.debug(_err_msg_1.format(**SeriesDetails))
-			raise EpisodeNotFound(_err_msg_1.format(**SeriesDetails))
+			_an_error = traceback.format_exc()
+			log.debug(traceback.format_exception_only(type(_an_error), _an_error)[-1])
+			log.debug(_err_msg_1.format(**self.series.getDict()))
+			raise EpisodeNotFound(_err_msg_1.format(**self.series.getDict()))
 		except IOError, message:
-			an_error = traceback.format_exc()
-			log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
-			log.debug(_err_msg_2.format(**SeriesDetails))
-			raise EpisodeNotFound(_err_msg_2.format(**SeriesDetails))
+			_an_error = traceback.format_exc()
+			log.debug(traceback.format_exception_only(type(_an_error), _an_error)[-1])
+			log.debug(_err_msg_2.format(**self.series.getDict()))
+			raise EpisodeNotFound(_err_msg_2.format(**self.series.getDict()))
 
-		return SeriesDetails
+		return
 
-	def _build_tvseason_tvdb(self, _series, SeriesDetails):
+	def _tvdbBuildTVSeason(self, _series):
 		_seasons = {}
 		for _season in _series:
 			_season_number = u'<Season {0:02}>'.format(_season.season_number)
@@ -638,63 +494,49 @@ class SeriesInfo(Library):
 					_myepisode['airsafter_season'] = _episode.airsafter_season
 				else:
 					_myepisode['special'] = False
-				_my_tv_episode = TVEpisode(series=SeriesDetails['SeriesName'], **_myepisode)
+				_my_tv_episode = TVEpisode(series=self.series.title, **_myepisode)
 				_myseason['episodes'][_episode_number] = _my_tv_episode
-			_my_tv_season = TVSeason(series=SeriesDetails['SeriesName'], **_myseason)
+			_my_tv_season = TVSeason(series=self.series.title, **_myseason)
 			_seasons[_season_number] = _my_tv_season
 		return _seasons
 
-	def _load_data(self, _season, _episode, SeriesDetails):
-		if type(_episode.EpisodeName) == unicode:
-			_episode_name = unicodedata.normalize('NFKD', _episode.EpisodeName).encode('ascii', 'ignore')
-			_episode_name = _episode_name.replace("&amp;", "&").replace("/", "_")
-		else:
-			_episode_name = str(_episode.EpisodeName)
-
-		SeriesDetails['EpisodeData'].append({'SeasonNum'    : _season.season_number,
-											 'EpisodeNum'   : _episode.EpisodeNumber,
-											 'EpisodeTitle' : _episode_name,
-											 'DateAired'    :  _episode.FirstAired})
-
 	def _tvrageEpisideInfo(self, SeriesDetails):
-		log.debug('_tvrageEpisideInfo: Input Parm: {!s}'.format(SeriesDetails))
+		log.debug('_tvrageEpisideInfo: Input Parm: {!s}'.format(self.series.getDict()))
 
-		SeriesDetails['EpisodeData'] = []
+		self.series.episodeData = []
 
-		_epinfo = etree_to_dict(feeds.episode_list(SeriesDetails['tvrage_id'], node='Episodelist'))['Episodelist']['Season']
-		_seasons = self._build_tvseason_tvrage(_epinfo, SeriesDetails)
-		SeriesDetails['TVSeries'].seasons = _seasons
+		_epinfo = etree_to_dict(feeds.episode_list(self.series.tvrage_id, node='Episodelist'))['Episodelist']['Season']
+		_seasons = self._tvrageBuildTVSeason(_epinfo)
+		self.series.seasons = _seasons
 
-		if 'EpisodeNums' in SeriesDetails:
-			for epno in SeriesDetails['EpisodeNums']:
+		if self.series.episodeNums:
+			for epno in self.series.episodeNums:
 				try:
-					_epinfo= self.tvrage.get_episodeinfo(SeriesDetails['tvrage_id'],
-														   SeriesDetails['SeasonNum'],
+					_epinfo= self.tvrage.get_episodeinfo(self.series.tvrage_id,
+														   self.series.season,
 														   epno)
-					SeriesDetails['EpisodeData'].append({'SeasonNum' : SeriesDetails['SeasonNum'],
-														 'EpisodeNum' : epno,
-														 'EpisodeTitle' : _epinfo.episode['title'],
-														 'DateAired': _epinfo.episode['airdate']})
+					self.series.addEpisode(self.series.season, _epinfo)
 				except KeyError:
-					an_error = traceback.format_exc()
-					log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
-					raise EpisodeNotFound("TVRage: No Data Episode Found - {SeriesName}  Season: {SeasonNum}  Episode(s): {EpisodeNums}".format(**SeriesDetails))
+					_an_error = traceback.format_exc()
+					log.debug(traceback.format_exception_only(type(_an_error), _an_error)[-1])
+					raise EpisodeNotFound("TVRage: No Data Episode Found - {SeriesName}  Season: {SeasonNum}  Episode(s): {EpisodeNums}".format(**self.series.getDict()))
 		else:
 			try:
-				_ep_list= self.tvrage.get_episode_list(SeriesDetails['tvrage_id'])
+				_ep_list= self.tvrage.get_episode_list(self.series.tvrage_id)
 				for season in _ep_list.seasons:
 					for episode in season.episodes:
-						SeriesDetails['EpisodeData'].append({'SeasonNum' : season.no,
-															 'EpisodeNum' : episode.seasonnum,
-															 'EpisodeTitle' : episode.title,
-															 'DateAired': episode.airdate})
+						self.series.addEpisode(season.no, _epinfo)
+#						SeriesDetails['EpisodeData'].append({'SeasonNum' : season.no,
+#															 'EpisodeNum' : episode.seasonnum,
+#															 'EpisodeTitle' : episode.title,
+#															 'DateAired': episode.airdate})
 			except KeyError:
-				an_error = traceback.format_exc()
-				log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
-				raise EpisodeNotFound("TVRage: No Data Episode Found - {SeriesName}  Season: {SeasonNum}  Episode(s): {EpisodeNums}".format(**SeriesDetails))
+				_an_error = traceback.format_exc()
+				log.debug(traceback.format_exception_only(type(_an_error), _an_error)[-1])
+				raise EpisodeNotFound("TVRage: No Data Episode Found - {SeriesName}  Season: {SeasonNum}  Episode(s): {EpisodeNums}".format(**self.series.getDict()))
 		return SeriesDetails
 
-	def _build_tvseason_tvrage(self, _epinfo, SeriesDetails):
+	def _tvrageBuildTVSeason(self, _epinfo, SeriesDetails):
 		_seasons = {}
 		for _season in _epinfo:
 			_season_number = u'<Season {0:04}>'.format(int(_season['@no']))
@@ -713,9 +555,9 @@ class SeriesInfo(Library):
 						_myepisode['special'] = True
 					else:
 						_myepisode['special'] = False
-					_my_tv_episode = TVEpisode(series=SeriesDetails['SeriesName'], **_myepisode)
+					_my_tv_episode = TVEpisode(series=self.series.title, **_myepisode)
 					_myseason['episodes'][_episode_number] = _my_tv_episode
-				_my_tv_season = TVSeason(series=SeriesDetails['SeriesName'], **_myseason)
+				_my_tv_season = TVSeason(series=self.series.title, **_myseason)
 				_seasons[_season_number] = _my_tv_season
 			else:
 				_myepisode = {}
@@ -730,22 +572,15 @@ class SeriesInfo(Library):
 					_myepisode['special'] = True
 				else:
 					_myepisode['special'] = False
-				_my_tv_episode = TVEpisode(series=SeriesDetails['SeriesName'], **_myepisode)
+				_my_tv_episode = TVEpisode(series=self.series.title, **_myepisode)
 				_myseason['episodes'][_episode_number] = _my_tv_episode
 
-
-			_my_tv_season = TVSeason(series=SeriesDetails['SeriesName'], **_myseason)
+			_my_tv_season = TVSeason(series=self.series.title, **_myseason)
 			_seasons[_season_number] = _my_tv_season
 		return _seasons
 
 def __printAnswer(answer):
 	pp = pprint.PrettyPrinter(indent=1, depth=1)
-	print '-'*60
-	pp.pprint(answer['TVSeries'])
-	for season, val in sorted(answer['TVSeries'].seasons.iteritems()):
-		pp.pprint(val)
-		for episode, val2 in sorted(val.episodes.iteritems()):
-				pp.pprint(val2)
 	print '-'*60
 	pp.pprint(answer)
 	print '-'*60
@@ -755,6 +590,7 @@ if __name__ == "__main__":
 	logger.initialize()
 
 	log.trace("MAIN: -------------------------------------------------")
+	from library import Library
 	from library.series.fileparser import FileParser
 	import pprint
 
