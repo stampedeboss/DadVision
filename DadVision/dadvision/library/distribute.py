@@ -250,6 +250,8 @@ class Distribute(Library):
 			_destinationDir = os.path.dirname(unpackFileList[0][len(self.settings.DownloadDir)+1:])
 		elif unpackFileList[0][:len(self.settings.DownloadMovies)] == self.settings.DownloadMovies:
 			_destinationDir = self.settings.DownloadMovies, unpackFileList[0][len(self.settings.DownloadMovies)+1:]
+		else:
+			raise UnexpectedErrorOccured(unpackFileList[0])
 
 		if self.contentType == "Series":
 			_destinationDir = os.path.join(self.settings.NewSeriesDir, _destinationDir)
