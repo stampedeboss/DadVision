@@ -176,7 +176,7 @@ class RenameSeries(Library):
 					try:
 						self.renameFile(_path_name)
 					except (IOError, InvalidFilename, RegxSelectionError, SeriesNotFound, EpisodeNotFound), msg:
-						an_error = traceback.format_exc(1)
+						an_error = traceback.format_exc()
 						log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
 						log.error('Unable to Rename File: {}'.format(msg))
 						continue

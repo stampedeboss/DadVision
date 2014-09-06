@@ -106,7 +106,7 @@ class Distribute(Library):
 			except KeyboardInterrupt:
 				sys.exit(8)
 			except:
-				an_error = traceback.format_exc(1)
+				an_error = traceback.format_exc()
 				log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
 				log.error('Distribute skipped for: {}'.format(os.path.basename(pathname)))
 				return
@@ -164,7 +164,7 @@ class Distribute(Library):
 			elif self.contentType == "Movie":
 				self.rename_movies.renameMovie(_distributedFile)
 		except:
-			an_error = traceback.format_exc(1)
+			an_error = traceback.format_exc()
 			log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
 			log.error('Rename skipped for: {}'.format(os.path.basename(_distributedFile)))
 
@@ -205,7 +205,7 @@ class Distribute(Library):
 				try:
 					self.distributeFile(_file)
 				except:
-					an_error = traceback.format_exc(1)
+					an_error = traceback.format_exc()
 					log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
 					log.error('Distribute skipped for: {}'.format(os.path.basename(_file)))
 
@@ -288,7 +288,7 @@ class Distribute(Library):
 			elif self.contentType == "Movie":
 				self.rename_movies.renameMovie(_destinationDir)
 		except:
-			an_error = traceback.format_exc(1)
+			an_error = traceback.format_exc()
 			log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
 			log.error('Rename skipped for: {}'.format(os.path.basename(_destinationDir)))
 
@@ -370,7 +370,7 @@ class Distribute(Library):
 							          os.path.join(destinationDir, _nice_name))
 						except OSError, exc:
 							log.error("Failed to clean up %r to %r (%s)" % (_file, _nice_name, exc))
-							an_error = traceback.format_exc(1)
+							an_error = traceback.format_exc()
 							log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
 
 		return
