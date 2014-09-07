@@ -350,7 +350,7 @@ class RenameSeries(Library):
 				return file_2
 		if _ext_1 == 'avi':
 			if _ext_2 in ['avi']:
-				if os.path.getsize(file_1) < os.path.getsize(file_2): return file_2
+				if os.path.getsize(file_1) <= os.path.getsize(file_2): return file_2
 				else: return file_1
 			if _ext_2 in ['mp4', 'mkv']: return file_2
 			if _ext_2 in ['bup', 'divx', 'ifo', 'mpeg', 'mpg', 'img', 'iso', 'vob', '3gp', 'ts']:
@@ -364,7 +364,7 @@ class RenameSeries(Library):
 		elif _ext_1 == 'mkv':
 			if not top_show and _ext_2 in ['mp4']: return file_2
 			if _ext_2 in ['mkv']:
-				if os.path.getsize(file_1) < os.path.getsize(file_2): return file_2
+				if os.path.getsize(file_1) <= os.path.getsize(file_2): return file_2
 			return file_1
 		elif _ext_2 in ['mp4', 'mkv', 'avi']:
 			return file_2

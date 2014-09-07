@@ -222,8 +222,9 @@ class Distribute(Library):
 		log.trace('_setContentType: Pathname: {}'.format(pathname))
 
 		_new_type = guess_file_info(pathname)
+		print '-'*60
 		print _new_type
-
+		print '-'*60
 		_file_name = os.path.basename(pathname)
 
 		if self.args.content:
@@ -251,6 +252,11 @@ class Distribute(Library):
 			return
 
 	def _unpackDirectory(self, unpackFileList):
+
+		test1 = unpackFileList[0][:len(self.settings.DownloadDir)]
+		test2 = self.settings.DownloadDir
+		test3 = unpackFileList[0][:len(self.settings.DownloadMovies)]
+		test4 = self.settings.DownloadMovies
 
 		if unpackFileList[0][:len(self.settings.DownloadDir)] == self.settings.DownloadDir:
 			_destinationDir = os.path.dirname(unpackFileList[0][len(self.settings.DownloadDir)+1:])
