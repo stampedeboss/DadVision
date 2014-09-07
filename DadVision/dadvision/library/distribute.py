@@ -11,6 +11,7 @@ from common.exceptions import UnexpectedErrorOccured, InvalidFilename
 from library.movie.rename import RenameMovie
 from library.series.rename import RenameSeries
 
+from guessit import guess_file_info
 from subprocess import Popen, PIPE
 import filecmp
 import fnmatch
@@ -96,11 +97,13 @@ class Distribute(Library):
 	def distribute(self, pathname):
 		log.trace('ProcessFile: %s' % pathname)
 
+		pathname = os.path.abspath(pathname)
+
 		if os.path.isfile(pathname):
-			log.trace("%s file - %r..." % (self.contentType, pathname))
+			log.trace("file - %r..." % (pathname))
 			self.distributeFile(pathname)
 		elif os.path.isdir(pathname):
-			log.trace("%s directory ...%r" % (self.contentType, os.path.basename(pathname)))
+			log.trace("directory ...%r" % (os.path.basename(pathname)))
 			try:
 				self.distributeDirectory(pathname)
 			except KeyboardInterrupt:
@@ -217,6 +220,9 @@ class Distribute(Library):
 
 	def _setContentType(self, pathname):
 		log.trace('_setContentType: Pathname: {}'.format(pathname))
+
+		_new_type = guess_file_info(pathname)
+		print _new_type
 
 		_file_name = os.path.basename(pathname)
 
