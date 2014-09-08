@@ -179,11 +179,6 @@ class Distribute(Library):
 		"""
 		log.trace('distributeDirectory: %s %s' % (self.contentType, sourceDirectory))
 
-		self._setContentType(sourceDirectory)
-		if self.contentType == 'Movies' and self.args.suppress_movies:
-			log.verbose('Skipping Movie: %s' % sourceDirectory)
-			return
-
 		for _root, _dir_names, _file_names in os.walk(sourceDirectory):
 			# don't scan ignored subdirs
 			for _dir_name in _dir_names:
@@ -221,12 +216,6 @@ class Distribute(Library):
 	def _setContentType(self, pathname):
 		log.trace('_setContentType: Pathname: {}'.format(pathname))
 
-		_new_type = guess_file_info(pathname)
-		print '-'*60
-		print _new_type
-		print '-'*60
-		_file_name = os.path.basename(pathname)
-
 		if self.args.content:
 			if self.args.content == 'Series':
 				self.contentType = "Series"
@@ -235,6 +224,20 @@ class Distribute(Library):
 			else:
 				self.contentType = "NonVideo"
 			return
+
+		_guessit_info = guess_file_info(pathname)
+		print '-'*60
+		print _guessit_info['type']
+		print '-'*60
+
+		if _guessit_info['type'] == 'episode':
+			self.contentType = "Series"
+			return
+		elif _guessit_info['type'] == 'movie':
+			self.contentType = 'Movie'
+			return
+
+		_file_name = os.path.basename(pathname)
 
 		for cRegEx in self.RegEx:
 			_series = cRegEx.search(_file_name)
@@ -253,11 +256,6 @@ class Distribute(Library):
 
 	def _unpackDirectory(self, unpackFileList):
 
-		test1 = unpackFileList[0][:len(self.settings.DownloadDir)]
-		test2 = self.settings.DownloadDir
-		test3 = unpackFileList[0][:len(self.settings.DownloadMovies)]
-		test4 = self.settings.DownloadMovies
-
 		if unpackFileList[0][:len(self.settings.DownloadDir)] == self.settings.DownloadDir:
 			_destinationDir = os.path.dirname(unpackFileList[0][len(self.settings.DownloadDir)+1:])
 		elif unpackFileList[0][:len(self.settings.DownloadMovies)] == self.settings.DownloadMovies:
@@ -265,12 +263,7 @@ class Distribute(Library):
 		else:
 			raise UnexpectedErrorOccured(unpackFileList[0])
 
-		if self.contentType == "Series":
-			_destinationDir = os.path.join(self.settings.NewSeriesDir, _destinationDir)
-		elif self.contentType == "Movie":
-			_destinationDir = os.path.join(self.settings.NewMoviesDir, _destinationDir)
-		else:
-			_destinationDir = os.path.join(self.settings.NonVideoDir, _destinationDir)
+		_destinationDir = os.path.join(self.settings.UnpackDir, _destinationDir)
 
 		# create destination directory
 		if not os.path.exists(_destinationDir):
@@ -282,7 +275,7 @@ class Distribute(Library):
 		_cleanupfilesCreated = False
 		for _file in unpackFileList:
 			if self.RAR_PART_RE.search(_file.lower()) \
-					and not (_file.lower().endswith(".part01.rar") \
+					and not (_file.lower().endswith(".part01.rar")
 							 or _file.lower().endswith(".part001.rar")):
 				continue
 
@@ -297,10 +290,7 @@ class Distribute(Library):
 			_cleanupfilesCreated = False
 
 		try:
-			if self.contentType == "Series":
-				self.rename_series.renameSeries(_destinationDir)
-			elif self.contentType == "Movie":
-				self.rename_movies.renameMovie(_destinationDir)
+			self.distributeDirectory(_destinationDir)
 		except:
 			an_error = traceback.format_exc()
 			log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
@@ -381,7 +371,7 @@ class Distribute(Library):
 						log.debug("Cleanup Name %r to %r" % (_file, _nice_name))
 						try:
 							os.rename(os.path.join(destinationDir, _file),
-							          os.path.join(destinationDir, _nice_name))
+									  os.path.join(destinationDir, _nice_name))
 						except OSError, exc:
 							log.error("Failed to clean up %r to %r (%s)" % (_file, _nice_name, exc))
 							an_error = traceback.format_exc()

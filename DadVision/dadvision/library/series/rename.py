@@ -214,9 +214,7 @@ class RenameSeries(Library):
 		else:
 			os.makedirs(_season_folder)
 			os.chmod(_season_folder, 0775)
-			os.chown(_season_folder, 1000, 100)
 			os.chmod(_series_folder, 0775)
-			os.chown(_series_folder, 1000, 100)
 
 		if _file_exists:
 			if self.selected_file is not None:
@@ -230,7 +228,6 @@ class RenameSeries(Library):
 		elif not _file_exists:
 			os.rename(_file_details['FileName'], _new_name)
 			os.chmod(_new_name, 0664)
-			os.chown(_new_name, 1000, 100)
 			log.info('SERIES: {}'.format(_file_details['SeriesName']))
 			log.info('Renamed: SEASON: {}'.format(_file_details['SeasonNum']))
 			log.info('Renamed:   FILE: {}'.format(os.path.basename(_new_name)))
@@ -333,7 +330,6 @@ class RenameSeries(Library):
 			if os.path.splitext(os.path.basename(self.selected_file))[0] != _title_new:
 				os.rename(self.selected_file, _new_name)
 				os.chmod(_new_name, 0664)
-				os.chown(_new_name, 1000, 100)
 				self.dup_renamed = self.selected_file
 				self.selected_file = _new_name
 			return True
