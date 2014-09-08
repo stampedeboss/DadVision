@@ -471,7 +471,7 @@ class SyncLibrary(Library):
                     if _rsync_hostname == self.args.hostname:
                         _directory_in_use = True
                         if not self.args.dryrun:
-                            if p.terminal:
+                            if p.terminal():
                                 log.info('syncrmt running in terminal window, unable to cancel')
                                 self.args.runaction = 'cancel'
                             elif self.args.runaction == 'ask':
