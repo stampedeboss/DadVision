@@ -460,9 +460,9 @@ class SyncLibrary(Library):
         pidList = psutil.process_iter()
         _directory_in_use = False
         for p in pidList:
-            cmdline = p.cmdline
+            cmdline = p.cmdline()
             if len(cmdline) > 0:
-                if p.name == 'rsync':
+                if p.name() == 'rsync':
                     _rsync_target = cmdline[-1]
                     _rsync_target = _rsync_target.split(':')
                     if len(_rsync_target) < 2:
