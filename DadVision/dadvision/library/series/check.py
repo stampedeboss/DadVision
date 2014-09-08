@@ -16,18 +16,16 @@ import re
 import sys
 import traceback
 
+from fuzzywuzzy import fuzz
+import trakt
+from trakt.users import User
+
 from common.exceptions import (SeriesNotFound, EpisodeNotFound)
 from common import logger
 from library import Library
 from library.series.seriesinfo import SeriesInfo
 from library.series.fileparser import FileParser
 from library.series.rename import RenameSeries
-from library.series.seriesobj import TVSeries, TVSeason, TVEpisode
-from fuzzywuzzy import fuzz
-
-import trakt
-from trakt.users import User, UserList
-from trakt.tv import TVShow
 
 
 __pgmname__ = 'check'
@@ -157,7 +155,7 @@ class CheckSeries(Library):
 		for _show_name, _file_data in sorted(_series.iteritems()):
 			DadVision = _file_data['DadVision']
 			try:
-				_tv_series = self.seriesinfo.getShowInfo({'SeriesName': _show_name}, sources=['tvdb'])['TVSeries']
+				_tv_series = self.seriesinfo.getShowInfo({'SeriesName': _show_name}, processOrder=['tvdb'])['TVSeries']
 			except (SeriesNotFound, EpisodeNotFound):
 				an_error = traceback.format_exc()
 				log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
@@ -567,7 +565,6 @@ class CheckSeries(Library):
 if __name__ == "__main__":
 
 #	from library import Library
-	from logging import INFO, WARNING, ERROR
 
 	logger.initialize()
 

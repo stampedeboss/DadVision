@@ -1,12 +1,8 @@
-
-from library import Library
-from library.series.fileparser import FileParser
-from common import exceptions
-from common import logger
-from logging import INFO, WARNING, ERROR, DEBUG
 import unittest
-import os
-import sys
+
+from library.series.fileparser import FileParser
+from common import logger
+
 
 class KnownValues(unittest.TestCase):
     File_SxxExx = {}
@@ -24,7 +20,7 @@ class FileParserSingleEps(unittest.TestCase):
         TRACE = 5
         VERBOSE = 15
 
-        logger.initialize(unit_test=True, level=INFO)
+        logger.initialize(unit_test=True, level=VERBOSE)
 #        logger.start(level=ERROR)
 
         self.library = FileParser()
