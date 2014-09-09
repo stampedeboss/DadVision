@@ -143,6 +143,7 @@ class Distribute(Library):
 			_destinationDir = self.settings.UnpackDir
 
 		# Adds the last directory to target name
+		_destinationDir = os.path.join(_destinationDir, os.path.basename(os.path.dirname(sourceFile)))
 		_distributedFile = os.path.join(_destinationDir, os.path.basename(sourceFile))
 		if os.path.exists(_distributedFile) and os.path.getsize(_distributedFile) == os.path.getsize(sourceFile):
 			log.verbose("Skipped Copy: Already at Destination:")
