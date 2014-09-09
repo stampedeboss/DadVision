@@ -155,7 +155,8 @@ class CheckSeries(Library):
 		for _show_name, _file_data in sorted(_series.iteritems()):
 			DadVision = _file_data['DadVision']
 			try:
-				_tv_series = self.seriesinfo.getShowInfo({'SeriesName': _show_name}, processOrder=['tvdb'])['TVSeries']
+				_tv_series = self.seriesinfo.getShowInfo({'SeriesName': _show_name},
+				                                         processOrder=['tvdb'])['TVSeries']
 			except (SeriesNotFound, EpisodeNotFound):
 				an_error = traceback.format_exc()
 				log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
@@ -204,7 +205,7 @@ class CheckSeries(Library):
 							_first_aired = _episode.first_aired
 						else:
 							_first_aired = "Unknown"
-						log.warning(message.format(_episode.episode,
+						log.warning(message.format(key,
 												 _ep_no,
 												 _first_aired,
 												 _episode.title.encode('utf8', 'replace').replace("&amp;", "&")))
