@@ -5,14 +5,11 @@ Purpose:
 	Program to distribute the files from a source to a target library. If needed,
 	the files will be unzipped and renamed to meet the library standard.
 """
-from subprocess import Popen, PIPE
-import filecmp
+from subprocess import check_call, Popen, PIPE, CalledProcessError
 import fnmatch
 import logging
 import os
 import re
-import shutil
-import subprocess
 import sys
 import traceback
 
@@ -143,30 +140,39 @@ class Distribute(Library):
 		elif self.contentType == "Movie":
 			_destinationDir = self.settings.NewMoviesDir
 		else:
-			_destinationDir = os.path.join(self.settings.NonVideoDir, os.path.basename(sourceFile))  # Adds the last directory to target name
+			_destinationDir = self.settings.UnpackDir
 
+		# Adds the last directory to target name
 		_distributedFile = os.path.join(_destinationDir, os.path.basename(sourceFile))
-		if os.path.exists(_distributedFile) and filecmp.cmp(_distributedFile, sourceFile):
-			log.info("Skipped: Already at Destination:")
-			log.info("         {}".format(os.path.basename(sourceFile)))
-			log.info("         {}".format(os.path.basename(_distributedFile)))
-			return
+		if os.path.exists(_distributedFile) and os.path.getsize(_distributedFile) == os.path.getsize(sourceFile):
+			log.verbose("Skipped Copy: Already at Destination:")
+			log.verbose("         {}".format(os.path.basename(sourceFile)))
+			log.verbose("         {}".format(os.path.basename(_distributedFile)))
+		else:
+			# make sure target folder exists
+			if not os.path.exists(_destinationDir):
+				log.debug("Creating %r" % _destinationDir.rstrip(os.sep) + os.sep,)
+				os.makedirs(_destinationDir)
+				os.chmod(_destinationDir, 0775)
 
-		indicator = "<+<"
-		action = shutil.copy2
+			# copy file, possibly across devices.
+			log.verbose("Copying: {}".format(_destinationDir))
+			log.verbose("         {}".format("<+<"))
+			log.verbose("         {}".format(sourceFile))
 
-		# make sure target folder exists
-		if not os.path.exists(_destinationDir):
-			log.debug("Creating %r" % _destinationDir.rstrip(os.sep) + os.sep,)
-			os.makedirs(_destinationDir)
-			os.chmod(_destinationDir, 0775)
+#			indicator = "<+<"
+#			action = shutil.copy2
+#				action(sourceFile, _distributedFile)
 
-		# copy file, possibly across devices.
-		log.verbose("Copying: {}".format(_destinationDir))
-		log.verbose("         {}".format(indicator))
-		log.verbose("         {}".format(sourceFile))
-
-		action(sourceFile, _distributedFile)
+			try:
+				cmd = ['rsync', '-rptvhogLR', '--progress',
+					   '--partial-dir=.rsync-partial', os.path.basename(sourceFile), _destinationDir]
+				log.verbose(' '.join(cmd))
+				check_call(cmd, shell=False, stdin=None, stdout=None,
+				           stderr=None, cwd=os.path.dirname(sourceFile))
+			except CalledProcessError, exc:
+				log.error("Incremental rsync Command returned with RC=%d, Ending" % (exc.returncode))
+				raise UnexpectedErrorOccured(exc)
 
 		try:
 			if self.contentType == "Series":

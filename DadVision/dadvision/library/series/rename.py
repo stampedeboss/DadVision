@@ -21,13 +21,9 @@ import socket
 import traceback
 import shutil
 
-import trakt
-from trakt.users import User
-
-from library import Library
 from common import logger
 from common.exceptions import (RegxSelectionError, SeriesNotFound, EpisodeNotFound, DuplicateFilesFound,
-							   FailedVideoCheck, InvalidFilename, UnexpectedErrorOccured, InvalidPath)
+							   FailedVideoCheck, InvalidFilename, UnexpectedErrorOccured)
 from common.chkvideo import chkVideoFile
 from library.series.fileparser import FileParser
 from library.series.seriesinfo import SeriesInfo
@@ -249,8 +245,7 @@ class RenameSeries(Library):
 		_title_new = os.path.splitext(os.path.basename(_new_name))[0]
 		_ep_new = _title_new.split(None, 1)[0]
 
-		for _file in [f for f in os.listdir(_directory)
-					  if f.split(None, 1)[0] == _ep_new and os.path.join(_directory, f) != file_details['FileName']]:
+		for _file in [f for f in os.listdir(_directory) if f.split(None, 1)[0] == _ep_new]:
 			self.dup_queue.append(os.path.join(_directory, _file))
 
 		for f in self.dup_queue:
@@ -302,13 +297,13 @@ class RenameSeries(Library):
 		_ext_2 = os.path.splitext(os.path.basename(file_2))[1][1:].lower()
 
 		if _ext_1 == _ext_2:
-			if self.regex_repack.search(file_1):
-				return file_1
-			elif self.regex_repack.search(file_2):
+			if self.regex_repack.search(file_2):
 				return file_2
+			elif self.regex_repack.search(file_1):
+				return file_1
 		if _ext_1 == 'avi':
 			if _ext_2 in ['avi']:
-				if os.path.getsize(file_1) <= os.path.getsize(file_2): return file_2
+				if os.path.getsize(file_2) >= os.path.getsize(file_1): return file_2
 				else: return file_1
 			if _ext_2 in ['mp4', 'mkv']: return file_2
 			if _ext_2 in ['bup', 'divx', 'ifo', 'mpeg', 'mpg', 'img', 'iso', 'vob', '3gp', 'ts']:
@@ -317,12 +312,12 @@ class RenameSeries(Library):
 		elif _ext_1 == 'mp4':
 			if top_show and _ext_2 in ['mkv']: return file_2
 			if _ext_2 in ['mp4']:
-				if os.path.getsize(file_1) <= os.path.getsize(file_2): return file_2
+				if os.path.getsize(file_2) >= os.path.getsize(file_1): return file_2
 			return file_1
 		elif _ext_1 == 'mkv':
 			if not top_show and _ext_2 in ['mp4']: return file_2
 			if _ext_2 in ['mkv']:
-				if os.path.getsize(file_1) <= os.path.getsize(file_2): return file_2
+				if os.path.getsize(file_2) >= os.path.getsize(file_1): return file_2
 			return file_1
 		elif _ext_2 in ['mp4', 'mkv', 'avi']:
 			return file_2
@@ -531,7 +526,6 @@ class _get_out_of_loop(Exception):
 if __name__ == "__main__":
 
 	from library import Library
-	from logging import INFO, WARNING, ERROR, DEBUG
 
 	logger.initialize()
 
