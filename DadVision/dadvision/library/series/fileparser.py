@@ -73,12 +73,12 @@ class FileParser(Library, dict):
 			elif u'episodeNumber' in _series:
 				fileDetails['EpisodeNums'] = [_series['episodeNumber']]
 			if u'container' in _series:
-				fileDetails['Ext'] = unicodedata.normalize('NFKD', _series['container']).encode('ascii', 'ignore')
+				fileDetails['Ext'] = str(_series['container'])
 			elif u'extension' in _series:
-				fileDetails['Ext'] = unicodedata.normalize('NFKD', _series['extension']).encode('ascii', 'ignore')
-			fileDetails['type'] = _series['type'].encode('ascii', 'ignore')
+				fileDetails['Ext'] = str(_series['extension'])
+			fileDetails['type'] = _series['type']
 			if u'country' in _series:
-				fileDetails['country'] = _series['country'].encode('ascii', 'ignore')
+				fileDetails['country'] = _series['country']
 			#if _air_date:
 			#	self.File_Details['DateAired'] = _air_date
 			test = set(['SeriesName', 'SeasonNum', 'EpisodeNums', 'Ext', ]) - set(fileDetails.keys())

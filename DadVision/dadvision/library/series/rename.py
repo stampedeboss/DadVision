@@ -181,6 +181,7 @@ class RenameSeries(Library):
 		if _file_exists:
 			if self.selected_file is not None:
 				_new_name = self.selected_file
+			log.info('-'*70)
 			log.info('SERIES: {}'.format(_file_details['SeriesName']))
 			log.info('Updated: SEASON: {}'.format(_file_details['SeasonNum']))
 			log.info('Updated:   FILE: {}'.format(os.path.basename(_new_name)))
@@ -190,6 +191,7 @@ class RenameSeries(Library):
 		elif not _file_exists:
 			os.rename(_file_details['FileName'], _new_name)
 			os.chmod(_new_name, 0664)
+			log.info('-'*70)
 			log.info('SERIES: {}'.format(_file_details['SeriesName']))
 			log.info('Renamed: SEASON: {}'.format(_file_details['SeasonNum']))
 			log.info('Renamed:   FILE: {}'.format(os.path.basename(_new_name)))
@@ -555,6 +557,10 @@ if __name__ == "__main__":
 
 	for _lib_path in library.args.library:
 		if os.path.exists(_lib_path):
-			library.renameSeries(_lib_path)
+			try:
+				library.renameSeries(_lib_path)
+			except:
+				an_error = traceback.format_exc()
+				log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
 		else:
 			log.error('Skipping Rename: Unable to find File/Directory: {}'.format(_lib_path))
