@@ -7,13 +7,6 @@ Purpose:
 Program to rename and update Modification Time to Air Date
 
 """
-from library import Library
-from common import logger
-from common.exceptions import (RegxSelectionError, SeriesNotFound, EpisodeNotFound, DuplicateFilesFound,
-							   FailedVideoCheck, InvalidFilename, UnexpectedErrorOccured, InvalidPath)
-from common.chkvideo import chkVideoFile
-from library.series.fileparser import FileParser
-from library.series.seriesinfo import SeriesInfo
 from exceptions import IOError
 import datetime
 import fnmatch
@@ -30,6 +23,15 @@ import shutil
 
 import trakt
 from trakt.users import User
+
+from library import Library
+from common import logger
+from common.exceptions import (RegxSelectionError, SeriesNotFound, EpisodeNotFound, DuplicateFilesFound,
+							   FailedVideoCheck, InvalidFilename, UnexpectedErrorOccured, InvalidPath)
+from common.chkvideo import chkVideoFile
+from library.series.fileparser import FileParser
+from library.series.seriesinfo import SeriesInfo
+
 
 __pgmname__ = 'rename'
 __version__ = '$Rev$'
@@ -56,47 +58,6 @@ def useLibraryLogging(func):
 			logger.set_library('')
 
 	return wrapper
-
-
-def _del_dir(pathname, Tree=False, base_dir='/srv/DadVision/Series/New/'):
-	log.trace("_del_dir: pathname:{!s}".format(pathname))
-
-	if not os.path.isdir(pathname):
-		log.error('Invalid Path was requested for deletion: {}'.format(pathname))
-		return
-
-	_curr_dir = pathname
-	_base_dir = base_dir
-	if not re.match('^{}.*'.format(_base_dir), pathname): return
-
-	try:
-		if Tree:
-			shutil.rmtree(pathname)
-		else:
-			while _curr_dir != _base_dir:
-				if len(os.listdir(_curr_dir)) != 0: return
-				os.rmdir(pathname)
-				log.verbose('Deleting Directory as Requested: {}'.format(pathname))
-				_curr_dir = os.path.dirname(_curr_dir)
-	except:
-		log.warn('Delete Directory: Unable to Delete requested directory: %s' % (sys.exc_info()[1]))
-
-	return
-
-
-
-def _del_file(pathname, base_dir='/srv/DadVision/Series/New/'):
-	log.trace("_del_file: pathname:{!s}".format(pathname))
-
-	if os.path.isdir(pathname):
-		log.error('InvalidPath was requested for deletion: {}'.format(pathname))
-		return
-
-	try:
-		log.verbose('Deleting File as Requested: {}'.format(pathname))
-		os.remove(pathname)
-	except:
-		log.warn('Delete File: Unable to Delete requested file: %s' % (sys.exc_info()[1]))
 
 
 class RenameSeries(Library):
@@ -154,11 +115,11 @@ class RenameSeries(Library):
 				for _dir in _dirs[:]:
 					if self._ignored(_dir):
 						log.debug("Ignoring %r" % os.path.join(_root, _dir))
-						_del_dir(os.path.join(_root, _dir), Tree=True)
+						self._del_dir(os.path.join(_root, _dir), Tree=True)
 						continue
 
 				if _dirs == [] and _files == []:
-					_del_dir(_root)
+					self._del_dir(_root)
 					continue
 				elif _files == []:
 					continue
@@ -170,8 +131,8 @@ class RenameSeries(Library):
 					log.debug("Filename: %s" % _path_name)
 					ext = os.path.splitext(_path_name)[1][1:]
 					if self._ignored(_path_name) or os.path.splitext(_path_name)[1][1:] not in self.settings.MediaExt:
-						_del_file(_path_name)
-						_del_dir(_root)
+						self._del_file(_path_name)
+						self._del_dir(_root)
 						continue
 					try:
 						self.renameFile(_path_name)
@@ -200,9 +161,12 @@ class RenameSeries(Library):
 			_file_details = self.parser.getFileDetails(pathname)
 			_file_details = self.seriesinfo.getShowInfo(_file_details)
 		except (InvalidFilename, RegxSelectionError, SeriesNotFound, EpisodeNotFound), msg:
-			_dir_details = self.parser.getFileDetails(os.path.join(os.path.dirname(pathname), 'E01.txt'))
-			_file_details['SeriesName'] = _dir_details['SeriesName']
-			_file_details = self.seriesinfo.getShowInfo(_file_details)
+			if os.path.splitext(os.path.basename(pathname))[0] != os.path.basename(os.path.dirname(pathname)):
+				_dir_details = self.parser.getFileDetails(os.path.join(os.path.dirname(pathname), 'E01.txt'))
+				_file_details['SeriesName'] = _dir_details['SeriesName']
+				_file_details = self.seriesinfo.getShowInfo(_file_details)
+			else:
+				raise
 
 		_new_name, _file_details = self.getFileName(_file_details)
 		_season_folder = os.path.dirname(_new_name)
@@ -236,12 +200,10 @@ class RenameSeries(Library):
 			self.xbmc_update_required = True
 
 		if os.path.exists(_file_details['FileName']):
-			if not re.match('^{}/.*$'.format(self.settings.NewSeriesDir), os.path.dirname(_file_details['FileName']), re.X|re.I):
-				_del_file(_file_details['FileName'])
-			elif self.args.force_delete:
-				_del_file(_file_details['FileName'])
+			self._del_file(_file_details['FileName'])
+			self._del_dir(os.path.dirname(_file_details['FileName']))
 		else:
-			_del_dir(os.path.dirname(_file_details['FileName']))
+			self._del_dir(os.path.dirname(_file_details['FileName']))
 
 		if self.hostname == 'grumpy':
 			try:
@@ -319,7 +281,7 @@ class RenameSeries(Library):
 												   file_details['top_show'] )
 
 		if self.selected_file == file_details['FileName']:
-			_del_file(_last_file)
+			self._del_file(_last_file)
 			self.selected_file = None
 			return False
 		else:
@@ -379,12 +341,12 @@ class RenameSeries(Library):
 			while len(self.dup_queue) > 0:
 				_file_1 = self.dup_queue.pop()
 				if _file_1 not in _available:
-					_del_file(_file_1)
+					self._del_file(_file_1)
 		elif _available:
 			while len(self.dup_queue) > 0:
 				_file_1 = self.dup_queue.pop()
 				if _file_1 not in _available:
-					_del_file(_file_1)
+					self._del_file(_file_1)
 		else:
 			raise DuplicateFilesFound
 
@@ -400,10 +362,10 @@ class RenameSeries(Library):
 												   _file_2,
 												   top_show )
 			if _selected_file == _file_2:
-				_del_file(_file_1)
+				self._del_file(_file_1)
 				_file_1 = _file_2
 			else:
-				_del_file(_file_2)
+				self._del_file(_file_2)
 
 		return _file_1
 
@@ -510,6 +472,58 @@ class RenameSeries(Library):
 		_names.append("%s (%d-%d)" % (_found_names[0], _start, _end))
 		log.debug("Episode Name: %s" % (join_with.join(_names)))
 		return join_with.join(_names)
+
+	def _del_dir(self, pathname, Tree=False):
+		log.trace("_del_dir: pathname:{!s}".format(pathname))
+
+		if not os.path.isdir(pathname):
+			log.error('Invalid Path was requested for deletion: {}'.format(pathname))
+			return
+
+		_curr_dir = pathname
+		_base_dir = self.settings.NewSeriesDir
+		if not re.match('^{}.*'.format(_base_dir), pathname): return
+
+		try:
+			if Tree:
+				shutil.rmtree(pathname)
+			else:
+				while _curr_dir != _base_dir:
+					if len(os.listdir(_curr_dir)) != 0: return
+					os.rmdir(pathname)
+					log.verbose('Deleting Directory as Requested: {}'.format(pathname))
+					_curr_dir = os.path.dirname(_curr_dir)
+		except:
+			log.warn('Delete Directory: Unable to Delete requested directory: %s' % (sys.exc_info()[1]))
+
+		return
+
+
+	def _del_file(self, pathname):
+		log.trace("_del_file: pathname:{!s}".format(pathname))
+
+		_check_download = pathname[:len(os.path.dirname(self.settings.DownloadDir))]
+		_check_dadvision = pathname[:len(os.path.dirname(self.settings.SeriesDir))]
+
+		try:
+			if os.path.isdir(pathname):
+				log.error('InvalidPath was requested for deletion: {}'.format(pathname))
+				return
+			if _check_dadvision == os.path.dirname(self.settings.SeriesDir):
+				raise _get_out_of_loop
+			if _check_download == os.path.dirname(self.settings.DownloadDir):
+				if not self.args.force_delete:
+					raise _get_out_of_loop
+			return
+		except _get_out_of_loop:
+			pass
+
+		try:
+			log.verbose('Deleting File as Requested: {}'.format(pathname))
+			os.remove(pathname)
+		except:
+			log.warn('Delete File: Unable to Delete requested file: %s' % (sys.exc_info()[1]))
+
 
 class _get_out_of_loop(Exception):
 	pass

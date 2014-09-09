@@ -1,4 +1,5 @@
 import unittest
+from logging import INFO, WARNING, ERROR, DEBUG
 
 from library.series.fileparser import FileParser
 from common import exceptions
@@ -11,8 +12,8 @@ class KnownValues(unittest.TestCase):
     File_SxxExx['SeriesName'] = 'Covert Affairs'
     File_SxxExx['SeasonNum'] = 1
     File_SxxExx['EpisodeNums'] = [1]
+    File_SxxExx['type'] = 'episode'
     File_SxxExx['Ext'] = 'ext'
-#   File_SxxExx['BaseDir'] = '/mnt/DadVision/Series'
 
 class FileParserExceptions(unittest.TestCase):
 
@@ -21,7 +22,7 @@ class FileParserExceptions(unittest.TestCase):
         TRACE = 5
         VERBOSE = 15
 
-        logger.initialize(unit_test=True, level=VERBOSE)
+        logger.initialize(unit_test=True, level=INFO)
 #        logger.start(level=ERROR)
 
         self.library = FileParser()
@@ -36,7 +37,6 @@ class FileParserExceptions(unittest.TestCase):
         return suite
 
 if __name__ == '__main__':
-#    suite = unittest.TestLoader().loadTestsFromTestCase(FileParserExceptions)
     suite = FileParserExceptions.theSuite()
     unittest.TextTestRunner(verbosity=2).run(suite)
 

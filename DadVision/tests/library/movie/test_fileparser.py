@@ -1,11 +1,13 @@
-from library.movie.fileparser import FileParser
-from common import exceptions
-from common import logger
 from logging import INFO, WARNING, ERROR, DEBUG
 import logging
 import unittest
 import os
 import sys
+
+from library.movie.fileparser import FileParser
+from common import exceptions
+from common import logger
+
 
 # A level more detailed than DEBUG
 TRACE = 5

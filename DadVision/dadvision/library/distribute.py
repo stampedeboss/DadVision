@@ -5,13 +5,6 @@ Purpose:
 	Program to distribute the files from a source to a target library. If needed,
 	the files will be unzipped and renamed to meet the library standard.
 """
-from library import Library
-from common import logger
-from common.exceptions import UnexpectedErrorOccured, InvalidFilename
-from library.movie.rename import RenameMovie
-from library.series.rename import RenameSeries
-
-from guessit import guess_file_info
 from subprocess import Popen, PIPE
 import filecmp
 import fnmatch
@@ -22,6 +15,15 @@ import shutil
 import subprocess
 import sys
 import traceback
+
+from guessit import guess_file_info
+
+from library import Library
+from common import logger
+from common.exceptions import UnexpectedErrorOccured, InvalidFilename
+from library.movie.rename import RenameMovie
+from library.series.rename import RenameSeries
+
 
 __pgmname__ = 'library.distribute'
 __version__ = '@version: $Rev$'
@@ -99,6 +101,7 @@ class Distribute(Library):
 
 		pathname = os.path.abspath(pathname)
 
+		#TODO: Check to ensure request within DadVision Scope
 		if os.path.isfile(pathname):
 			log.trace("file - %r..." % (pathname))
 			self.distributeFile(pathname)
@@ -123,6 +126,10 @@ class Distribute(Library):
 		"""
 		# ignored file?
 		if self._ignored(os.path.basename(sourceFile)) and self.args.ignore:
+			log.verbose("Ignoring %r!" % (sourceFile))
+			return
+
+		if os.path.splitext(sourceFile)[1][1:] not in self.settings.MediaExt:
 			log.verbose("Ignoring %r!" % (sourceFile))
 			return
 
@@ -204,8 +211,8 @@ class Distribute(Library):
 					self.distributeFile(_file)
 				except:
 					an_error = traceback.format_exc()
-					log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
-					log.error('Distribute skipped for: {}'.format(os.path.basename(_file)))
+					log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+					log.warning('Distribute skipped for: {}'.format(os.path.basename(_file)))
 
 			# handle unpacking files
 			if len(_requiresUnpack) > 0:
@@ -263,7 +270,26 @@ class Distribute(Library):
 		else:
 			raise UnexpectedErrorOccured(unpackFileList[0])
 
-		_destinationDir = os.path.join(self.settings.UnpackDir, _destinationDir)
+		if self.args.content:
+			if self.args.content == 'Series':
+				_type = "series"
+			elif self.args.content == "Movie":
+				_type = "movies"
+			else:
+				_type = "unpack"
+		else:
+			_guessit_info = guess_file_info(os.path.dirname(unpackFileList[0]))
+			if _guessit_info:
+				if _guessit_info['type'] == 'episode':
+					_type = "series"
+				elif _guessit_info['type'] == 'movie':
+					_type = "movies"
+			else:
+				_type = "unpack"
+
+		if _type == 'series': _destinationDir = os.path.join(self.settings.NewSeriesDir, _destinationDir)
+		elif _type == 'movies': _destinationDir = os.path.join(self.settings.NewMoviesDir, _destinationDir)
+		else: _destinationDir = os.path.join(self.settings.UnpackDir, _destinationDir)
 
 		# create destination directory
 		if not os.path.exists(_destinationDir):
@@ -290,7 +316,10 @@ class Distribute(Library):
 			_cleanupfilesCreated = False
 
 		try:
-			self.distributeDirectory(_destinationDir)
+			if _type == "series":
+				self.rename_series.renameSeries(_destinationDir)
+			elif _type == "movie":
+				self.rename_movies.renameSeries(_destinationDir)
 		except:
 			an_error = traceback.format_exc()
 			log.error(traceback.format_exception_only(type(an_error), an_error)[-1])

@@ -6,12 +6,12 @@ from common import logger
 
 class KnownValues(unittest.TestCase):
     File_SxxExx = {}
-    File_SxxExx['FileName'] = "/mnt/DadVision/Series/Covert Affairs/Season 1/E01 Pilot.mkv"
-    File_SxxExx['SeriesName'] = 'Covert Affairs'
+    File_SxxExx['FileName'] = "/mnt/DadVision/Series/Covert Affairs 2012/S01/E01 Pilot.mkv"
+    File_SxxExx['SeriesName'] = 'Covert Affairs (2012)'
     File_SxxExx['SeasonNum'] = 1
     File_SxxExx['EpisodeNums'] = [1]
+    File_SxxExx['type'] = 'episode'
     File_SxxExx['Ext'] = 'ext'
-#   File_SxxExx['BaseDir'] = '/mnt/DadVision/Series'
 
 class FileParserSingleEps(unittest.TestCase):
 
@@ -24,63 +24,63 @@ class FileParserSingleEps(unittest.TestCase):
 #        logger.start(level=ERROR)
 
         self.library = FileParser()
+
     '''
         Test Cases:
-            01    Covert Affairs ...
-            02    Covert.Affairs. ...
-            03    Covert_Affairs_ ...
+            01    Covert Affairs 2012...
+            02    Covert.Affairs.2012 ...
+            03    Covert_Affairs_2012 ...
     '''
 
-
-# 01    Covert Affairs ...
+# 01    Covert Affairs 2012 ...
     def test_FileParser_single_case_001(self):
-        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs S1E01 Case 006.ext"
+        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs 2012 S1E01 Case 001.ext"
         self.assertEqual(self.library.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
     def test_FileParser_single_case_002(self):
-        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs S01E01 Case 007.ext"
+        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs 2012 S01E01 Case 002.ext"
         self.assertEqual(self.library.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
     def test_FileParser_single_case_003(self):
-        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs S1E001 Case 008.ext"
+        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs 2012 S1E001 Case 003.ext"
         self.assertEqual(self.library.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
     def test_FileParser_single_case_004(self):
-        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs S01E001 Case 009.ext"
+        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert Affairs 2012 S01E001 Case 004.ext"
         self.assertEqual(self.library.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
-# 02    Covert.Affairs. ...
+# 02    Covert.Affairs.2012 ...
+    def test_FileParser_single_case_011(self):
+        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert.Affairs.2012.S1E01.Case.014.ext"
+        self.assertEqual(self.library.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
+
+    def test_FileParser_single_case_012(self):
+        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert.Affairs.2012.S01E01.Case.015.ext"
+        self.assertEqual(self.library.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
+
+    def test_FileParser_single_case_013(self):
+        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert.Affairs.2012.S1E001.Case.016.ext"
+        self.assertEqual(self.library.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
+
+    def test_FileParser_single_case_014(self):
+        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert.Affairs.2012.S01E001.Case.017.ext"
+        self.assertEqual(self.library.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
+
+# 03    Covert_Affairs_2012 ...
     def test_FileParser_single_case_021(self):
-        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert.Affairs.S1E01.Title.ext Case 026.ext"
+        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert_Affairs_2012_S1E01_Case_018.ext"
         self.assertEqual(self.library.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
     def test_FileParser_single_case_022(self):
-        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert.Affairs.S01E01.Title.ext Case 027.ext"
+        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert_Affairs_2012_S01E01_Case_019.ext"
         self.assertEqual(self.library.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
     def test_FileParser_single_case_023(self):
-        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert.Affairs.S1E001.Title.ext Case 028.ext"
+        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert_Affairs_2012_S1E001_Case_020.ext"
         self.assertEqual(self.library.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
     def test_FileParser_single_case_024(self):
-        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert.Affairs.S01E001.Title.ext Case 029.ext"
-        self.assertEqual(self.library.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
-
-# 03    Covert_Affairs_ ...
-    def test_FileParser_single_case_031(self):
-        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert_Affairs_S1E01_Title.ext Case 046.ext"
-        self.assertEqual(self.library.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
-
-    def test_FileParser_single_case_032(self):
-        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert_Affairs_S01E01_Title.ext Case 047.ext"
-        self.assertEqual(self.library.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
-
-    def test_FileParser_single_case_033(self):
-        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert_Affairs_S1E001_Title.ext Case 048.ext"
-        self.assertEqual(self.library.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
-
-    def test_FileParser_single_case_034(self):
-        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/Covert_Affairs_S01E001_Title.ext Case 049.ext"
+        KnownValues.File_SxxExx["FileName"] = "/mnt/Download/Bittorrent/[Group Name]_Covert_Affairs_2012_S01E001_Case_021.ext"
         self.assertEqual(self.library.getFileDetails(KnownValues.File_SxxExx["FileName"]), KnownValues.File_SxxExx)
 
     def theSuite(self):
@@ -90,4 +90,4 @@ class FileParserSingleEps(unittest.TestCase):
 if __name__ == '__main__':
 #    suite = unittest.TestLoader().loadTestsFromTestCase(FileParserSingleEps)
     suite = FileParserSingleEps.theSuite()
-    unittest.TextTestRunner(verbosity=2).run(suite)
+    unittest.TextTestRunner(verbosity=1).run(suite)

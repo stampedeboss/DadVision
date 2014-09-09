@@ -1,4 +1,5 @@
 import unittest
+from logging import INFO, WARNING, ERROR, DEBUG
 
 from library.series.fileparser import FileParser
 from common import logger
@@ -11,6 +12,7 @@ class KnownValues(unittest.TestCase):
     File_SxxExx['SeasonNum'] = 1
     File_SxxExx['EpisodeNums'] = [1, 2]
     File_SxxExx['Ext'] = 'ext'
+    File_SxxExx['type'] = 'episode'
 #   File_SxxExx['BaseDir'] = '/mnt/DadVision/Series'
 
 class FileParserMultiEps(unittest.TestCase):
@@ -20,7 +22,7 @@ class FileParserMultiEps(unittest.TestCase):
         TRACE = 5
         VERBOSE = 15
 
-        logger.initialize(unit_test=True, level=VERBOSE)
+        logger.initialize(unit_test=True, level=INFO)
 #        logger.start(level=ERROR)
 
         self.library = FileParser()
@@ -250,6 +252,7 @@ class FileParserMultiEps(unittest.TestCase):
     def theSuite(self):
         suite = unittest.TestLoader().loadTestsFromTestCase(self)
         return suite
+
 
 if __name__ == '__main__':
 #    suite = unittest.TestLoader().loadTestsFromTestCase(FileParserMultiEps)

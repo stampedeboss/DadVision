@@ -11,14 +11,19 @@ Created on Dec 4, 2011
 '''
 
 from __future__ import division
-from library import Library
-from common.exceptions import InvalidFilename, RegxSelectionError
-from common import logger
 from collections import OrderedDict
 import datetime
 import logging
 import os
 import re
+import unicodedata
+
+from guessit import guess_file_info
+
+from library import Library
+from common.exceptions import InvalidFilename, RegxSelectionError
+from common import logger
+
 
 __pgmname__ = 'fileparser'
 __version__ = '$Rev$'
@@ -49,6 +54,36 @@ class FileParser(Library, dict):
 
 	def getFileDetails(self, fq_name):
 		log.trace("GetFileDetails: File: %s" % (fq_name))
+
+		_series = guess_file_info(fq_name)
+		if _series['type'] == u'episode':
+			fileDetails = {}
+			fileDetails['FileName'] = fq_name
+			if u'year' in _series:
+				fileDetails['SeriesName'] = '{} ({})'.format(unicodedata.normalize('NFKD',
+				                                                                   _series['series']).encode('ascii',
+				                                                                                             'ignore'),
+				                                             _series['year'])
+			else:
+				fileDetails['SeriesName'] = unicodedata.normalize('NFKD', _series['series']).encode('ascii', 'ignore')
+			if u'season' in _series:
+				fileDetails['SeasonNum'] = _series['season']
+			if u'episodeList' in _series:
+				fileDetails['EpisodeNums'] = _series['episodeList']
+			elif u'episodeNumber' in _series:
+				fileDetails['EpisodeNums'] = [_series['episodeNumber']]
+			if u'container' in _series:
+				fileDetails['Ext'] = unicodedata.normalize('NFKD', _series['container']).encode('ascii', 'ignore')
+			elif u'extension' in _series:
+				fileDetails['Ext'] = unicodedata.normalize('NFKD', _series['extension']).encode('ascii', 'ignore')
+			fileDetails['type'] = _series['type'].encode('ascii', 'ignore')
+			if u'country' in _series:
+				fileDetails['country'] = _series['country'].encode('ascii', 'ignore')
+			#if _air_date:
+			#	self.File_Details['DateAired'] = _air_date
+			test = set(['SeriesName', 'SeasonNum', 'EpisodeNums', 'Ext', ]) - set(fileDetails.keys())
+			if not set(['SeriesName', 'SeasonNum', 'EpisodeNums', 'Ext', ]) - set(fileDetails.keys()):
+				return fileDetails
 
 		_path, _file_name = os.path.split(os.path.abspath(fq_name))
 		_check_path = _path
@@ -95,7 +130,8 @@ class FileParser(Library, dict):
 		if _ext:
 			self.File_Details['Ext'] = _ext
 		else:
-			raise RegxSelectionError('FileParser: {}: Unable to Identify Extension for Filename: {}'.format(self.LogHeader, fq_name))
+			raise RegxSelectionError('FileParser: {}: Unable to Identify Extension for Filename: {}'.format(self.LogHeader,
+			                                                                                                fq_name))
 
 		log.trace('{}: File Details Found: {}'.format(self.LogHeader, self.File_Details))
 
