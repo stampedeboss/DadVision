@@ -21,6 +21,8 @@ import socket
 import traceback
 import shutil
 
+from library import Library
+
 from common import logger
 from common.exceptions import (RegxSelectionError, SeriesNotFound, EpisodeNotFound, DuplicateFilesFound,
 							   FailedVideoCheck, InvalidFilename, UnexpectedErrorOccured)
@@ -525,7 +527,6 @@ class _get_out_of_loop(Exception):
 
 if __name__ == "__main__":
 
-	from library import Library
 
 	logger.initialize()
 
