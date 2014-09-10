@@ -13,7 +13,6 @@ Current functions:
  Repopulate the std-shows list
 """
 from __future__ import division
-from exceptions import ValueError, AttributeError
 import logging
 import os
 import sys
@@ -30,7 +29,6 @@ from pytvdbapi import api
 import tmdb3
 import trakt
 from trakt.users import User, UserList
-from trakt.tv import TVShow
 
 from library import Library
 from common import logger
@@ -162,8 +160,12 @@ class CleanUp(Library):
 		_trakt_shows_list_names = {_item.title: _item for _item in _trakt_shows_list}
 		_trakt_shows_collected = self.trakt_user.show_collection
 		_trakt_shows_collected_names = {_item.title: _item for _item in _trakt_shows_collected}
-		_trakt_shows_watchlist = self.trakt_user.show_watchlist
-		_trakt_shows_watchlist_names = {_item.title: _item for _item in _trakt_shows_watchlist}
+		try:
+			_trakt_shows_watchlist = self.trakt_user.show_watchlist
+			_trakt_shows_watchlist_names = {_item.title: _item for _item in _trakt_shows_watchlist}
+		except:
+			_trakt_shows_watchlist = []
+			_trakt_shows_watchlist_names = {}
 
 		_trakt_shows_needing_unseen = [_trakt_shows_list_names[x] for x in _trakt_shows_list_names if x not in _trakt_shows_collected_names]
 		_trakt_shows_needing_unwatchlist = [_trakt_shows_collected_names[x] for x in _trakt_shows_watchlist_names if x in _trakt_shows_collected_names]
@@ -171,7 +173,7 @@ class CleanUp(Library):
 		#Cleanup Seen Shows
 		for _item in _trakt_shows_needing_unseen:
 			try:
-				_series_details = self.seriesinfo.getShowInfo({'SeriesName': _item.title}, sources=['tvdb'])
+				_series_details = self.seriesinfo.getShowInfo({'SeriesName': _item.title}, processOrder=['tvdb'])
 			except (SeriesNotFound, EpisodeNotFound):
 				continue
 
