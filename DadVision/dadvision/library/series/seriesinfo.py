@@ -4,14 +4,7 @@
 Purpose:
 		Configuration and Run-time settings for the XBMC Support Programs
 """
-from library import Library
-from common import logger
-from common.exceptions import InvalidArgumentType, InvalidArgumentValue, DictKeyError, DataRetrievalError
-from common.exceptions import SeriesNotFound, EpisodeNotFound
-from library.series import Series
-from library.series.seriesobj import TVSeason, TVEpisode
-from collections import OrderedDict, defaultdict
-from fuzzywuzzy import fuzz
+from collections import defaultdict
 import datetime
 import difflib
 import logging
@@ -22,16 +15,20 @@ import fnmatch
 import unicodedata
 import traceback
 
+from fuzzywuzzy import fuzz
+from pytvdbapi import api, error
+from pytvdbapi.error import TVDBAttributeError, TVDBIndexError, TVDBValueError
+from tvrage import feeds
+
+from common import logger
+from common.exceptions import InvalidArgumentType, InvalidArgumentValue, DictKeyError
+from common.exceptions import SeriesNotFound, EpisodeNotFound
+from library.series import Series
+from library.series.seriesobj import TVSeason, TVEpisode
 import trakt
 from trakt.users import User
 from trakt.tv import TVShow
 
-from pytvdbapi import api, error
-from pytvdbapi.error import TVDBAttributeError, TVDBIndexError, TVDBValueError
-
-from tvrage import feeds
-from tvrage.exceptions import ShowHasEnded, NoNewEpisodesAnnounced, FinaleMayNotBeAnnouncedYet, ShowNotFound
-from xml.etree.ElementTree import tostring, tostringlist
 
 __pgmname__ = 'seriesinfo'
 __version__ = '@version: $Rev$'
@@ -330,10 +327,10 @@ class SeriesInfo(Library):
 			for _show in _shows:
 				_title_suffix = self._check_suffix.match(_decode(_show.SeriesName))
 				if _title_suffix:
-					_score = _matching(self.series.title.lower(), _title_suffix.group('SeriesName').lower())
+					_score = _matching(self.series.titleBase.lower(), _title_suffix.group('SeriesName').lower())
 				else:
-					_score = _matching(self.series.title.lower(), _decode(_show.SeriesName).lower())
-				if _score < 85:
+					_score = _matching(self.series.titleBase.lower(), _decode(_show.SeriesName).lower())
+				if _score < 90:
 					continue
 
 				_show.update()
@@ -402,10 +399,10 @@ class SeriesInfo(Library):
 			test1 = self.series.titleBase
 
 			for _check_2 in _check_order2:
-				for _series in _rankings[key].itervalues():
-					if _series.status != _check_2:
-						continue
-					for _check_3 in _check_order3:
+				for _check_3 in _check_order3:
+					for _series in _rankings[key].itervalues():
+						if _series.status != _check_2:
+							continue
 						if _series.titleType != _check_3:
 							continue
 						if _series.titleBase == self.series.titleBase:

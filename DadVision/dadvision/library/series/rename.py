@@ -22,7 +22,6 @@ import traceback
 import shutil
 
 from library import Library
-
 from common import logger
 from common.exceptions import (RegxSelectionError, SeriesNotFound, EpisodeNotFound, DuplicateFilesFound,
 							   FailedVideoCheck, InvalidFilename, UnexpectedErrorOccured)
@@ -159,7 +158,8 @@ class RenameSeries(Library):
 			_file_details = self.parser.getFileDetails(pathname)
 			_file_details = self.seriesinfo.getShowInfo(_file_details)
 		except (InvalidFilename, RegxSelectionError, SeriesNotFound, EpisodeNotFound), msg:
-			if os.path.splitext(os.path.basename(pathname))[0] != os.path.basename(os.path.dirname(pathname)):
+			if os.path.splitext(os.path.basename(pathname))[0] != os.path.basename(os.path.dirname(pathname)) \
+					and os.path.dirname(pathname) != self.settings.NewSeriesDir:
 				_dir_details = self.parser.getFileDetails(os.path.join(os.path.dirname(pathname), 'E01.txt'))
 				_file_details['SeriesName'] = _dir_details['SeriesName']
 				_file_details = self.seriesinfo.getShowInfo(_file_details)

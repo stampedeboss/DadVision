@@ -81,7 +81,6 @@ class FileParser(Library, dict):
 				fileDetails['country'] = _series['country']
 			#if _air_date:
 			#	self.File_Details['DateAired'] = _air_date
-			test = set(['SeriesName', 'SeasonNum', 'EpisodeNums', 'Ext', ]) - set(fileDetails.keys())
 			if not set(['SeriesName', 'SeasonNum', 'EpisodeNums', 'Ext', ]) - set(fileDetails.keys()):
 				return fileDetails
 

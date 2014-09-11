@@ -17,9 +17,9 @@ import sys
 import traceback
 
 from fuzzywuzzy import fuzz
+
 import trakt
 from trakt.users import User
-
 from common.exceptions import (SeriesNotFound, EpisodeNotFound)
 from common import logger
 from library import Library
@@ -340,7 +340,7 @@ class CheckSeries(Library):
 					else:
 						try:
 							_file_parsed = self.parser.getFileDetails(file_1['file'])
-							_series_details = self.seriesinfo.getShowInfo(_file_parsed, sources=['tvdb'])
+							_series_details = self.seriesinfo.getShowInfo(_file_parsed,  processOrder=['tvdb'])
 							_new_name, _file_details = self.rename.getFileName(_series_details)
 							if _new_name == file_1['file']:
 								self. _delete_dup(file_1, file_2)

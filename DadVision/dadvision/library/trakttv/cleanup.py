@@ -23,13 +23,13 @@ import hashlib
 import traceback
 import fnmatch
 import unicodedata
-import pprint
 
+import requests
 from pytvdbapi import api
 import tmdb3
+
 import trakt
 from trakt.users import User, UserList
-
 from library import Library
 from common import logger
 from common.exceptions import MovieNotFound, SeriesNotFound, EpisodeNotFound
@@ -196,7 +196,7 @@ class CleanUp(Library):
 		_remove_watchlist = {'shows': []}
 		for _item in _trakt_shows_needing_unwatchlist:
 			try:
-				_series_details = self.seriesinfo.getShowInfo({'SeriesName': _item.title}, sources=['tvdb'], epdetail=False)
+				_series_details = self.seriesinfo.getShowInfo({'SeriesName': _item.title}, processOrder=['tvdb'], epdetail=False)
 			except (SeriesNotFound, EpisodeNotFound):
 				continue
 
@@ -297,7 +297,7 @@ class CleanUp(Library):
 			if _dir in _trakt_top_shows_names:
 				continue
 			try:
-				_series_details = self.seriesinfo.getShowInfo({'SeriesName': _dir}, sources=['tvdb'], epdetail=False)
+				_series_details = self.seriesinfo.getShowInfo({'SeriesName': _dir}, processOrder=['tvdb'], epdetail=False)
 				if _series_details['status'] == 'Canceled/Ended':
 					_shows_ended += 1
 					continue
@@ -305,7 +305,7 @@ class CleanUp(Library):
 				log.warn('{}: Show Not Found' .format(_dir))
 				continue
 			except:
-				log.warn('Issue with Series Info: {}'.format(pprint.pformat(_series_details, indent=1, depth=1)))
+				log.warn('Issue with Series Info: {}'.format(_dir))
 				an_error = traceback.format_exc()
 				log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
 				continue
@@ -355,6 +355,27 @@ class CleanUp(Library):
 		response = f.read()
 		f.close()
 		return response
+
+	def get_data(self, type, target, slug):
+
+		type = 'user'
+		target = 'library/shows/all'
+		slug = ''
+
+		_url = 'http://api.trakt.tv/{}/{}.json/{}/{}{}'.format(type,
+	                                                          target,
+	                                                          self.settings.TraktAPIKey,
+	                                                          self.settings.TraktUserID,
+	                                                          slug)
+		r = requests.get(_url)
+		r = requests.get(_url, auth=(self.settings.TraktUserID, self.args.TraktHashPswd))
+		status_code = r.status_code
+		header = r.headers['content-type']  #'application/json; charset=utf8'
+		encodeing = r.encoding   #'utf-8'
+		text = r.text  #u'{"type":"User"...'
+		response = r.json()  #{u'private_gists': 419, u'total_private_repos': 77, ...}
+
+		return status_code, response
 
 
 if __name__ == "__main__":
