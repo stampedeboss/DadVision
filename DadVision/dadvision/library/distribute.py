@@ -273,7 +273,7 @@ class Distribute(Library):
 		if unpackFileList[0][:len(self.settings.DownloadDir)] == self.settings.DownloadDir:
 			_destinationDir = os.path.dirname(unpackFileList[0][len(self.settings.DownloadDir)+1:])
 		elif unpackFileList[0][:len(self.settings.DownloadMovies)] == self.settings.DownloadMovies:
-			_destinationDir = self.settings.DownloadMovies, unpackFileList[0][len(self.settings.DownloadMovies)+1:]
+			_destinationDir = os.path.dirname(unpackFileList[0][len(self.settings.DownloadMovies)+1:])
 		else:
 			raise UnexpectedErrorOccured(unpackFileList[0])
 
