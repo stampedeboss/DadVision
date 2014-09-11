@@ -23,6 +23,7 @@ from tvrage import feeds
 from common import logger
 from common.exceptions import InvalidArgumentType, InvalidArgumentValue, DictKeyError
 from common.exceptions import SeriesNotFound, EpisodeNotFound
+from library import Library
 from library.series import Series
 from library.series.seriesobj import TVSeason, TVEpisode
 import trakt
@@ -587,7 +588,6 @@ if __name__ == "__main__":
 	logger.initialize()
 
 	log.trace("MAIN: -------------------------------------------------")
-	from library import Library
 	from library.series.fileparser import FileParser
 	import pprint
 
