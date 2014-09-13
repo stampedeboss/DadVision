@@ -291,6 +291,8 @@ class Distribute(Library):
 					_type = "series"
 				elif _guessit_info['type'] == 'movie':
 					_type = "movies"
+				else:
+					_type = "unpack"
 			else:
 				_type = "unpack"
 
