@@ -15,6 +15,7 @@ import os
 import re
 import sys
 import traceback
+import unicodedata
 
 from fuzzywuzzy import fuzz
 
@@ -63,6 +64,17 @@ def _matching(value1, value2, factor=85):
 	log.verbose('Match {}: {}'.format(any([fr > factor for fr in fuzzy]), fuzzy))
 
 	return any([fr > factor for fr in fuzzy])
+
+
+def _decode(coded_text):
+
+	if type(coded_text) is unicode:
+		decoded_text = unicodedata.normalize('NFKD', coded_text).encode('ascii', 'ignore')
+		decoded_text = decoded_text.replace("&amp;", "&").replace("/", "_")
+	else:
+		decoded_text = coded_text
+
+	return decoded_text
 
 
 class GetOutOfLoop(Exception):
@@ -208,7 +220,7 @@ class CheckSeries(Library):
 						log.warning(message.format(key,
 												 _ep_no,
 												 _first_aired,
-												 _episode.title.encode('utf8', 'replace').replace("&amp;", "&")))
+												 _decode(_episode.title)))
 
 		sys.exit()
 
@@ -535,7 +547,7 @@ class CheckSeries(Library):
 					log.info('Rename Required: {} (Correct)'.format(os.path.basename(pathname_2)))
 					log.info('                 {} (Current)'.format(filename))
 
-		s = pathname.decode('ascii', 'ignore')
+		s = _decode(pathname)
 		if s != pathname:
 			log.warning('INVALID CHARs: {} vs {}'.format(pathname - s, pathname))
 
