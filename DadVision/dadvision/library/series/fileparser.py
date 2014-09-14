@@ -56,7 +56,11 @@ class FileParser(Library, dict):
 	def getFileDetails(self, fq_name):
 		log.trace("GetFileDetails: File: %s" % (fq_name))
 
-		_series = guess_file_info(fq_name)
+		if self.RegxParse['Standard Library: Regx #1'].match(fq_name) \
+				or self.RegxParse['Standard Library: Regx #2'].match(fq_name):
+			_series = guess_file_info(fq_name)
+		else:
+			_series = guess_file_info(os.path.basename(fq_name))
 		if _series['type'] == u'episode':
 			fileDetails = {}
 			fileDetails['FileName'] = fq_name
@@ -79,12 +83,13 @@ class FileParser(Library, dict):
 				fileDetails['Ext'] = str(_series['extension'])
 			fileDetails['type'] = _series['type']
 			if u'country' in _series:
-				if _series['country'] in self.settings.CountryCodes:
-					fileDetails['country'] = _series['country']
-				else:
-					_suffix = self.check_country.match(fileDetails['SeriesName'])
-					if _suffix:
-						fileDetails['SeriesName'] = _suffix.group('SeriesName')
+				fileDetails['country'] = _series['country']
+#				if _series['country'] in self.settings.CountryCodes:
+#					fileDetails['country'] = _series['country']
+#				else:
+#					_suffix = self.check_country.match(fileDetails['SeriesName'])
+#					if _suffix:
+#						fileDetails['SeriesName'] = _suffix.group('SeriesName')
 			#if _air_date:
 			#	self.File_Details['DateAired'] = _air_date
 			if not set(['SeriesName', 'SeasonNum', 'EpisodeNums', 'Ext', ]) - set(fileDetails.keys()):

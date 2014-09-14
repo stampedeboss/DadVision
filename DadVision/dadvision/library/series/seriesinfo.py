@@ -396,9 +396,6 @@ class SeriesInfo(Library):
 			_check_order2 = ['Continuing', 'Canceled/Ended', 'Other']
 			_check_order3 = ['Country', 'Year', None]
 
-			test = self.series.titleType
-			test1 = self.series.titleBase
-
 			for _check_2 in _check_order2:
 				for _check_3 in _check_order3:
 					for _series in _rankings[key].itervalues():
