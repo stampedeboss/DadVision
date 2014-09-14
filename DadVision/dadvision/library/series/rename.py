@@ -127,7 +127,7 @@ class RenameSeries(Library):
 					log.debug("-----------------------------------------------")
 					log.debug("Filename: %s" % _path_name)
 					ext = os.path.splitext(_path_name)[1][1:]
-					if self._ignored(_path_name) or os.path.splitext(_path_name)[1][1:] not in self.settings.MediaExt:
+					if self._ignored(_file_name) or os.path.splitext(_file_name)[1][1:] not in self.settings.MediaExt:
 						self._del_file(_path_name)
 						self._del_dir(_root)
 						continue
@@ -489,10 +489,12 @@ class RenameSeries(Library):
 			else:
 				while _curr_dir != _base_dir:
 					if len(os.listdir(_curr_dir)) != 0: return
-					os.rmdir(pathname)
+					os.rmdir(_curr_dir)
 					log.verbose('Deleting Directory as Requested: {}'.format(pathname))
 					_curr_dir = os.path.dirname(_curr_dir)
 		except:
+			an_error = traceback.format_exc()
+			log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
 			log.warn('Delete Directory: Unable to Delete requested directory: %s' % (sys.exc_info()[1]))
 
 		return
