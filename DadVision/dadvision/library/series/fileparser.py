@@ -77,7 +77,7 @@ class FileParser(Library, dict):
 			elif u'extension' in _series:
 				fileDetails['Ext'] = str(_series['extension'])
 			fileDetails['type'] = _series['type']
-			if u'country' in _series:
+			if u'country' in _series and _series['country'] in self.settings.CountryCodes:
 				fileDetails['country'] = _series['country']
 			#if _air_date:
 			#	self.File_Details['DateAired'] = _air_date

@@ -15,9 +15,6 @@ Purpose:
   or conditions of any kind, either express or implied.
 """
 
-from configobj import ConfigObj
-from common import logger
-from common.exceptions import ConfigValueError, ConfigNotFound, InvalidArgumentValue, InvalidArgumentType
 import logging
 import os
 import sys
@@ -25,6 +22,12 @@ import time
 import socket
 import base64
 import hashlib
+
+from configobj import ConfigObj
+
+from common import logger
+from common.exceptions import ConfigValueError, ConfigNotFound, InvalidArgumentValue, InvalidArgumentType
+
 
 __pgmname__ = 'settings'
 __version__ = '$Rev$'
@@ -101,9 +104,9 @@ class Settings(object):
 		self.MovieGlob2 = Common['MovieGlob2']
 		self.IgnoreGlob = Common['IgnoreGlob']
 		self.Predicates = Common['Predicates']
+		self.CountryCodes = Common['CountryCodes']
 
 		self.ConversionsPatterns = self.config['Conversions']
-		self.TvdbIdFile = os.path.join(ConfigDir, Common['TvdbIdFile'])
 
 		self.SeriesAliasList = {}
 		self.SeriesAliasFile = os.path.join(ConfigDir, Common['SeriesAliasFile'])
