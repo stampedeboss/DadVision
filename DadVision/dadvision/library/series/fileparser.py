@@ -49,7 +49,8 @@ class FileParser(Library, dict):
 		super(FileParser, self).__init__()
 
 		self.RegxParse = GetRegx()
-		self.check_suffix = re.compile('^(?P<SeriesName>.+?)[ \._\-](?P<Year>[0-9][0-9][0-9][0-9]|US|us|Us)$', re.VERBOSE)
+		self.check_suffix = re.compile('^(?P<SeriesName>.+?)[ \._\-](?P<Year>[0-9][0-9][0-9][0-9]|US)$', re.X|re.I)
+		self.check_country = re.compile('^(?P<SeriesName>.+?)[ \._\-\(]*(?P<suffix>[12][90]\d\d|[a-z][a-z])[ \._\-\)]$', re.X|re.I)
 		self.new_SeriesDir = re.compile('^{}/New/.*$'.format(self.settings.SeriesDir), re.IGNORECASE)
 
 	def getFileDetails(self, fq_name):
@@ -77,8 +78,13 @@ class FileParser(Library, dict):
 			elif u'extension' in _series:
 				fileDetails['Ext'] = str(_series['extension'])
 			fileDetails['type'] = _series['type']
-			if u'country' in _series and _series['country'] in self.settings.CountryCodes:
-				fileDetails['country'] = _series['country']
+			if u'country' in _series:
+				if _series['country'] in self.settings.CountryCodes:
+					fileDetails['country'] = _series['country']
+				else:
+					_suffix = self.check_country.match(fileDetails['SeriesName'])
+					if _suffix:
+						fileDetails['SeriesName'] = _suffix.group('SeriesName')
 			#if _air_date:
 			#	self.File_Details['DateAired'] = _air_date
 			if not set(['SeriesName', 'SeasonNum', 'EpisodeNums', 'Ext', ]) - set(fileDetails.keys()):
