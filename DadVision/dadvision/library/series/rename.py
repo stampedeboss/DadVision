@@ -154,17 +154,17 @@ class RenameSeries(Library):
 			if chkVideoFile(pathname):
 				log.error('File Failed Video Check: {}'.format(pathname))
 				raise FailedVideoCheck('File Failed Video Check: {}'.format(pathname))
-		try:
-			_file_details = self.parser.getFileDetails(pathname)
-			_file_details = self.seriesinfo.getShowInfo(_file_details)
-		except (InvalidFilename, RegxSelectionError, SeriesNotFound, EpisodeNotFound), msg:
-			if os.path.splitext(os.path.basename(pathname))[0] != os.path.basename(os.path.dirname(pathname)) \
-					and os.path.dirname(pathname) != self.settings.NewSeriesDir:
-				_dir_details = self.parser.getFileDetails(os.path.join(os.path.dirname(pathname), 'E01.txt'))
-				_file_details['SeriesName'] = _dir_details['SeriesName']
-				_file_details = self.seriesinfo.getShowInfo(_file_details)
-			else:
-				raise
+#		try:
+		_file_details = self.parser.getFileDetails(pathname)
+		_file_details = self.seriesinfo.getShowInfo(_file_details)
+#		except (InvalidFilename, RegxSelectionError, SeriesNotFound, EpisodeNotFound), msg:
+#			if os.path.splitext(os.path.basename(pathname))[0] != os.path.basename(os.path.dirname(pathname)) \
+#					and os.path.dirname(pathname) != self.settings.NewSeriesDir:
+#				_dir_details = self.parser.getFileDetails(os.path.join(os.path.dirname(pathname), 'E01.txt'))
+#				_file_details['SeriesName'] = _dir_details['SeriesName']
+#				_file_details = self.seriesinfo.getShowInfo(_file_details)
+#			else:
+#				raise
 
 		_new_name, _file_details = self.getFileName(_file_details)
 		_season_folder = os.path.dirname(_new_name)
