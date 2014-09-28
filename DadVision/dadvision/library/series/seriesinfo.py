@@ -248,6 +248,7 @@ class SeriesInfo(Library):
 					options[service]()
 					if self.series.keysFound:
 						if not self.series.tvdb_id and 'tvdb' in processOrder:
+							self.series.title = re.sub(' and ', ' & ', self.series.title)
 							options['tvdb']()
 						raise GetOutOfLoop
 				except SeriesNotFound:
@@ -403,7 +404,7 @@ class SeriesInfo(Library):
 							continue
 						if _series.titleType != _check_3:
 							continue
-						if _matching(_series.titleBase, self.series.titleBase, factor=98):
+						if _matching(_series.titleBase, self.series.titleBase, factor=97):
 							self.series.update(_series)
 							self.series.source = source
 							if source == 'tvdb':
@@ -495,7 +496,7 @@ class SeriesInfo(Library):
 			_seasons[_season_number] = _my_tv_season
 		return _seasons
 
-	def _tvrageEpisideInfo(self, SeriesDetails):
+	def _tvrageEpisideInfo(self):
 		log.debug('_tvrageEpisideInfo: Input Parm: {!s}'.format(self.series.getDict()))
 
 		self.series.episodeData = []
@@ -531,7 +532,7 @@ class SeriesInfo(Library):
 				raise EpisodeNotFound("TVRage: No Data Episode Found - {SeriesName}  Season: {SeasonNum}  Episode(s): {EpisodeNums}".format(**self.series.getDict()))
 		return SeriesDetails
 
-	def _tvrageBuildTVSeason(self, _epinfo, SeriesDetails):
+	def _tvrageBuildTVSeason(self, _epinfo):
 		_seasons = {}
 		for _season in _epinfo:
 			_season_number = '<Season {0:04}>'.format(int(_season['@no']))
