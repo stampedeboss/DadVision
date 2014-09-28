@@ -404,7 +404,7 @@ class SeriesInfo(Library):
 							continue
 						if _series.titleType != _check_3:
 							continue
-						if _matching(_series.titleBase, self.series.titleBase, factor=97):
+						if _matching(_series.titleBase, self.series.titleBase, factor=92):
 							self.series.update(_series)
 							self.series.source = source
 							if source == 'tvdb':
