@@ -247,9 +247,9 @@ class SeriesInfo(Library):
 				try:
 					options[service]()
 					if self.series.keysFound:
-						if not self.series.tvdb_id and 'tvdb' in processOrder:
-							self.series.title = re.sub(' and ', ' & ', self.series.title)
-							options['tvdb']()
+#						if not self.series.tvdb_id and 'tvdb' in processOrder:
+#							self.series.title = re.sub(' and ', ' & ', self.series.title)
+#							options['tvdb']()
 						raise GetOutOfLoop
 				except SeriesNotFound:
 					sys.exc_clear()
@@ -354,7 +354,6 @@ class SeriesInfo(Library):
 		return
 
 	def _tvrageGetInfo(self):
-
 
 		_shows = feeds.search(self.series.titleBase)
 		if not _shows: raise SeriesNotFound
@@ -500,37 +499,24 @@ class SeriesInfo(Library):
 		log.debug('_tvrageEpisideInfo: Input Parm: {!s}'.format(self.series.getDict()))
 
 		self.series.episodeData = []
-
 		_epinfo = etree_to_dict(feeds.episode_list(self.series.tvrage_id, node='Episodelist'))['Episodelist']['Season']
 		_seasons = self._tvrageBuildTVSeason(_epinfo)
 		self.series.seasons = _seasons
-
-		if self.series.episodeNums:
-			for epno in self.series.episodeNums:
-				try:
-					_epinfo= self.tvrage.get_episodeinfo(self.series.tvrage_id,
-														   self.series.season,
-														   epno)
-					self.series.addEpisode(self.series.season, _epinfo)
-				except KeyError:
-					_an_error = traceback.format_exc()
-					log.debug(traceback.format_exception_only(type(_an_error), _an_error)[-1])
-					raise EpisodeNotFound("TVRage: No Data Episode Found - {SeriesName}  Season: {SeasonNum}  Episode(s): {EpisodeNums}".format(**self.series.getDict()))
+		if self.series.season:
+			_season = self.series.seasons['<Season {0:04}>'.format(int(self.series.season))]
+			if self.series.episodeNums:
+				for epno in self.series.episodeNums:
+					_episode = _season.episodes['E{0:02d}'.format(int(epno))]
+					self.series.addRageEpisode(_season, _episode)
+			else:
+				for _episode in _season.episodes.itervalues():
+					self.series.addRageEpisode(_season, _episode)
 		else:
-			try:
-				_ep_list= self.tvrage.get_episode_list(self.series.tvrage_id)
-				for season in _ep_list.seasons:
-					for episode in season.episodes:
-						self.series.addEpisode(season.no, _epinfo)
-#						SeriesDetails['EpisodeData'].append({'SeasonNum' : season.no,
-#															 'EpisodeNum' : episode.seasonnum,
-#															 'EpisodeTitle' : episode.title,
-#															 'DateAired': episode.airdate})
-			except KeyError:
-				_an_error = traceback.format_exc()
-				log.debug(traceback.format_exception_only(type(_an_error), _an_error)[-1])
-				raise EpisodeNotFound("TVRage: No Data Episode Found - {SeriesName}  Season: {SeasonNum}  Episode(s): {EpisodeNums}".format(**self.series.getDict()))
-		return SeriesDetails
+			for _season in _seasons.itervalues():
+				for _episode in _season.episodes.itervalues():
+					self.series.addRageEpisode(_season, _episode)
+
+		return
 
 	def _tvrageBuildTVSeason(self, _epinfo):
 		_seasons = {}

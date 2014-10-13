@@ -291,6 +291,14 @@ class Series(object):
 								 'EpisodeTitle': _episode_name,
 								 'DateAired': _episode.FirstAired})
 
+
+	def addRageEpisode(self, _season, _episode):
+		self.episodeData.append({'SeasonNum': _season.season,
+								 'EpisodeNum': _episode.episode,
+								 'EpisodeTitle': _episode.title,
+								 'DateAired': _episode.first_aired})
+
+
 	def __str__(self):
 		"""Return a string representation of a :class:`TVShow`"""
 		header = '<Series>'
