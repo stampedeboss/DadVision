@@ -92,7 +92,7 @@ class TVSeries(object):
 	@title.setter
 	def title(self, value):
 		if value is None: return
-		__check_suffix = re.compile('^(?P<SeriesName>.*)[ \._\-][\(]?(?P<Suffix>(?:19|20)\d{2}|us).*$', re.I)
+		__check_suffix = re.compile('^(?P<SeriesName>.*)[ \._\-][\(]?(?P<Suffix>(?:19|20)\d{2}|[a-zA-Z][a-zA-Z]).*$', re.I)
 		__suffix_present = __check_suffix.match(value.encode('ascii', 'ignore'))
 		self._title = unicode(value)
 		setattr(self, 'titleBase', unicode(value))

@@ -107,30 +107,34 @@ class Series(object):
 			return
 
 		__year = re.compile('^[\(]?(?P<year>(?:19|20)\d{2})[\)]?$', re.I)
+		__country = re.compile('^[\(][a-zA-Z]*[\)]$', re.I)
 
+		value = value.encode('ascii', 'ignore')
 		_title_parts = value.rsplit(None, 1)
 		if len(_title_parts) > 1:
 			_year = __year.match(_title_parts[1])
-			_title_parts[0] = _title_parts[0].encode('ascii', 'ignore')
-			_title_parts[1] = _title_parts[1].replace('(', '').replace(')', '').encode('ascii', 'ignore')
 			if _year:
+				_title_parts[1] = _title_parts[1].replace('(', '').replace(')', '')
 				self.titleBase = _title_parts[0]
 				self.titleSuffix = int(_title_parts[1])
 				self.titleType = "Year"
 				self._title = '{} ({})'.format(self.titleBase, self.titleSuffix)
 				return
-			elif _title_parts[1].upper() in ['US']:
-				self.titleBase = _title_parts[0]
-				self.titleSuffix = _title_parts[1].upper()
-				self.titleType = "Country"
-				self.country = _title_parts[1].upper()
-				self._title = '{} ({})'.format(self.titleBase, self.titleSuffix)
-				return
+			else:
+				_country = __country.match(_title_parts[1])
+				if _country:
+					_title_parts[1] = _title_parts[1].replace('(', '').replace(')', '')
+					self.titleBase = _title_parts[0]
+					self.titleSuffix = _title_parts[1].upper()
+					self.titleType = "Country"
+					self.country = _title_parts[1].upper()
+					self._title = '{} ({})'.format(self.titleBase, self.titleSuffix)
+					return
 
-		self.titleBase = value.encode('ascii', 'ignore')
+		self.titleBase = value
 		self.titleSuffix = None
 		self.titleType = None
-		self._title = value.encode('ascii', 'ignore')
+		self._title = value
 
 	def _set_title(self, key, val):
 		self.title = val

@@ -80,6 +80,10 @@ def _decode(coded_text):
 
 
 def _matching(value1, value2, factor=None):
+	"""
+
+	:rtype : object
+	"""
 	log.trace("=================================================")
 	log.trace("_matching: Compare: {} --> {}".format(value1, value2))
 
@@ -152,7 +156,7 @@ class SeriesInfo(Library):
 
 		self.trakt_user = None
 
-		self._check_suffix = re.compile('^(?P<SeriesName>.*)[ \._\-][\(]?(?P<Suffix>(?:19|20)\d{2}|us).*$', re.I)
+		self._check_suffix = re.compile('^(?P<SeriesName>.*)[ \._\-][\(](?P<Suffix>(?:19|20)\d{2}|[a-zA-Z]*)[\)].*$', re.I)
 
 		self.last_series = Series()
 		self.series = Series()
@@ -325,7 +329,7 @@ class SeriesInfo(Library):
 				else:
 					raise SeriesNotFound
 
-			_rankings = {}
+			_rankings = {'Continuing': {}, 'Canceled/Ended': {}, 'Other': {}}
 			for _show in _shows:
 				_title_suffix = self._check_suffix.match(_decode(_show.SeriesName))
 				if _title_suffix:
@@ -337,10 +341,10 @@ class SeriesInfo(Library):
 
 				_show.update()
 				_series = Series(tvdb=_show)
-				if _score in _rankings:
-					_rankings[_score][_series.title] = _series
+				if _score in _rankings[_series.status]:
+					_rankings[_series.status][_score][_series.title] = _series
 				else:
-					_rankings[_score] = {_series.title: _series}
+					_rankings[_series.status][_score] = {_series.title: _series}
 
 		except (TVDBAttributeError, TVDBIndexError, TVDBValueError, error.BadData):
 			_an_error = traceback.format_exc()
@@ -375,10 +379,10 @@ class SeriesInfo(Library):
 			if _score < 85:
 				continue
 
-			if _score in _rankings:
-				_rankings[_score][_series.title] = _series
+			if _score in _rankings[_series.status]:
+				_rankings[_series.status][_score][_series.title] = _series
 			else:
-				_rankings[_score] = {_series.title: _series}
+				_rankings[_series.status][_score] = {_series.title: _series}
 
 		if not _rankings:
 			raise SeriesNotFound
@@ -389,29 +393,70 @@ class SeriesInfo(Library):
 
 	def _reviewShowData(self, _rankings, source):
 
-		for key in sorted(_rankings, reverse=True):
-			if key < 90: break
+		_check_order = ['Continuing', 'Canceled/Ended', 'Other']
+		_show_status = {'Continuing': self._activeShows,
+				        'Canceled/Ended': self._notActiveShows,
+				        'Other': self._notActiveShows}
 
-			_check_order1 = ['Country', 'Year', None]
-			_check_order2 = ['Continuing', 'Canceled/Ended', 'Other']
-			_check_order3 = ['Country', 'Year', None]
+		for _status in _check_order:
+			if len(_rankings[_status]) > 0:
+				found = _show_status[_status](_rankings[_status], source)
+				if found: return
 
-			for _check_2 in _check_order2:
-				for _check_3 in _check_order3:
-					for _series in _rankings[key].itervalues():
-						if _series.status != _check_2:
+		raise SeriesNotFound
+
+	def _activeShows(self, _list, source):
+		_check_order = ['Country', 'Year', None]
+		for key in sorted(_list, reverse=True):
+			for _check in _check_order:
+				for _series in _list[key].itervalues():
+					if _series.titleType != _check:
+						continue
+					if _check == 'Country':
+						if self.series.titleType == 'Country':
+							if self.series.country != _series.country:
+								continue
+						elif _series.country != 'US':
 							continue
-						if _series.titleType != _check_3:
-							continue
-						if _matching(_series.titleBase, self.series.titleBase, factor=92):
+					if _check == 'Year':
+						if self.series.titleType == 'Year':
+							if self.series.titleSuffix != _series.titleSuffix:
+								continue
+					if _matching(_series.titleBase, self.series.titleBase, factor=98):
+						self.series.update(_series)
+						self.series.source = source
+						if source == 'tvdb':
+							self.series.tvdb_info = _series
+						elif source == 'tvrage':
+							self.series.tvrage_info = _series
+						return True
+		return False
+
+	def _notActiveShows(self, _list, source):
+		_check_order = ['Match', 'Country', 'Year', None]
+		for key in sorted(_list, reverse=True):
+			for _check in _check_order:
+				for _series in _list[key].itervalues():
+					if _check == 'Match':
+						if _series.titleType == self.series.titleType:
+							if _matching(_series.title, self.series.title, factor=98):
+								self.series.update(_series)
+								self.series.source = source
+								if source == 'tvdb':
+									self.series.tvdb_info = _series
+								elif source == 'tvrage':
+									self.series.tvrage_info = _series
+								return True
+					elif _series.titleType == _check:
+						if _matching(_series.titleBase, self.series.titleBase, factor=98):
 							self.series.update(_series)
 							self.series.source = source
 							if source == 'tvdb':
 								self.series.tvdb_info = _series
 							elif source == 'tvrage':
 								self.series.tvrage_info = _series
-							return
-		raise SeriesNotFound
+							return True
+		return False
 
 	def _checkForAlias(self):
 		# Check for Alias
