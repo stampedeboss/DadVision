@@ -257,27 +257,27 @@ class Series(object):
 
 		SeriesDetails = {}
 		SeriesDetails['SeriesName'] = self.title
-		if self.episodeData:
+		if self.episodeData is not None:
 			SeriesDetails['EpisodeData'] = self.episodeData
-		if self.episodeNums:
+		if self.episodeNums is not None:
 			SeriesDetails['EpisodeNums'] = self.episodeNums
-		if self.ext:
+		if self.ext is not None:
 			SeriesDetails['Ext'] = self.ext
-		if self.fileName:
+		if self.fileName is not None:
 			SeriesDetails['FileName'] = self.fileName
-		if self.season:
+		if self.season is not None:
 			SeriesDetails['SeasonNum'] = self.season
-		if self.tvdb_id:
+		if self.tvdb_id is not None:
 			SeriesDetails['tvdb_id'] = int(self.tvdb_id)
-		if self.imdb_id:
+		if self.imdb_id is not None:
 			SeriesDetails['imdb_id'] = self.imdb_id
-		if self.tvrage_id:
+		if self.tvrage_id is not None:
 			SeriesDetails['tvrage_id'] = self.tvrage_id
-		if self.status:
+		if self.status is not None:
 			SeriesDetails['status'] = self.status
-		if self.topShow:
+		if self.topShow is not None:
 			SeriesDetails['top_show'] = self.topShow
-		if self.source:
+		if self.source is not None:
 			SeriesDetails['source'] = self.source
 
 		SeriesDetails['TVSeries'] = self

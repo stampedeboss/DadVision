@@ -486,7 +486,7 @@ class SeriesInfo(Library):
 			_series = self.db.get_series(self.series.tvdb_id, "en" )
 			_seasons = self._tvdbBuildTVSeason(_series)
 			self.series.seasons = _seasons
-			if self.series.season:
+			if self.series.season is not None:
 				_season = _series[self.series.season]
 				if self.series.episodeNums:
 					for epno in self.series.episodeNums:
@@ -547,7 +547,7 @@ class SeriesInfo(Library):
 		_epinfo = etree_to_dict(feeds.episode_list(self.series.tvrage_id, node='Episodelist'))['Episodelist']['Season']
 		_seasons = self._tvrageBuildTVSeason(_epinfo)
 		self.series.seasons = _seasons
-		if self.series.season:
+		if self.series.season is not None:
 			_season = self.series.seasons['<Season {0:04}>'.format(int(self.series.season))]
 			if self.series.episodeNums:
 				for epno in self.series.episodeNums:
