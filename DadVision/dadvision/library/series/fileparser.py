@@ -70,7 +70,7 @@ class FileParser(Library, dict):
 				                                                                                             'ignore'),
 				                                             _series['year'])
 			else:
-				fileDetails['SeriesName'] = unicodedata.normalize('NFKD', _series['series']).encode('ascii', 'ignore')
+				fileDetails['SeriesName'] = unicodedata.normalize('NFKD', _series['series']).encode('ascii', 'ignore').title()
 			if u'season' in _series:
 				fileDetails['SeasonNum'] = _series['season']
 			if u'episodeList' in _series:
