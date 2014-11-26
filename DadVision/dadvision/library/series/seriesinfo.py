@@ -88,13 +88,13 @@ def _matching(value1, value2, factor=None):
 	log.trace("_matching: Compare: {} --> {}".format(value1, value2))
 
 	fuzzy = []
-	fuzzy.append(fuzz.ratio(value1, value2))
-	fuzzy.append(fuzz.partial_ratio(value1, value2))
-	fuzzy.append(fuzz.token_set_ratio(value1, value2))
-	fuzzy.append(fuzz.token_sort_ratio(value1, value2))
+	fuzzy.append(fuzz.ratio(value1.lower(), value2.lower()))
+	fuzzy.append(fuzz.partial_ratio(value1.lower(), value2.lower()))
+	fuzzy.append(fuzz.token_set_ratio(value1.lower(), value2.lower()))
+	fuzzy.append(fuzz.token_sort_ratio(value1.lower(), value2.lower()))
 
 	log.trace("=" * 50)
-	log.trace('Fuzzy Compare: {} - {}'.format(value1, value2))
+	log.trace('Fuzzy Compare: {} - {}'.format(value1.lower(), value2.lower()))
 	log.trace("-" * 50)
 	log.trace('{}: Simple Ratio'.format(fuzzy[0]))
 	log.trace('{}: Partial Ratio'.format(fuzzy[1]))
