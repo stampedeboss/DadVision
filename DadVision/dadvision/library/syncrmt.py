@@ -22,16 +22,16 @@ import urllib2
 import json
 
 import psutil
-import trakt
-from trakt.users import User, UserList
-from trakt.movies import Movie
-from trakt.tv import TVShow, TVSeason, TVEpisode
 
+import trakt
+from trakt.users import User
 from library import Library
 from common import logger
 from common.exceptions import UnexpectedErrorOccured, ConfigValueError
 from library.series.fileparser import FileParser
+from library.trakttv.getCollection import Shows
 from library.movie.gettmdb import TMDBInfo
+
 
 __pgmname__ = 'syncrmt'
 __version__ = '@version: $Rev$'
@@ -135,6 +135,7 @@ class SyncLibrary(Library):
             action="store_const", const='restart',
             help="Stop existing and Restart with this request")
 
+        self.shows = Shows()
         self.fileparser = FileParser()
         self.tmdb_info = TMDBInfo()
         self._printfmt = '%P\n'
@@ -636,12 +637,15 @@ class SyncLibrary(Library):
         _symbolic_requested['Series'] = []
         _symbolic_requested['Movies'] = []
 
-        trakt_list = trakt_user.show_collection
+        trakt_list = self.shows.getCollection(self.args.TraktUserID)
         trakt_watchlist = trakt_user.show_watchlist
         if trakt_list:
             for _entry in trakt_list + trakt_watchlist:
-                _title = unicodedata.normalize('NFKD', _entry.title).encode("ascii", 'ignore')
-                _title = _title.replace("&amp;", "&").replace("/", "_")
+                if type(_entry.title) == str:
+                    _title = _entry.title
+                else:
+                    _title = unicodedata.normalize('NFKD', _entry.title).encode("ascii", 'ignore')
+                    _title = _title.replace("&amp;", "&").replace("/", "_")
                 if _title in _symbolic_requested['Series']:
                     if not self.args.dryrun:
 #						_entry.remove_from_watchlist()
