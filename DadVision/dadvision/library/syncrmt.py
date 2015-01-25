@@ -663,13 +663,13 @@ class SyncLibrary(Library):
                 _title = _title.replace("&amp;", "&").replace("/", "_")
                 _title_yr = "{} ({})".format(_title,
                                              _entry.year)
-                if _title_yr in _symbolic_requested['Movies']:
-                    if not self.args.dryrun:
+#                if _title_yr in _symbolic_requested['Movies']:
+#                    if not self.args.dryrun:
 #						_entry.remove_from_watchlist()
-                        args = {'imdb_id': _entry.imdb_id, 'tmdb_id': _entry.tmdb_id}
-                        self.post_data(args, 'movie')
-                        log.info('{}: Removed from Movie Watchlist'.format(_title_yr))
-                    continue
+#                        args = {'imdb_id': _entry.imdb_id, 'tmdb_id': _entry.tmdb_id}
+#                        self.post_data(args, 'movie')
+#                        log.info('{}: Removed from Movie Watchlist'.format(_title_yr))
+#                    continue
                 _symbolic_requested['Movies'].append(_title_yr)
 
         return _symbolic_requested
