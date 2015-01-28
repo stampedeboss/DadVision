@@ -72,10 +72,10 @@ token = {'stampedeboss': {'client_id': '54d65f67401b045bc720ef109d4d05a107c0f5e2
                     'access_token': "",
                     'authorization': 'Bearer '
                     },
-          'eeyore': {'client_id': "",
-                    'client_secret': "",
-                    'access_token': "",
-                    'authorization': 'Bearer '
+          'eeyore': {'client_id': "409c57db13df88844a45c5072f7e5594917e8b54406f30b7dca4346053e7162c",
+                    'client_secret': "c32c748bb3bd54c880950e64996bd5f7a5123fb89f071ad2467c50630896b8f6",
+                    'access_token': {u'access_token': u'fb7c69bf8387638a59f3c525625062d247c330fd11e4a432ad3746691422e46f', u'token_type': u'bearer', u'expires_in': 7776000, u'expires_at': 1430189243.868178, u'scope': [u'public']},
+                    'authorization': 'Bearer fb7c69bf8387638a59f3c525625062d247c330fd11e4a432ad3746691422e46f'
                     }
         }
 
