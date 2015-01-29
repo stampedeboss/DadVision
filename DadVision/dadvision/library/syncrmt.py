@@ -224,6 +224,8 @@ class SyncLibrary(Library):
         profiles = self.settings.GetHostConfig(requested_host=[socket.gethostname(), self.args.hostname])
         self.args.TraktUserID = profiles[self.args.hostname]['TraktUserID']
         self.args.TraktPassWord = profiles[self.args.hostname]['TraktPassWord']
+        self.args.TraktAuthorization = profiles[self.args.hostname]['TraktAuthorization']
+
         self.args.TraktHashPswd = hashlib.sha1(profiles[self.args.hostname]['TraktPassWord']).hexdigest()
         self.args.TraktAPIKey = profiles[self.args.hostname]['TraktAPIKey']
         self.args.TraktBase64Key = base64.encodestring(self.args.TraktUserID+':'+self.args.TraktPassWord)
@@ -307,20 +309,6 @@ class SyncLibrary(Library):
                         _item['episodes'].append({'season': _season_num, 'episode': epno})
             if _item['episodes']:
                 print _item['title']
-# {
-#     "username": "username",
-#     "password": "sha1hash",
-#     "imdb_id": "tt0898266",
-#     "tvdb_id": "80379",
-#     "title": "The Big Bang Theory",
-#     "year": 2007,
-#     "episodes": [
-#         {
-#             "season": 1,
-#             "episode": 1
-#         }
-#     ]
-# }
         return
 
 
@@ -530,6 +518,7 @@ class SyncLibrary(Library):
 
             self.args.TraktUserID = profiles[host_tgt]['TraktUserID']
             self.args.TraktPassWord = profiles[host_tgt]['TraktPassWord']
+            self.args.TraktAuthorization = profiles[host_tgt]['TraktAuthorization']
             self.args.TraktHashPswd = hashlib.sha1(profiles[host_tgt]['TraktPassWord']).hexdigest()
             self.args.TraktAPIKey = profiles[host_tgt]['TraktAPIKey']
             self.args.TraktBase64Key = base64.encodestring(self.args.TraktUserID+':'+self.args.TraktPassWord)
@@ -637,7 +626,7 @@ class SyncLibrary(Library):
         _symbolic_requested['Series'] = []
         _symbolic_requested['Movies'] = []
 
-        trakt_list = self.shows.getCollection(self.args.TraktUserID)
+        trakt_list = self.shows.getCollection(self.args.TraktUserID, self.args.TraktAuthorization)
         trakt_watchlist = trakt_user.show_watchlist
         if trakt_list:
             for _entry in trakt_list + trakt_watchlist:
@@ -647,11 +636,11 @@ class SyncLibrary(Library):
                     _title = unicodedata.normalize('NFKD', _entry.title).encode("ascii", 'ignore')
                     _title = _title.replace("&amp;", "&").replace("/", "_")
                 if _title in _symbolic_requested['Series']:
-                    if not self.args.dryrun:
+#                    if not self.args.dryrun:
 #						_entry.remove_from_watchlist()
-                        args = {'imdb_id': _entry.imdb_id, 'tvdb_id': _entry.tvdb_id}
-                        self.post_data(args, type='show')
-                        log.info('{}: Removed from Series Watchlist'.format(_title))
+#                        args = {'imdb_id': _entry.imdb_id, 'tvdb_id': _entry.tvdb_id}
+#                        self.post_data(args, type='show')
+#                        log.info('{}: Removed from Series Watchlist'.format(_title))
                     continue
                 _symbolic_requested['Series'].append(_title)
 
