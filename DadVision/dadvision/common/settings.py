@@ -89,6 +89,7 @@ class Settings(object):
 		self.DownloadMovies = HostName['DownloadMovies']
 		self.TraktUserID = HostName['TraktUserID']
 		self.TraktPassWord = HostName['TraktPassWord']
+		self.TraktAuthorization = HostName['TraktAuthorization']
 		self.TraktHashPswd = hashlib.sha1(HostName['TraktPassWord']).hexdigest()
 		self.TraktAPIKey = HostName['TraktAPIKey']
 		self.TraktBase64Key = base64.encodestring(HostName['TraktUserID']+':'+HostName['TraktUserID'])
@@ -199,6 +200,7 @@ class Settings(object):
 		self.DownloadMovies = HostName['DownloadMovies']
 		self.TraktUserID = HostName['TraktUserID']
 		self.TraktPassWord = HostName['TraktPassWord']
+		self.TraktAuthorization = HostName['TraktAuthorization']
 		self.TraktHashPswd = hashlib.sha1(HostName['TraktPassWord']).hexdigest()
 		self.TraktAPIKey = HostName['TraktAPIKey']
 		self.TraktBase64Key = base64.encodestring('{}:{}'.format(HostName['TraktUserID'].rstrip(), HostName['TraktUserID'].rstrip()))
@@ -237,9 +239,11 @@ class Settings(object):
 						  'Identifier': _HOSTNAME['Identifier'],
 						  'TraktUserID': _HOSTNAME['TraktUserID'],
 						  'TraktPassWord': _HOSTNAME['TraktPassWord'],
+						  'TraktAuthorization': _HOSTNAME['TraktAuthorization'],
 						  'TraktHashPswd': hashlib.sha1(_HOSTNAME['TraktPassWord']).hexdigest(),
 						  'TraktAPIKey': _HOSTNAME['TraktAPIKey'],
-						  'TraktBase64Key': base64.encodestring(_HOSTNAME['TraktUserID']+':'+_HOSTNAME['TraktUserID'])}
+						  'TraktBase64Key': base64.encodestring(_HOSTNAME['TraktUserID']+':'+_HOSTNAME['TraktUserID'])
+							}
 
 			_host_profiles[_entry] = _host_config
 
@@ -282,14 +286,19 @@ if __name__ == '__main__':
 	log.info('EpisodeAdjList: {}'.format(config.EpisodeAdjList))
 	log.info('TraktUserID: {}'.format(config.TraktUserID))
 	log.info('TraktPassWord: {}'.format(config.TraktPassWord))
+	log.info('TraktAuthorization: {}'.format(config.TraktAuthorization))
 	log.info('TraktAPIKey: {}'.format(config.TraktAPIKey))
 	log.info('Base64Key: {}'.format(config.TraktBase64Key))
 
-	log.info(config.GetHostConfig(['tigger']))
-	log.info(config.GetHostConfig(['all']))
 	config.ReloadFromFiles()
+
 	config.ReloadHostConfig('tigger')
 	log.info('TraktUserID: {}'.format(config.TraktUserID))
+	log.info('TraktPassWord: {}'.format(config.TraktPassWord))
+	log.info('TraktAuthorization: {}'.format(config.TraktAuthorization))
+
+	log.info(config.GetHostConfig(['tigger']))
+	log.info(config.GetHostConfig(['all']))
 
 	try:
 		log.info(config.GetHostConfig(['mickey']))
