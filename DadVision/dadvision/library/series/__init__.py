@@ -92,7 +92,7 @@ class Series(object):
                             elif key2 == 'Ext':
                                 setattr(self, 'ext', val2)
                             else:
-                                setattr(self, key, val2)
+                                setattr(self, key2, val2)
                 elif key == 'tvrage':
                     for key2, val2 in val.iteritems():
                         try:
