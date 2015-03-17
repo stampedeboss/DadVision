@@ -143,7 +143,9 @@ class myLibrary(Library):
 
 		_collected = []
 
-		_url = 'https://api-v2launch.trakt.tv/users/{}/collection/{}'.format(userid, entrytype)
+#		_url = 'https://api-v2launch.trakt.tv/users/{}/collection/{}'.format(userid, entrytype)
+
+		_url = 'https://api-v2launch.trakt.tv/sync/collection/{}'.format(entrytype)
 
 		headers = {
 		  'Content-Type': 'application/json',
@@ -328,6 +330,57 @@ class myLibrary(Library):
 				_list.append({'ids': show_entry})
 
 		_url = 'https://api-v2launch.trakt.tv/sync/history/remove'
+
+		if entrytype == 'shows':
+			json_data = json.dumps({'shows': _list})
+		else:
+			json_data = json.dumps({'movies': _list})
+		clen = len(json_data)
+
+		headers = {
+					'Content-Type': 'application/json',
+					'trakt-api-version': '2',
+					'trakt-api-key': client_id,
+					'Authorization': authorization,
+					'Content-Length': clen
+				}
+
+		request = Request(_url, data=json_data, headers=headers)
+		response_body = urlopen(request).read()
+		data = json.loads(response_body.decode('UTF-8', 'ignore'))
+
+		return data
+
+	def removeFromCollection(self, userid, authorization, entries=None, entrytype=None):
+
+		_list = []
+
+		if entries is None:
+			return 'No Data'
+
+		if entrytype is None:
+			entrytype = type(entries[0])
+			if entrytype == Movie:
+				entrytype = 'movies'
+			elif entrytype == Series:
+				entrytype = 'shows'
+
+		for entry in entries:
+			if hasattr(entry, 'ids'):
+				_list.append({'ids': entry.ids})
+			else:
+				show_entry = {}
+				if entry.imdb_id:
+					show_entry['imdb'] = entry.imdb_id
+				if entry.tmdb_id:
+					show_entry['tmdb'] = entry.tmdb_id
+				if entry.tvdb_id:
+					show_entry['tvdb'] = entry.tvdb_id
+				if entry.tvrage_id:
+					show_entry['tvrage'] = entry.tvrage_id
+				_list.append({'ids': show_entry})
+
+		_url = 'https://api-v2launch.trakt.tv/sync/collection/remove'
 
 		if entrytype == 'shows':
 			json_data = json.dumps({'shows': _list})

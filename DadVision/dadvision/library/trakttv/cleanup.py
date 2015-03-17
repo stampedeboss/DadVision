@@ -142,6 +142,14 @@ class CleanUp(Library):
 			action="append_const", const="pluto",
 			help="Entries for Pluto")
 
+		trakt_options_group = self.options.parser.add_argument_group("Options", description=None)
+		trakt_options_group.add_argument("-c", "--clear", dest="Clear", nargs='*',
+			 action='store', default='None',
+                         help='Clear/Delete all entries in requested area: shows, movies')
+		trakt_options_group.add_argument("-l", "--list", dest="list", nargs='*',
+			 action='store', default='None',
+                         help='Clear/Delete all entries in requested area: shows, movies')
+
 		tmdb3.set_key('587c13e576f991c0a653f783b290a065')
 		tmdb3.set_cache(filename='tmdb3.cache')
 
@@ -155,6 +163,8 @@ class CleanUp(Library):
 
 	def ProcessRequest(self):
 
+		print self.args.Clear
+
 		if self.args.HostName:
 			for hostname in self.args.HostName:
 				profiles = self.settings.GetHostConfig(requested_host=[hostname])
@@ -163,10 +173,17 @@ class CleanUp(Library):
 
 				log.info('Processing entires for: {}'.format(self.args.TraktUserID))
 
-				self.cleanup_shows()
-				self.cleanup_movies()
-				if hostname == 'grumpy':
-					self.cleanup_lists()
+				if self.args.Clear == 'None':
+					self.cleanup_shows()
+					self.cleanup_movies()
+					if hostname == 'grumpy':
+						self.cleanup_lists()
+					return
+				if 'shows' in self.args.Clear:
+					pass
+#					self.clear_shows()
+				if 'movies' in self.args.Clear:
+					self.clear_movies()
 		return
 
 	def cleanup_shows(self):
@@ -188,6 +205,14 @@ class CleanUp(Library):
 		_remove_shows = [_watched_names[x] for x in _watched_names if x not in _collected_names]
 		_unwatchlist_shows = [_collected_names[x] for x in _watchlist_names if x in _collected_names]
 
+		if 'shows' in self.args.list:
+			for key, val in _collected_names:
+				log.info(key)
+
+		log.info('Shows in Collection: {}'.format(len(_collected)))
+		log.info('Watched Show Entries: {}'.format(len(_watched)))
+		log.info('Watchlist Show Entries: {}'.format(len(_watchlist)))
+
 		#Cleanup Seen Shows
 		if _remove_shows:
 			_rc = self.mylibrary.removeFromHistory(self.args.TraktUserID,
@@ -208,6 +233,7 @@ class CleanUp(Library):
 
 		return
 	#
+
 	def cleanup_movies(self):
 		_watched = self.mylibrary.getWatched(self.args.TraktUserID,
 										     self.args.TraktAuthorization,
@@ -224,6 +250,14 @@ class CleanUp(Library):
 
 		_remove_movies = [_watched_names[x] for x in _watched_names if x not in _collected_names]
 		_unwatchlist_movies = [_collected_names[x] for x in _watchlist_names if x in _collected_names]
+
+		if 'movies' in self.args.list:
+			for key, val in _collected_names.items():
+				log.info(key)
+
+		log.info('Movies in Collection: {}'.format(len(_collected)))
+		log.info('Watched Movie Entries: {}'.format(len(_watched)))
+		log.info('Movie Watchlist Entries: {}'.format(len(_watchlist)))
 
 		# Remove Movies
 		if _remove_movies:
@@ -244,6 +278,38 @@ class CleanUp(Library):
 		else:
 			log.info('No Movie Watchlist Cleanup Needed')
 		return
+
+	def clear_movies(self):
+		_watched = self.mylibrary.getWatched(self.args.TraktUserID,
+										     self.args.TraktAuthorization,
+											 entrytype='movies')
+#		_watched_names = {_item.title: _item for _item in _watched}
+		_collected = self.mylibrary.getCollection(self.args.TraktUserID,
+												  self.args.TraktAuthorization,
+												  entrytype='movies')
+#		_collected_names = {_item.title: _item for _item in _collected}
+#		_watchlist = self.mylibrary.getWatchList(self.args.TraktUserID,
+#												 self.args.TraktAuthorization,
+#												 entrytype='movies')
+#		_watchlist_names = {_item.title: _item for _item in _watchlist}
+
+
+		# Remove Watched Entries for Movies
+		if _watched:
+			_rc = self.mylibrary.removeFromHistory(self.args.TraktUserID,
+												   self.args.TraktAuthorization,
+												   entries=_watched)
+			log.info(_rc)
+
+		# Remove Collection Entries for Movies
+		if _collected:
+			_rc = self.mylibrary.removeFromCollection(self.args.TraktUserID,
+												   self.args.TraktAuthorization,
+												   entries=_collected)
+			log.info(_rc)
+
+		return
+
 
 	def cleanup_lists(self):
 

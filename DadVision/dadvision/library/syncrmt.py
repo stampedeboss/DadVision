@@ -17,15 +17,15 @@ import time
 import shutil
 import unicodedata
 import tempfile
-
 import psutil
 
+from fuzzywuzzy import fuzz
 from library import Library
 from common import logger
 from common.exceptions import UnexpectedErrorOccured, ConfigValueError
-from library.series.fileparser import FileParser
 from library.trakttv.user import myLibrary
 from library.movie.gettmdb import TMDBInfo
+from pytvdbapi import api, error
 
 
 __pgmname__ = 'syncrmt'
@@ -40,6 +40,17 @@ __maintainer__ = "@organization: AJ Reynolds"
 __credits__ = []
 
 log = logging.getLogger(__pgmname__)
+
+
+def decode(coded_text):
+
+	if type(coded_text) is unicode:
+		decoded_text = unicodedata.normalize('NFKD', coded_text).encode('ascii', 'ignore')
+		decoded_text = decoded_text.replace("&amp;", "&").replace("/", "_")
+	else:
+		decoded_text = coded_text
+
+	return decoded_text
 
 
 def use_library_logging(func):
@@ -104,8 +115,8 @@ class SyncLibrary(Library):
 			action="store_true", default=False,
 			help="Suppress Video Files, Only Move Support Files/Directories")
 		sync3.add_argument("--refresh", dest="refresh_limit",
-			action="store", type=int, default=3600,
-			help='Refresh existing links if older x seconds, Default: 3600')
+			action="store", type=int, default=14400,
+			help='Refresh existing links if older x seconds, Default: 14400 (4 hours)')
 		sync3.add_argument("--no-reuse", dest="no_reuse",
 			action="store_true", default=False,
 			help='Do not reuse existing links, even if possible')
@@ -130,8 +141,9 @@ class SyncLibrary(Library):
 			action="store_const", const='restart',
 			help="Stop existing and Restart with this request")
 
+		self.db = api.TVDB("959D8E76B796A1FB")
+
 		self.mylibrary = myLibrary()
-		self.fileparser = FileParser()
 		self.tmdb_info = TMDBInfo()
 		self._printfmt = '%P\n'
 		return
@@ -425,10 +437,13 @@ class SyncLibrary(Library):
 
 			if not self._already_running():
 				if self._checkTempDir(host_tgt, False):
-					_library_list = {}
-					_library_list['Series'] = self._build_list('shows')
-					_library_list['Movies'] = self._build_list('movies')
-					self._build_symbolics(_library_list)
+					_library_list = []
+					log.info('Rebuilding Series List')
+					_library_list = self._build_list('shows')
+					self._build_symbolics(_library_list, area='Series')
+					log.info('Rebuilding Movies List')
+					_library_list = self._build_list('movies')
+					self._build_symbolics(_library_list, area='Movies')
 			else:
 				self._checkTempDir(host_tgt, True)
 
@@ -506,6 +521,13 @@ class SyncLibrary(Library):
 					shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
 			return False
 		self._temp_dir = tempfile.mkdtemp(suffix='', prefix='syncrmt_'+host_tgt+'_', dir=None)
+		os.makedirs(os.path.join(self._temp_dir, 'Series'))
+		os.chmod(os.path.join(self._temp_dir, 'Series'), 0775)
+		os.makedirs(os.path.join(self._temp_dir, 'Movies'))
+		os.chmod(os.path.join(self._temp_dir, 'Movies'), 0775)
+		os.makedirs(os.path.join(self._temp_dir, 'Invalid'))
+		os.chmod(os.path.join(self._temp_dir, 'Invalid'), 0775)
+
 		return True
 
 	def _build_list(self, entrytype):
@@ -516,74 +538,73 @@ class SyncLibrary(Library):
 		trakt_watchlist = self.mylibrary.getWatchList(self.args.TraktUserID, self.args.TraktAuthorization, entrytype)
 		if trakt_list:
 			for _entry in trakt_list + trakt_watchlist:
-				if type(_entry.title) == str:
-					_title = _entry.title
-					if entrytype == 'movies':
-						_title = "{} ({})".format(_title,
-												 _entry.year)
+				if entrytype == 'shows':
+					_show = self.db.get_series(_entry.tvdb_id, 'en')
+					_title = decode(_show.SeriesName)
+					if not os.path.exists('{}'.format(os.path.join(self.settings.SeriesDir, _title))):
+						log.info('Series Not Available: trakt - {}  tvdb - {}'.format(_entry.title, _title))
+						continue
 				else:
-					_title = unicodedata.normalize('NFKD', _entry.title).encode("ascii", 'ignore')
-					_title = _title.replace("&amp;", "&").replace("/", "_")
-					if entrytype == 'movies':
-						_title = "{} ({})".format(_title,
-												 _entry.year)
+					_title = "{} ({})".format(decode(_entry.title),_entry.year)
+
 				if _title in _library_list:
-#                    if not self.args.dryrun:
-#						_entry.remove_from_watchlist()
-#                        args = {'imdb_id': _entry.imdb_id, 'tvdb_id': _entry.tvdb_id}
-#                        self.post_data(args, type='show')
-#                        log.info('{}: Removed from Series Watchlist'.format(_title))
+					_rc = self.mylibrary.removeFromWatchlist(self.args.TraktUserID, self.args.TraktAuthorization, entries=[_entry])
+					log.info('Remove Watchlist: {} - {}'.format(_title, _rc))
 					continue
 				_library_list.append(_title)
 
 		return _library_list
 
-	def _build_symbolics(self, _symbolics_requested):
+	def _build_symbolics(self, _symbolics_requested, area=None):
 
-		for area in ['Series', 'Movies']:
-			if area == "Series":
-				_target_dir = self.settings.SeriesDir
-			if area == "Movies":
-				_target_dir = self.settings.MoviesDir
+		if area == "Series":
+			_target_dir = self.settings.SeriesDir
+			_temp_dir = os.path.join(self._temp_dir, 'Series')
+		elif area == "Movies":
+			_target_dir = self.settings.MoviesDir
+			_temp_dir = os.path.join(self._temp_dir, 'Movies')
+		else:
+			log.error('Invalid Parameter Passed to _build_symbolics')
+			sys.exit(99)
 
-			_local_directories = os.listdir(_target_dir)
+#		_local_directories = os.listdir(_target_dir)
 
-			_area_directory = os.path.join(self._temp_dir, area)
-			os.makedirs(_area_directory)
-			os.chmod(_area_directory, 0775)
+		for _title in _symbolics_requested:
+		# Check for Alias
+#			try:
+#				_updated_title = difflib.get_close_matches(_title, _local_directories, 1, cutoff=0.9)
+#				if len(_updated_title) > 0:
+#					_title = _updated_title[0].rstrip()
+#			except KeyError:
+#				pass
 
-			for _title in _symbolics_requested[area]:
-				# Check for Alias
-				_updated_title = difflib.get_close_matches(_title, _local_directories, 1, cutoff=0.6)
-				if len(_updated_title) > 0:
-					_title = _updated_title[0].rstrip()
+			cmd =  ['ln',
+					'-s',
+					'{}'.format(os.path.join(_target_dir, _title)),
+					'{}'.format(_title)]
+			run_command(cmd, cwd=_temp_dir)
 
-				cmd =  ['ln',
-						'-s',
-						'{}'.format(os.path.join(_target_dir, _title)),
-						'{}'.format(_area_directory, _title)]
-				run_command(cmd, cwd=self._temp_dir)
-
-			# Remove any broken links
-			try:
-				cmd = 'find -L {} -type l -exec mv {} ./ \;'.format(_area_directory, "'{}'")
-				log.verbose('{}'.format(cmd))
-				run_command(cmd, True, self._temp_dir)
-			except:
-				pass
+		# Remove any broken links
+		try:
+			cmd = 'find -L {} -type l -exec mv {} ./Invalid/ \;'.format(_temp_dir, "'{}'")
+			log.verbose('{}'.format(cmd))
+			run_command(cmd, True, self._temp_dir)
+		except:
+			pass
 		return
-
 
 def run_command(cmd, Shell=False, cwd=None):
 	try:
 		log.verbose('{}'.format(cmd))
 		check_call(cmd, shell=Shell, stdin=None, stdout=None, stderr=None, cwd=cwd)
+		return
 	except CalledProcessError, exc:
 		if exc.returncode == 255 or exc.returncode == -9:
 			sys.exit(1)
 		else:
-			log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
-	return
+			pass
+#			log.error("Command %s returned with RC=%d" % (cmd, exc.returncode))
+	return True
 
 
 if __name__ == '__main__':
