@@ -21,6 +21,7 @@ from tqdm import tqdm
 
 from library import Library
 from common import logger
+from common.decode import decode
 from common.exceptions import UnexpectedErrorOccured, ConfigValueError
 from library.trakt.user import *
 from library.movie.gettmdb import TMDBInfo
