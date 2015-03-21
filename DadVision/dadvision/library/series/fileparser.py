@@ -50,7 +50,6 @@ class FileParser(Library, dict):
 
 		self.RegxParse = GetRegx()
 		self.check_suffix = re.compile('^(?P<SeriesName>.+?)[ \._\-](?P<Year>[0-9][0-9][0-9][0-9]|US)$', re.X|re.I)
-		self.check_country = re.compile('^(?P<SeriesName>.+?)[ \._\-\(]*(?P<suffix>[12][90]\d\d|[a-z][a-z])[ \._\-\)]$', re.X|re.I)
 		self.new_SeriesDir = re.compile('^{}/New/.*$'.format(self.settings.SeriesDir), re.IGNORECASE)
 
 	def getFileDetails(self, fq_name):
@@ -70,9 +69,11 @@ class FileParser(Library, dict):
 				                                                                                             'ignore'),
 				                                             _series['year'])
 			else:
-				fileDetails['SeriesName'] = unicodedata.normalize('NFKD', _series['series']).encode('ascii', 'ignore').title()
+				fileDetails['SeriesName'] = unicodedata.normalize('NFKD', _series['series']).encode('ascii', 'ignore') #.title()
 			if u'season' in _series:
 				fileDetails['SeasonNum'] = _series['season']
+			else:
+				fileDetails['SeasonNum'] = 1
 			if u'episodeList' in _series:
 				fileDetails['EpisodeNums'] = _series['episodeList']
 			elif u'episodeNumber' in _series:
@@ -84,6 +85,9 @@ class FileParser(Library, dict):
 			fileDetails['type'] = _series['type']
 			if u'country' in _series:
 				fileDetails['country'] = _series['country']
+				if _series['country'] == 'GB':
+					fileDetails['SeriesName'] = fileDetails['SeriesName'].translate(None, "()")
+
 #				if _series['country'] in self.settings.CountryCodes:
 #					fileDetails['country'] = _series['country']
 #				else:
