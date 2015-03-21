@@ -19,16 +19,17 @@ import sys
 import traceback
 import fnmatch
 import unicodedata
+import difflib
 
 import tmdb3
-from pytvdbapi import api
-from fuzzywuzzy import fuzz
+from pytvdbapi import api, error
 
 from common import logger
-from common.exceptions import SeriesNotFound, EpisodeNotFound
+from common.decode import decode
+
 from library import Library
-from library.trakttv.user import myLibrary
-from library.series.seriesinfo import SeriesInfo
+from library.trakttv.show import getShow
+from library.trakttv.user import *
 from library.movie.gettmdb import TMDBInfo
 
 
@@ -62,48 +63,6 @@ USAGE
 ''' % (str(__date__))
 
 log = logging.getLogger(__pgmname__)
-
-def _matching(value1, value2, factor=None):
-	"""
-
-	:rtype : object
-	"""
-	log.trace("=================================================")
-	log.trace("_matching: Compare: {} --> {}".format(value1, value2))
-
-	fuzzy = []
-	fuzzy.append(fuzz.ratio(value1.lower(), value2.lower()))
-	fuzzy.append(fuzz.partial_ratio(value1.lower(), value2.lower()))
-	fuzzy.append(fuzz.token_set_ratio(value1.lower(), value2.lower()))
-	fuzzy.append(fuzz.token_sort_ratio(value1.lower(), value2.lower()))
-
-	log.trace("=" * 50)
-	log.trace('Fuzzy Compare: {} - {}'.format(value1.lower(), value2.lower()))
-	log.trace("-" * 50)
-	log.trace('{}: Simple Ratio'.format(fuzzy[0]))
-	log.trace('{}: Partial Ratio'.format(fuzzy[1]))
-	log.trace('{}: Token Set Ratio'.format(fuzzy[2]))
-	log.trace('{}: Token Sort Ratio'.format(fuzzy[3]))
-	log.trace(any([fr > factor for fr in fuzzy]))
-
-	if factor:
-		return any([fr >= factor for fr in fuzzy])
-
-	score = 0
-	entries = 0
-	for fr in fuzzy:
-		score += fr
-		if fr > 0: entries += 1
-	score = score/entries
-	return score
-
-def _decode(coded_text):
-
-	decoded_text = unicodedata.normalize('NFKD', coded_text).encode('ascii', 'ignore')
-	decoded_text = decoded_text.replace("&amp;", "&").replace("/", "_")
-
-	return decoded_text
-
 
 def _ignored(name):
 	""" Check for ignored pathnames.
@@ -154,16 +113,11 @@ class CleanUp(Library):
 		tmdb3.set_cache(filename='tmdb3.cache')
 
 		self.db = api.TVDB("959D8E76B796A1FB")
-
-		self.seriesinfo = SeriesInfo()
 		self.tmdbinfo = TMDBInfo()
-		self.mylibrary = myLibrary()
 
 		return
 
 	def ProcessRequest(self):
-
-		print self.args.Clear
 
 		if self.args.HostName:
 			for hostname in self.args.HostName:
@@ -173,11 +127,12 @@ class CleanUp(Library):
 
 				log.info('Processing entires for: {}'.format(self.args.TraktUserID))
 
+				if hostname == 'grumpy':
+					self.cleanup_lists()
+
 				if self.args.Clear == 'None':
 					self.cleanup_shows()
 					self.cleanup_movies()
-					if hostname == 'grumpy':
-						self.cleanup_lists()
 					return
 				if 'shows' in self.args.Clear:
 					pass
@@ -189,24 +144,32 @@ class CleanUp(Library):
 	def cleanup_shows(self):
 
 		#Create Show Lists
-		_watched = self.mylibrary.getWatched(self.args.TraktUserID,
-										     self.args.TraktAuthorization,
-											 entrytype='shows')
-		_watched_names = {_item.title: _item for _item in _watched}
-		_collected = self.mylibrary.getCollection(self.args.TraktUserID,
-												  self.args.TraktAuthorization,
-												  entrytype='shows')
-		_collected_names = {_item.title: _item for _item in _collected}
-		_watchlist = self.mylibrary.getWatchList(self.args.TraktUserID,
-												 self.args.TraktAuthorization,
-												 entrytype='shows')
-		_watchlist_names = {_item.title: _item for _item in _watchlist}
+		_watched = getWatched(self.args.TraktUserID,
+						     self.args.TraktAuthorization,
+							 entrytype='shows',
+							 rtn=dict)
+		if type(_watched) == HTTPError:
+			log.error('Watched: Invalid Return Code - {}'.format(_watched))
 
-		_remove_shows = [_watched_names[x] for x in _watched_names if x not in _collected_names]
-		_unwatchlist_shows = [_collected_names[x] for x in _watchlist_names if x in _collected_names]
+		_collected = getCollection(self.args.TraktUserID,
+								  self.args.TraktAuthorization,
+								  entrytype='shows',
+								  rtn=dict)
+		if type(_collected) == HTTPError:
+			log.error('Collected: Invalid Return Code - {}'.format(_collected))
+
+		_watchlist = getWatchList(self.args.TraktUserID,
+								 self.args.TraktAuthorization,
+								 entrytype='shows',
+								 rtn=dict)
+		if type(_watchlist) == HTTPError:
+			log.error('Watchlist: Invalid Return Code - {}'.format(_watchlist))
+
+		_remove_shows = [_watched[x] for x in _watched if x not in _collected]
+		_unwatchlist_shows = [_collected[x] for x in _watchlist if x in _collected]
 
 		if 'shows' in self.args.list:
-			for key, val in _collected_names:
+			for key, val in _collected:
 				log.info(key)
 
 		log.info('Shows in Collection: {}'.format(len(_collected)))
@@ -215,44 +178,53 @@ class CleanUp(Library):
 
 		#Cleanup Seen Shows
 		if _remove_shows:
-			_rc = self.mylibrary.removeFromHistory(self.args.TraktUserID,
-												   self.args.TraktAuthorization,
-												   entries=_remove_shows)
-			log.info(_rc)
+			_rc = removeFromHistory(self.args.TraktUserID,
+								   self.args.TraktAuthorization,
+								   entries=_remove_shows)
+			log.info('Seen Shows Cleaned Up: {}  Not Found: {}'.format(_rc['deleted']['shows'],
+	                                                                  _rc['not_found']['shows']))
 		else:
 			log.info('No Show History Cleanup Needed')
 
 	# 	#Cleanup Shows Watchlist
 		if _unwatchlist_shows:
-			_rc = self.mylibrary.removeFromWatchlist(self.args.TraktUserID,
-												   self.args.TraktAuthorization,
-												   entries=_unwatchlist_shows)
-			log.info(_rc)
+			_rc = removeFromWatchlist(self.args.TraktUserID,
+									   self.args.TraktAuthorization,
+									   entries=_unwatchlist_shows)
+			log.info('Show Watchlist Cleaned Up: {}  Not Found: {}'.format(_rc['deleted']['shows'],
+	                                                                      _rc['not_found']['shows']))
 		else:
 			log.info('No Show Watchlist Cleanup Needed')
 
 		return
-	#
 
 	def cleanup_movies(self):
-		_watched = self.mylibrary.getWatched(self.args.TraktUserID,
-										     self.args.TraktAuthorization,
-											 entrytype='movies')
-		_watched_names = {_item.title: _item for _item in _watched}
-		_collected = self.mylibrary.getCollection(self.args.TraktUserID,
-												  self.args.TraktAuthorization,
-												  entrytype='movies')
-		_collected_names = {_item.title: _item for _item in _collected}
-		_watchlist = self.mylibrary.getWatchList(self.args.TraktUserID,
-												 self.args.TraktAuthorization,
-												 entrytype='movies')
-		_watchlist_names = {_item.title: _item for _item in _watchlist}
+		_watched = getWatched(self.args.TraktUserID,
+						     self.args.TraktAuthorization,
+							 entrytype='movies',
+							 rtn=dict)
+		if type(_watched) == HTTPError:
+			log.error('Watched: Invalid Return Code - {}'.format(_watched))
 
-		_remove_movies = [_watched_names[x] for x in _watched_names if x not in _collected_names]
-		_unwatchlist_movies = [_collected_names[x] for x in _watchlist_names if x in _collected_names]
+		_collected = getCollection(self.args.TraktUserID,
+								  self.args.TraktAuthorization,
+								  entrytype='movies',
+								  rtn=dict)
+		if type(_collected) == HTTPError:
+			log.error('Collected: Invalid Return Code - {}'.format(_collected))
+
+		_watchlist = getWatchList(self.args.TraktUserID,
+								 self.args.TraktAuthorization,
+								 entrytype='movies',
+								 rtn=dict)
+		if type(_watchlist) == HTTPError:
+			log.error('WatchList: Invalid Return Code - {}'.format(_watchlist))
+
+		_remove_movies = [_watched[x] for x in _watched if x not in _collected]
+		_unwatchlist_movies = [_collected[x] for x in _watchlist if x in _collected]
 
 		if 'movies' in self.args.list:
-			for key, val in _collected_names.items():
+			for key, val in _collected.items():
 				log.info(key)
 
 		log.info('Movies in Collection: {}'.format(len(_collected)))
@@ -261,51 +233,52 @@ class CleanUp(Library):
 
 		# Remove Movies
 		if _remove_movies:
-			_rc = self.mylibrary.removeFromHistory(self.args.TraktUserID,
-												   self.args.TraktAuthorization,
-												   entries=_remove_movies)
-			log.info(_rc)
+			_rc = removeFromHistory(self.args.TraktUserID,
+								   self.args.TraktAuthorization,
+								   entries=_remove_movies)
+			log.info('Movie History Cleaned Up: {}  Not Found: {}'.format(_rc['deleted']['movies'],
+	                                                                      _rc['not_found']['movies']))
 		else:
 			log.info('No Movie History Cleanup Needed')
 
 		#Cleanup Movie Watchlist
 		if _unwatchlist_movies:
-			_rc = self.mylibrary.removeFromWatchlist(self.args.TraktUserID,
-												   self.args.TraktAuthorization,
-												   entries=_unwatchlist_movies)
+			_rc = removeFromWatchlist(self.args.TraktUserID,
+									   self.args.TraktAuthorization,
+									   entries=_unwatchlist_movies)
 
-			log.info(_rc)
+			log.info('Movies Watchlist Cleaned Up: {}  Not Found: {}'.format(_rc['deleted']['movies'],
+	                                                                         _rc['not_found']['movies']))
 		else:
 			log.info('No Movie Watchlist Cleanup Needed')
 		return
 
 	def clear_movies(self):
-		_watched = self.mylibrary.getWatched(self.args.TraktUserID,
-										     self.args.TraktAuthorization,
-											 entrytype='movies')
-#		_watched_names = {_item.title: _item for _item in _watched}
-		_collected = self.mylibrary.getCollection(self.args.TraktUserID,
-												  self.args.TraktAuthorization,
-												  entrytype='movies')
-#		_collected_names = {_item.title: _item for _item in _collected}
-#		_watchlist = self.mylibrary.getWatchList(self.args.TraktUserID,
-#												 self.args.TraktAuthorization,
-#												 entrytype='movies')
-#		_watchlist_names = {_item.title: _item for _item in _watchlist}
 
+		_watched = getWatched(self.args.TraktUserID,
+						     self.args.TraktAuthorization,
+							 entrytype='movies')
+		if type(_watched) == HTTPError:
+			log.error('Watched: Invalid Return Code - {}'.format(_watched))
+
+		_collected = getCollection(self.args.TraktUserID,
+								  self.args.TraktAuthorization,
+								  entrytype='movies')
+		if type(_collected) == HTTPError:
+			log.error('Watched: Invalid Return Code - {}'.format(_collected))
 
 		# Remove Watched Entries for Movies
 		if _watched:
-			_rc = self.mylibrary.removeFromHistory(self.args.TraktUserID,
-												   self.args.TraktAuthorization,
-												   entries=_watched)
+			_rc = removeFromHistory(self.args.TraktUserID,
+								   self.args.TraktAuthorization,
+								   entries=_watched)
 			log.info(_rc)
 
 		# Remove Collection Entries for Movies
 		if _collected:
-			_rc = self.mylibrary.removeFromCollection(self.args.TraktUserID,
-												   self.args.TraktAuthorization,
-												   entries=_collected)
+			_rc = removeFromCollection(self.args.TraktUserID,
+									   self.args.TraktAuthorization,
+									   entries=_collected)
 			log.info(_rc)
 
 		return
@@ -313,61 +286,136 @@ class CleanUp(Library):
 
 	def cleanup_lists(self):
 
-		#Delete all entries from std-shows to prepare for reload
-		_trakt_top_shows = self.mylibrary.getList(self.args.TraktUserID,
-												  self.args.TraktAuthorization,
-												  list='topshows')
-		_trakt_top_shows_names = {_item.title: _item for _item in _trakt_top_shows}
-		_trakt_std_shows = self.mylibrary.getList(self.args.TraktUserID,
-													   self.args.TraktAuthorization,
-													   list='stdshows')
-		_trakt_std_shows_names = {_item.title: _item for _item in _trakt_std_shows}
+		_collected = getCollection(self.args.TraktUserID,
+								  self.args.TraktAuthorization,
+								  entrytype='shows',
+								  rtn=dict)
+		if type(_collected) == HTTPError:
+			log.error('Collected: Invalid Return Code - {}'.format(_collected))
 
-		#Reload entries to std-shows, exclude top-shows and shows that have ended
+		_trakt_top_shows = getList(self.args.TraktUserID,
+										  self.args.TraktAuthorization,
+										  list='topshows',
+										  rtn=dict)
+		if type(_trakt_top_shows) == HTTPError:
+			log.error('Top Shows: Invalid Return Code - {}'.format(_trakt_top_shows))
+
+		_trakt_std_shows = getList(self.args.TraktUserID,
+										   self.args.TraktAuthorization,
+										   list='stdshows',
+										   rtn=dict)
+		if type(_trakt_std_shows) == HTTPError:
+			log.error('Std Shows: Invalid Return Code - {}'.format(_trakt_std_shows))
+
 		_new_shows = []
+		_remove_shows = []
+		_newly_collected = []
 		_shows_processed = 0
 		_shows_added = 0
 
+		for _entry in _trakt_std_shows:
+			if _entry in _collected:
+				continue
+			_remove_shows.append(_trakt_std_shows[_entry])
+
+		for _entry  in _trakt_top_shows:
+			if _entry in _collected:
+				continue
+			_remove_shows.append(_trakt_top_shows[_entry])
+
+		#load entries to std-shows, exclude shows in top-shows and any that have ended
 		for _dir in os.listdir(self.settings.SeriesDir):
+
+			_entry = None
+			_rc = None
+			_show = None
+			_show_list = None
 			_shows_processed += 1
+
 			quotient, remainder = divmod(_shows_processed, 10)
 			if remainder == 0:
-				log.info('Shows Processes: {}  New Shows: {}'.format(_shows_processed, _shows_added))
+				log.info('Shows Processes: {}  New Shows: {} Removed: {}  Collected: {}'.format(_shows_processed,
+				                                                                                len(_new_shows),
+				                                                                                len(_remove_shows),
+				                                                                                len(_newly_collected)))
 			if _ignored(_dir): continue
-			if _dir in _trakt_top_shows_names or _dir in _trakt_std_shows_names:
+
+			if _dir in _trakt_top_shows:
+				if _trakt_top_shows[_dir].status in ['Canceled/Ended']:
+					_remove_shows.append(_trakt_top_shows[_dir])
 				continue
+			if _dir in _trakt_std_shows:
+				if _trakt_std_shows[_dir].status in ['Canceled/Ended']:
+					_remove_shows.append(_trakt_std_shows[_dir])
+				continue
+
 			try:
-				_series_details = self.seriesinfo.getShowInfo({'SeriesName': _dir},
-															  processOrder=['tvdb'],
-															  epdetail=False)
-				if _series_details['status'] == 'Canceled/Ended':
-					continue
-				if _series_details['TVSeries'].titleBase in _trakt_top_shows_names:
-					continue
-				if _series_details['TVSeries'].titleBase in _trakt_std_shows_names:
-					continue
-			except (SeriesNotFound, EpisodeNotFound):
-				log.warn('{}: Show Not Found' .format(_dir))
+				# Check Collected for Existing Show
+				_show_list = difflib.get_close_matches(_dir, _collected, 5, cutoff=0.6)
+				if len(_show_list) > 0:
+					for _entry in _show_list:
+						_show = self.db.get_series(_collected[_entry].tvdb_id, 'en')
+						if _dir.lower() == decode(_show.SeriesName).lower():
+							raise GetOutOfLoop
+			except error.TVDBIdError:
 				continue
-			except:
-				log.warn('Issue with Series Info: {}'.format(_dir))
-				an_error = traceback.format_exc()
-				log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
+			except KeyError:
+				pass
+			except GetOutOfLoop:
+				if _entry in _trakt_top_shows or _entry in _trakt_std_shows:
+					if _show.Status in [u"Ended"]:
+						_remove_shows.append(_collected[_entry])
+					continue
+				if _show.Status == u"Ended":
+					continue
+				_new_shows.append(_collected[_entry])
 				continue
-			_shows_added += 1
-			_new_shows.append(_series_details['TVSeries'])
+
+			_show_list = getShow(self.args.TraktUserID,
+							    self.args.TraktAuthorization,
+								show=_dir,
+								rtn=list)
+			if type(_show_list) == HTTPError:
+				continue
+
+			try:
+				for _entry in _show_list:
+					_show = self.db.get_series(_entry.tvdb_id, 'en')
+					if _dir.lower() == decode(_show.SeriesName).lower():
+						_new_shows.append(_entry)
+						_newly_collected.append(_entry)
+						break
+			except error.TVDBIdError:
+				_new_shows.extend(_show_list)
+				_newly_collected.extend(_show_list)
 
 		if _new_shows:
-			for entry in _new_shows:
-				log.info('Adding: {}'.format(entry.title))
-			_rc = self.mylibrary.addToList(self.args.TraktUserID,
-			                               self.args.TraktAuthorization,
-			                               list='stdshows', entries=_new_shows)
-			log.info(_rc)
+			for _entry in _new_shows:
+				log.info('Adding: {}'.format(_entry.title))
+			_rc = addToList(self.args.TraktUserID,
+			                self.args.TraktAuthorization,
+			                list='stdshows', entries=_new_shows)
 
-		return
+			log.info('New Shows Added: {}  Existed: {}  Not Found: {}'.format(_rc['added']['shows'],
+			                                                                  _rc['existing']['shows'],
+			                                                                  _rc['not_found']['shows']))
 
-	def users(self, args):
+		if _remove_shows:
+			for _entry in _remove_shows:
+				log.info('Removing: {}'.format(_entry.title))
+			_rc = removeFromList(self.args.TraktUserID,
+			                    self.args.TraktAuthorization,
+			                    list='topshows', entries=_remove_shows)
+
+			log.info('TopShows Removed: {}  Not Found: {}'.format(_rc['deleted']['shows'],
+                                                                  _rc['not_found']['shows']))
+
+			_rc = removeFromList(self.args.TraktUserID,
+			                    self.args.TraktAuthorization,
+			                    list='stdshows', entries=_remove_shows)
+
+			log.info('StdShows Removed: {}  Not Found: {}'.format(_rc['deleted']['shows'],
+                                                                  _rc['not_found']['shows']))
 
 		return
 
