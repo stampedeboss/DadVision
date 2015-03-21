@@ -101,11 +101,11 @@ def postBase(_url, userid=userid, authorization=authorization, entries=None):
 			show_entry = entry.ids
 		else:
 			show_entry = {}
-			if hasattr(entry, entry.imdb_id):
+			if hasattr(entry, 'imdb_id'):
 				show_entry['imdb'] = entry.imdb_id
-			if hasattr(entry, entry.tmdb_id):
+			if hasattr(entry, 'tmdb_id'):
 				show_entry['tmdb'] = entry.tmdb_id
-			if hasattr(entry, entry.trakt_id):
+			if hasattr(entry, 'trakt_id'):
 				show_entry['trakt'] = entry.trakt_id
 
 		if type(entry) is Series:
