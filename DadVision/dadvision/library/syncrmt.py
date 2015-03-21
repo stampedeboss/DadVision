@@ -545,7 +545,7 @@ class SyncLibrary(Library):
 		_error_msgs = []
 
 		if trakt_list:
-			for _entry in tqdm(trakt_list):
+			for _entry in tqdm(trakt_list, leave=True):
 				if entrytype == 'shows':
 					if os.path.exists(os.path.join(self.settings.SeriesDir, _entry.title)):
 						_title = _entry.title
@@ -590,7 +590,7 @@ class SyncLibrary(Library):
 			log.error('Invalid Parameter Passed to _build_symbolics')
 			sys.exit(99)
 
-		for _entry in tqdm(_symbolics_requested, desc='Build Links'):
+		for _entry in tqdm(_symbolics_requested, desc='Build Links', leave=True):
 			cmd = [ 'ln', '-s',
 					'{}'.format(os.path.join(_target_dir, _entry)),
 					'{}'.format(_entry)
