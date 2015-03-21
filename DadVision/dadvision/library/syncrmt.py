@@ -537,8 +537,9 @@ class SyncLibrary(Library):
 		trakt_watchlist = getWatchList(self.args.TraktUserID, self.args.TraktAuthorization, entrytype, rtn=list)
 		if type(trakt_watchlist) == HTTPError:
 			log.error('WatchList: Invalid Return Code - {}'.format(trakt_watchlist))
+		else:
+			trakt_list = trakt_list + trakt_watchlist
 
-		trakt_list = trakt_list + trakt_watchlist
 		_library_list = []
 		_warn_msgs = []
 		_error_msgs = []
