@@ -6,26 +6,24 @@ Purpose:
 
 '''
 from subprocess import check_call, CalledProcessError
-import logging
 import os
 import re
-import sys
-import difflib
 import socket
 import sqlite3
 import time
 import shutil
 import unicodedata
 import tempfile
-import psutil
 
-from fuzzywuzzy import fuzz
+import psutil
+from pytvdbapi import api
+from tqdm import tqdm
+
 from library import Library
 from common import logger
 from common.exceptions import UnexpectedErrorOccured, ConfigValueError
-from library.trakttv.user import myLibrary
+from library.trakt.user import *
 from library.movie.gettmdb import TMDBInfo
-from pytvdbapi import api, error
 
 
 __pgmname__ = 'syncrmt'
@@ -40,17 +38,6 @@ __maintainer__ = "@organization: AJ Reynolds"
 __credits__ = []
 
 log = logging.getLogger(__pgmname__)
-
-
-def decode(coded_text):
-
-	if type(coded_text) is unicode:
-		decoded_text = unicodedata.normalize('NFKD', coded_text).encode('ascii', 'ignore')
-		decoded_text = decoded_text.replace("&amp;", "&").replace("/", "_")
-	else:
-		decoded_text = coded_text
-
-	return decoded_text
 
 
 def use_library_logging(func):
@@ -143,7 +130,6 @@ class SyncLibrary(Library):
 
 		self.db = api.TVDB("959D8E76B796A1FB")
 
-		self.mylibrary = myLibrary()
 		self.tmdb_info = TMDBInfo()
 		self._printfmt = '%P\n'
 		return
@@ -500,17 +486,26 @@ class SyncLibrary(Library):
 		_syncrmt_dir = re.compile('^syncrmt_{}.*$'.format(self.args.hostname), re.IGNORECASE)
 
 		_dir_list = {}
-		for pathname in os.listdir(tempfile.gettempdir()):
-			if _syncrmt_dir.match(pathname):
-				st=os.stat(os.path.join(tempfile.gettempdir(), pathname))
-				_age=(time.time()-st.st_mtime)
-				if dryrun and not self.args.no_reuse:
-					_dir_list[pathname] = _age
-					continue
-				if _age > self.args.refresh_limit or self.args.no_reuse:
-					shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
-					continue
+		for pathname in filter(_syncrmt_dir.match, os.listdir(tempfile.gettempdir())):
+			st = os.stat(os.path.join(tempfile.gettempdir(), pathname))
+			_age = (time.time() - st.st_mtime)
+
+			if dryrun and not self.args.no_reuse:
 				_dir_list[pathname] = _age
+				continue
+
+			if _age > self.args.refresh_limit or self.args.no_reuse:
+				shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
+				continue
+
+			if len(os.listdir(os.path.join(tempfile.gettempdir(), pathname, 'Movies'))) == 0:
+				shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
+				continue
+			if len(os.listdir(os.path.join(tempfile.gettempdir(), pathname, 'Series'))) == 0:
+				shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
+				continue
+
+			_dir_list[pathname] = _age
 
 		if _dir_list:
 			_last_dir = min(_dir_list, key=lambda k: _dir_list[k])
@@ -520,6 +515,7 @@ class SyncLibrary(Library):
 				for pathname, age in _dir_list.iteritems():
 					shutil.rmtree(os.path.join(tempfile.gettempdir(), pathname))
 			return False
+
 		self._temp_dir = tempfile.mkdtemp(suffix='', prefix='syncrmt_'+host_tgt+'_', dir=None)
 		os.makedirs(os.path.join(self._temp_dir, 'Series'))
 		os.chmod(os.path.join(self._temp_dir, 'Series'), 0775)
@@ -532,26 +528,51 @@ class SyncLibrary(Library):
 
 	def _build_list(self, entrytype):
 
-		_library_list = []
+		trakt_list = getCollection(self.args.TraktUserID, self.args.TraktAuthorization, entrytype, rtn=list)
+		if type(trakt_list) == HTTPError:
+			log.error('Collection: Invalid Return Code - {}'.format(trakt_list))
+			sys.exit(99)
 
-		trakt_list = self.mylibrary.getCollection(self.args.TraktUserID, self.args.TraktAuthorization, entrytype)
-		trakt_watchlist = self.mylibrary.getWatchList(self.args.TraktUserID, self.args.TraktAuthorization, entrytype)
+		trakt_watchlist = getWatchList(self.args.TraktUserID, self.args.TraktAuthorization, entrytype, rtn=list)
+		if type(trakt_watchlist) == HTTPError:
+			log.error('WatchList: Invalid Return Code - {}'.format(trakt_watchlist))
+
+		trakt_list = trakt_list + trakt_watchlist
+		_library_list = []
+		_warn_msgs = []
+		_error_msgs = []
+
 		if trakt_list:
-			for _entry in trakt_list + trakt_watchlist:
+			for _entry in tqdm(trakt_list):
 				if entrytype == 'shows':
-					_show = self.db.get_series(_entry.tvdb_id, 'en')
-					_title = decode(_show.SeriesName)
-					if not os.path.exists('{}'.format(os.path.join(self.settings.SeriesDir, _title))):
-						log.info('Series Not Available: trakt - {}  tvdb - {}'.format(_entry.title, _title))
-						continue
+					if os.path.exists(os.path.join(self.settings.SeriesDir, _entry.title)):
+						_title = _entry.title
+					else:
+						_show = self.db.get_series(_entry.tvdb_id, 'en')
+						_title = decode(_show.SeriesName)
+						if not os.path.exists('{}'.format(os.path.join(self.settings.SeriesDir, _title))):
+							_warn_msgs.append('Series Not Available: trakt - {}  tvdb - {}'.format(_entry.title, _title))
+							continue
 				else:
 					_title = "{} ({})".format(decode(_entry.title),_entry.year)
 
 				if _title in _library_list:
-					_rc = self.mylibrary.removeFromWatchlist(self.args.TraktUserID, self.args.TraktAuthorization, entries=[_entry])
-					log.info('Remove Watchlist: {} - {}'.format(_title, _rc))
+					_rc = removeFromWatchlist(self.args.TraktUserID, self.args.TraktAuthorization, entries=[_entry])
+					if type(_rc) == HTTPError:
+						_error_msgs.append('Collection: Invalid Return Code - {}'.format(trakt_list))
+					else:
+						_warn_msgs.append('Remove from Watchlist: {} - {}  Not Found: {}'.format(_title,
+																						_rc['deleted']['shows'],
+																						_rc['not_found']['shows']))
 					continue
 				_library_list.append(_title)
+
+		print('')
+		for _msgs in _warn_msgs:
+			log.warning(_msgs)
+		for _msgs in _error_msgs:
+			log.error(_msgs)
+
 
 		return _library_list
 
@@ -567,31 +588,22 @@ class SyncLibrary(Library):
 			log.error('Invalid Parameter Passed to _build_symbolics')
 			sys.exit(99)
 
-#		_local_directories = os.listdir(_target_dir)
-
-		for _title in _symbolics_requested:
-		# Check for Alias
-#			try:
-#				_updated_title = difflib.get_close_matches(_title, _local_directories, 1, cutoff=0.9)
-#				if len(_updated_title) > 0:
-#					_title = _updated_title[0].rstrip()
-#			except KeyError:
-#				pass
-
-			cmd =  ['ln',
-					'-s',
-					'{}'.format(os.path.join(_target_dir, _title)),
-					'{}'.format(_title)]
+		for _entry in tqdm(_symbolics_requested, desc='Build Links'):
+			cmd = [ 'ln', '-s',
+					'{}'.format(os.path.join(_target_dir, _entry)),
+					'{}'.format(_entry)
+					]
 			run_command(cmd, cwd=_temp_dir)
 
 		# Remove any broken links
 		try:
-			cmd = 'find -L {} -type l -exec mv {} ./Invalid/ \;'.format(_temp_dir, "'{}'")
+			cmd = 'find -L {} -type l -exec mv {} ../Invalid/ \;'.format(_temp_dir, "'{}'")
 			log.verbose('{}'.format(cmd))
-			run_command(cmd, True, self._temp_dir)
+			run_command(cmd, True, _temp_dir)
 		except:
 			pass
 		return
+
 
 def run_command(cmd, Shell=False, cwd=None):
 	try:

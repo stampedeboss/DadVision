@@ -13,7 +13,7 @@ Current functions:
  Repopulate the std-shows list
 """
 
-from library.trakttv.__init__ import *
+from library.trakt.__init__ import *
 
 __pgmname__ = 'user'
 __version__ = '@version: $Rev: 462 $'
@@ -31,9 +31,8 @@ log = logging.getLogger(__pgmname__)
 
 def getCollection(userid=userid, authorization=authorization, entrytype='shows', rtn=dict):
 
-#	_url = 'https://api-v2launch.trakt.tv/users/{}/collection/{}'.format(userid, entrytype)
 #	_url = 'https://api-v2launch.trakt.tv/users/{}/collection/{}?extended=full'.format(userid, entrytype)
-	_url = 'https://api-v2launch.trakt.tv/sync/collection/{}'.format(entrytype)
+	_url = 'https://api-v2launch.trakt.tv/sync/collection/{}?extended=full'.format(entrytype)
 
 	_list = getBase(_url, userid, authorization, rtn)
 

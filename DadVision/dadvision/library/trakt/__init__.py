@@ -10,11 +10,10 @@ from __future__ import division
 from urllib2 import Request, urlopen, HTTPError
 import logging
 import json
-import os
 import sys
-import traceback
 
-__pgmname__ = 'traktv'
+
+__pgmname__ = 'trakt'
 __version__ = '@version: $Rev$'
 
 __author__ = "@author: AJ Reynolds"
@@ -31,6 +30,7 @@ client_id = '54d65f67401b045bc720ef109d4d05a107c0f5e28badf2f413f89f9bee514ae7'
 client_secret = '85f06b5b6d29265a8be4fa113bbaefb0dd58826cbfd4b85da9a709459a0cb9b1'
 authorization = 'Bearer 23ce6843ef4296053b117ec9e37f4dc9b124cc4ed05c50556812014cc17effa6'
 userid = 'stampedeboss'
+
 
 def getBase(url, userid=userid, authorization=authorization, rtn=dict):
 
@@ -91,7 +91,6 @@ def getBase(url, userid=userid, authorization=authorization, rtn=dict):
 def postBase(_url, userid=userid, authorization=authorization, entries=None):
 
 	from library.series import Series
-	from library.movie import Movie
 
 	if entries is None:
 		return 'No Data'

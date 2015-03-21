@@ -13,23 +13,18 @@ Current functions:
  Repopulate the std-shows list
 """
 from __future__ import division
-import logging
 import os
-import sys
-import traceback
 import fnmatch
-import unicodedata
 import difflib
 
 import tmdb3
 from pytvdbapi import api, error
+from tqdm import tqdm
 
 from common import logger
-from common.decode import decode
-
 from library import Library
-from library.trakttv.show import getShow
-from library.trakttv.user import *
+from library.trakt.show import getShow
+from library.trakt.user import *
 from library.movie.gettmdb import TMDBInfo
 
 
@@ -310,34 +305,25 @@ class CleanUp(Library):
 		_new_shows = []
 		_remove_shows = []
 		_newly_collected = []
-		_shows_processed = 0
-		_shows_added = 0
 
-		for _entry in _trakt_std_shows:
+		for _entry in tqdm(_trakt_std_shows, desc='Std Shows'):
 			if _entry in _collected:
 				continue
 			_remove_shows.append(_trakt_std_shows[_entry])
 
-		for _entry  in _trakt_top_shows:
+		for _entry  in tqdm(_trakt_top_shows, desc='TopShows'):
 			if _entry in _collected:
 				continue
 			_remove_shows.append(_trakt_top_shows[_entry])
 
 		#load entries to std-shows, exclude shows in top-shows and any that have ended
-		for _dir in os.listdir(self.settings.SeriesDir):
+		for _dir in tqdm(os.listdir(self.settings.SeriesDir), desc='Check Lists'):
 
 			_entry = None
 			_rc = None
 			_show = None
 			_show_list = None
-			_shows_processed += 1
 
-			quotient, remainder = divmod(_shows_processed, 10)
-			if remainder == 0:
-				log.info('Shows Processes: {}  New Shows: {} Removed: {}  Collected: {}'.format(_shows_processed,
-				                                                                                len(_new_shows),
-				                                                                                len(_remove_shows),
-				                                                                                len(_newly_collected)))
 			if _ignored(_dir): continue
 
 			if _dir in _trakt_top_shows:
@@ -348,9 +334,14 @@ class CleanUp(Library):
 				if _trakt_std_shows[_dir].status in ['Canceled/Ended']:
 					_remove_shows.append(_trakt_std_shows[_dir])
 				continue
+			if _dir in _collected:
+				if _collected[_dir].status == 'Canceled/Ended':
+					continue
+				_new_shows.append(_collected[_dir])
+				continue
 
+			# Check Collected for Alternate Name
 			try:
-				# Check Collected for Existing Show
 				_show_list = difflib.get_close_matches(_dir, _collected, 5, cutoff=0.6)
 				if len(_show_list) > 0:
 					for _entry in _show_list:
