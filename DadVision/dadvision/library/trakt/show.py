@@ -12,7 +12,12 @@ Current functions:
  Remove entries from the watchlist that have been delivered.
  Repopulate the std-shows list
 """
+
 from __future__ import division
+from urllib import urlencode
+
+import unidecode
+
 from library.trakt.__init__ import *
 
 
@@ -27,12 +32,54 @@ __license__ = "@license: GPL"
 __maintainer__ = "@organization: AJ Reynolds"
 __credits__ = []
 
+client_id = '54d65f67401b045bc720ef109d4d05a107c0f5e28badf2f413f89f9bee514ae7'
+client_secret = '85f06b5b6d29265a8be4fa113bbaefb0dd58826cbfd4b85da9a709459a0cb9b1'
+authorization = 'Bearer 23ce6843ef4296053b117ec9e37f4dc9b124cc4ed05c50556812014cc17effa6'
+userid = 'stampedeboss'
+
 log = logging.getLogger(__pgmname__)
 
+from slugify import Slugify
 
-def getShow(userid=userid, authorization=authorization, show=None, rtn=dict):
+myslug = Slugify(pretranslate={"'": '_'}, translate=unidecode.unidecode, to_lower=True)
 
-	_url = 'https://api-v2launch.trakt.tv/shows/{}'.format(slugify(show))
+
+def getShow(show, rtn=dict, userid=userid, authorization=authorization):
+
+	if type(show) in [str, unicode, dict]:
+		show = myslug(show)
+
+	_url = 'https://api-v2launch.trakt.tv/shows/{}?extended=full'.format(show)
 	_list = getBase(_url, userid, authorization, rtn)
 
 	return _list
+
+def searchShow(show, year=None, rtn=dict, userid=userid, authorization=authorization):
+
+	show = { 'query' : show, 'type': 'show'}
+	if year: show['year'] = year
+
+	show = urlencode(show)
+
+	_url = 'https://api-v2launch.trakt.tv/search?{}'.format(show)
+	_list = getBase(_url, userid, authorization, rtn)
+
+	return _list
+
+
+def getSeasons(trakt_id, rtn=dict, userid=userid, authorization=authorization):
+
+	_url = 'https://api-v2launch.trakt.tv/shows/{}/seasons?extended=episodes'.format(trakt_id)
+	_list = getBase(_url, userid, authorization, rtn)
+
+	return _list
+
+
+def getEpisode(trakt_id, season, episode,rtn=str, userid=userid, authorization=authorization):
+
+	_url = 'https://api-v2launch.trakt.tv/shows/{}/seasons/{}/episodes/{}?extended=full'.format(trakt_id, season, episode)
+	_list = getBase(_url, userid, authorization, rtn)
+
+	return _list
+
+

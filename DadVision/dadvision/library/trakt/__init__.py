@@ -48,10 +48,7 @@ def getBase(url, userid=userid, authorization=authorization, rtn=dict):
 	try:
 		response_body = urlopen(request).read()
 	except HTTPError, e:
-#		an_error = traceback.format_exc()
-#		log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
 		return e
-
 	data = json.loads(response_body.decode('UTF-8', 'ignore'))
 
 	if rtn is dict:
@@ -60,25 +57,25 @@ def getBase(url, userid=userid, authorization=authorization, rtn=dict):
 		_list = []
 
 	for entry in data:
-		if 'type' in entry:
+		if rtn == str:
+			return data
+		elif 'type' in entry:
 			if entry['type'] == u'show':
 				_object = Series(**entry)
 			elif entry['type'] == u'movie':
 				_object = Movie(**entry)
 			else:
 				sys.exit(99)
-
-		if 'show' in entry:
+		elif 'show' in entry:
 			_object = Series(**entry)
 		elif 'movie' in entry:
 			_object = Movie(**entry['movie'])
 		else:
 			_object = Series(**data)
-			if rtn is dict:
+			if type(_list) is dict:
 				_list[_object.title] = _object
 			else:
 				_list.append(_object)
-
 			return _list
 
 		if rtn is dict:
@@ -131,7 +128,10 @@ def postBase(_url, userid=userid, authorization=authorization, entries=None):
 			}
 
 	request = Request(_url, data=json_data, headers=headers)
-	response_body = urlopen(request).read()
+	try:
+		response_body = urlopen(request).read()
+	except HTTPError, e:
+		return e
 	data = json.loads(response_body.decode('UTF-8', 'ignore'))
 
 	return data
@@ -183,7 +183,10 @@ def modifyBase(url, userid=userid, authorization=authorization, entries=None, en
 			}
 
 	request = Request(url, data=json_data, headers=headers)
-	response_body = urlopen(request).read()
+	try:
+		response_body = urlopen(request).read()
+	except HTTPError, e:
+		return e
 	data = json.loads(response_body.decode('UTF-8', 'ignore'))
 
 	return data

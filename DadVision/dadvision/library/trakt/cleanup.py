@@ -22,6 +22,7 @@ from pytvdbapi import api, error
 from tqdm import tqdm
 
 from common import logger
+from common.decode import decode
 from library import Library
 from library.trakt.show import getShow
 from library.trakt.user import *
@@ -282,8 +283,8 @@ class CleanUp(Library):
 	def cleanup_lists(self):
 
 		_collected = getCollection(self.args.TraktUserID,
-								  self.args.TraktAuthorization,
-								  entrytype='shows',
+								   self.args.TraktAuthorization,
+								   entrytype='shows',
 								  rtn=dict)
 		if type(_collected) == HTTPError:
 			log.error('Collected: Invalid Return Code - {}'.format(_collected))
@@ -327,15 +328,15 @@ class CleanUp(Library):
 			if _ignored(_dir): continue
 
 			if _dir in _trakt_top_shows:
-				if _trakt_top_shows[_dir].status in ['Canceled/Ended']:
+				if _trakt_top_shows[_dir].status in ['Ended']:
 					_remove_shows.append(_trakt_top_shows[_dir])
 				continue
 			if _dir in _trakt_std_shows:
-				if _trakt_std_shows[_dir].status in ['Canceled/Ended']:
+				if _trakt_std_shows[_dir].status in ['Ended']:
 					_remove_shows.append(_trakt_std_shows[_dir])
 				continue
 			if _dir in _collected:
-				if _collected[_dir].status == 'Canceled/Ended':
+				if _collected[_dir].status == 'Ended':
 					continue
 				_new_shows.append(_collected[_dir])
 				continue
@@ -362,10 +363,11 @@ class CleanUp(Library):
 				_new_shows.append(_collected[_entry])
 				continue
 
-			_show_list = getShow(self.args.TraktUserID,
+			_show_list = getShow(_dir,
+								list,
+								self.args.TraktUserID,
 							    self.args.TraktAuthorization,
-								show=_dir,
-								rtn=list)
+								)
 			if type(_show_list) == HTTPError:
 				continue
 
