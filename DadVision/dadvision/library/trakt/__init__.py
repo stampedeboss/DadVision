@@ -12,6 +12,8 @@ import logging
 import json
 import sys
 
+from common.exceptions import UnexpectedErrorOccured
+
 
 __pgmname__ = 'trakt'
 __version__ = '@version: $Rev$'
@@ -51,15 +53,17 @@ def getBase(url, userid=userid, authorization=authorization, rtn=dict):
 		return e
 	data = json.loads(response_body.decode('UTF-8', 'ignore'))
 
-	if rtn is dict:
+	if rtn == str:
+		return data
+	elif rtn is dict:
 		_list = {}
-	else:
+	elif rtn is list:
 		_list = []
+	else:
+		raise UnexpectedErrorOccured('Invalid rtn object type requested')
 
 	for entry in data:
-		if rtn == str:
-			return data
-		elif 'type' in entry:
+		if 'type' in entry:
 			if entry['type'] == u'show':
 				_object = Series(**entry)
 			elif entry['type'] == u'movie':
