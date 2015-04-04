@@ -8,7 +8,6 @@
 
 from common.settings import Settings
 from common.cmdoptions import CmdOptions
-import sys
 
 __pgmname__     = 'library.__init__'
 __version__     = '@version: $Rev$'
@@ -21,7 +20,6 @@ __maintainer__  = "@organization: AJ Reynolds"
 __status__      = "@status: Development"
 __credits__     = []
 
-import common
 
 class Library(object):
 
