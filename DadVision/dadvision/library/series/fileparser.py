@@ -21,7 +21,7 @@ import unicodedata
 from guessit import guess_file_info
 
 from library import Library
-from common.exceptions import InvalidFilename, RegxSelectionError
+from common.exceptions import SeriesNotFound, InvalidFilename, RegxSelectionError
 from common import logger
 
 
@@ -55,49 +55,71 @@ class FileParser(Library, dict):
 	def getFileDetails(self, fq_name):
 		log.trace("GetFileDetails: File: %s" % (fq_name))
 
+		try:
+			fileDetails = self._guess(fq_name)
+		except SeriesNotFound:
+			fileDetails = self._regx_search(fq_name)
+
+		return fileDetails
+
+	def _guess(self, fq_name):
+
 		if self.RegxParse['Standard Library: Regx #1'].match(fq_name) \
 				or self.RegxParse['Standard Library: Regx #2'].match(fq_name):
 			_series = guess_file_info(fq_name)
 		else:
 			_series = guess_file_info(os.path.basename(fq_name))
+
 		if _series['type'] == u'episode':
 			fileDetails = {}
-			fileDetails['FileName'] = fq_name
-			if u'year' in _series:
-				fileDetails['SeriesName'] = '{} ({})'.format(unicodedata.normalize('NFKD',
-				                                                                   _series['series']).encode('ascii',
-				                                                                                             'ignore'),
-				                                             _series['year'])
-			else:
-				fileDetails['SeriesName'] = unicodedata.normalize('NFKD', _series['series']).encode('ascii', 'ignore') #.title()
+			fileDetails['fileName'] = fq_name
+			if u'series' in _series:
+				if u'year' in _series:
+					fileDetails['title'] = '{} ({})'.format(unicodedata.normalize('NFKD',
+				                                                              _series['series']).encode('ascii',
+				                                                                                        'ignore'),
+				                                                              _series['year'])
+				else:
+					fileDetails['title'] = unicodedata.normalize('NFKD', _series['series']).encode('ascii', 'ignore')
 			if u'season' in _series:
-				fileDetails['SeasonNum'] = _series['season']
+				fileDetails['seasonNum'] = _series['season']
 			else:
-				fileDetails['SeasonNum'] = 1
+				fileDetails['seasonNum'] = 1
 			if u'episodeList' in _series:
-				fileDetails['EpisodeNums'] = _series['episodeList']
+				fileDetails['episodeNums'] = _series['episodeList']
 			elif u'episodeNumber' in _series:
-				fileDetails['EpisodeNums'] = [_series['episodeNumber']]
+				fileDetails['episodeNums'] = [_series['episodeNumber']]
 			if u'container' in _series:
-				fileDetails['Ext'] = str(_series['container'])
+				fileDetails['ext'] = str(_series['container'])
 			elif u'extension' in _series:
-				fileDetails['Ext'] = str(_series['extension'])
-			fileDetails['type'] = _series['type']
+				fileDetails['ext'] = str(_series['extension'])
 			if u'country' in _series:
 				fileDetails['country'] = _series['country']
 				if _series['country'] == 'GB':
-					fileDetails['SeriesName'] = fileDetails['SeriesName'].translate(None, "()")
+					fileDetails['title'] = fileDetails['title'].translate(None, "()")
 
-#				if _series['country'] in self.settings.CountryCodes:
-#					fileDetails['country'] = _series['country']
-#				else:
-#					_suffix = self.check_country.match(fileDetails['SeriesName'])
-#					if _suffix:
-#						fileDetails['SeriesName'] = _suffix.group('SeriesName')
-			#if _air_date:
-			#	self.File_Details['DateAired'] = _air_date
-			if not set(['SeriesName', 'SeasonNum', 'EpisodeNums', 'Ext', ]) - set(fileDetails.keys()):
+			if not 'series' in _series:
+				_series2 = _series = guess_file_info(os.path.dirname(fq_name))
+				if u'series' in _series2:
+					if u'year' in _series2:
+						fileDetails['title'] = '{} ({})'.format(unicodedata.normalize('NFKD',
+				                                                              _series2['series']).encode('ascii',
+				                                                                                        'ignore'),
+				                                                              _series2['year'])
+					else:
+						fileDetails['title'] = unicodedata.normalize('NFKD', _series2['series']).encode('ascii', 'ignore')
+
+				if u'country' in _series2:
+					fileDetails['country'] = _series['country']
+					if _series['country'] == 'GB':
+						fileDetails['title'] = fileDetails['title'].translate(None, "()")
+
+			if not set(['title', 'seasonNum', 'episodeNums', 'ext', ]) - set(fileDetails.keys()):
 				return fileDetails
+			else:
+				raise SeriesNotFound(fq_name)
+
+	def _regx_search(self, fq_name):
 
 		_path, _file_name = os.path.split(os.path.abspath(fq_name))
 		_check_path = _path
@@ -130,14 +152,14 @@ class FileParser(Library, dict):
 				_series_name = _directory_name
 
 		self.File_Details = {}
-		self.File_Details['FileName'] = fq_name
-		self.File_Details['SeriesName'] = _series_name
+		self.File_Details['fileName'] = fq_name
+		self.File_Details['title'] = _series_name
 
 		if _air_date:
-			self.File_Details['DateAired'] = _air_date
+			self.File_Details['first_aired'] = _air_date
 		elif _season_num and _episode_nums:
-			self.File_Details['SeasonNum'] = _season_num
-			self.File_Details['EpisodeNums'] = _episode_nums
+			self.File_Details['seasonNum'] = _season_num
+			self.File_Details['episodeNums'] = _episode_nums
 		else:
 			raise RegxSelectionError('FileParser: {}: No Season & Episode Numbers or Date Aired in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
 
@@ -171,10 +193,9 @@ class FileParser(Library, dict):
 		else:
 			raise RegxSelectionError('FileParser: {}: Parse Did Not Find Series Name: {1}'.format(self.LogHeader, _parsed_keys))
 
-		'''
-		Cleans up series name by removing any . and _
-		characters, along with any trailing hyphens.
-		'''
+		# Cleans up series name by removing any . and _
+		# characters, along with any trailing hyphens.
+
 		_series_name = re.sub("(\D)[.](\D)", "\\1 \\2", _series_name)
 		_series_name = re.sub("(\D)[.]", "\\1 ", _series_name)
 		_series_name = re.sub("[.](\D)", " \\1", _series_name)

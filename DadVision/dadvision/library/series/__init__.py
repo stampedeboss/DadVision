@@ -1,13 +1,23 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 '''
-    Initialization Routine for a Series
+	Initialization Routine for a Series
 
 '''
 
 import re
 import datetime
-import unicodedata
+import traceback
+from urllib2 import HTTPError
+
+from dateutil import parser
+from pytvdbapi import api
+from pytvdbapi.error import ConnectionError, TVDBNotFoundError, TVDBIdError
+
+from common.matching import matching
+from common.exceptions import SeriesNotFound, SeasonNotFound, EpisodeNotFound
+from library.trakt.show import getShow, searchShow, getSeasons, getEpisode
+
 
 __pgmname__ = 'series'
 __version__ = '@version: $Rev$'
@@ -20,335 +30,690 @@ __license__ = "@license: GPL"
 __maintainer__ = "@organization: AJ Reynolds"
 __credits__ = []
 
+db = api.TVDB("959D8E76B796A1FB")
+
+
 class Series(object):
 
-    def __init__(self, **kwargs):
+	def __init__(self, **kwargs):
 
-        super(Series, self).__init__()
+		super(Series, self).__init__()
 
-        self._title = None
-        self.titleBase = self.titleSuffix = self.titleType = None
-        self.imdb_id = self.tmdb_id = self.tvdb_id = self.tvrage_id = None
-        self.imdb_info = self.tmdb_info = self.tvdb_info = self.tvrage_info = None
-        self.season = None
-        self.seasons = None
-        self.episodeNums = None
-        self._status = None
-        self.firstAired = None
-        self.country = None
-        self.network = None
-        self.aliasNames = None
-        self.fileName = None
-        self.source = None
-        self._topShow = 'Unknown'
-        self.episodeData = None             #transitional attribute
-        self.ext = None
-        self.ended = None
-        self.started = None
-        self.slug = None
-        self.trakt = None
-        self.year = None
+		self._title = None
+		self._status = None
+		self._first_aired = None
+		self._seasons = None
+		self.titleBase = self.titleSuffix = self.titleType = self.titleTVDB = None
+		self.year = None
+		self.ids = {u'imdb': None, u'tmdb': None,
+		            u'trakt': None, u'tvdb': None,
+		            u'tvrage': None, u'slug': None}
+		self.country = None
+		self.network = None
+		self.alias = None
+		self.overview = None
+		self.airs = {u'timezone': 'Not Specified', u'day': None, u'time': None}
+		self.topShow = None
 
+		self.load_attr(kwargs)
 
-        __keysHandler = {'name': self._set_title,
-                        'title': self._set_title,
-                        'seriesname': self._set_title,
-                        'seriesid': self._set_tvdb_id,
-                        'tvdb': self._set_tvdb_id,
-                        'tvdb_id': self._set_tvdb_id,
-                        'showid': self._set_tvrage_id,
-                        'tvrage': self._set_tvrage_id,
-                        'tvrage_id': self._set_tvrage_id,
-                        'imdb': self._set_imdb_id,
-                        'imdb_id': self._set_imdb_id,
-                        'status': self._set_status,
-                        'aliasnames': self._set_alias,
-                        'network': self._set_network,
-                        'firstaired': self._set_firstAired
-                        }
+		if self.trakt_id is not None:
+			if None in [self.status]:
+				try:
+					_kwargs = getShow(show=self.trakt_id, rtn=str)
+				except HTTPError:
+					return
+				self.load_attr(_kwargs)
+#				self.seasons = {}
 
-        attrs = ['seasons', 'started', 'ended', 'country', 'topShow', 'year', 'slug', 'trakt']
+#		if self.tvdb_id:
+#			self.tvdb_id = self.tvdb_id
 
-        attrs = dir(self)
-        attrs_lst = sorted(attrs)
-        for entry in attrs_lst:
-            if entry[:2] == '__':
-                attrs.remove(entry)
+		if hasattr(self, 'fileDetails'):
+			setattr(self, 'fileDetails', fileDetails(self.title, **self.fileDetails))
+#			delattr(self, 'fileDetails
 
+		return
 
-        if len(kwargs) > 0:
-            for key, val in kwargs.items():
-                if key == 'seriesinfo':
-                    for key2, val2 in val.iteritems():
-                        try:
-                            __keysHandler[key2.lower()](key2, val2)
-                        except KeyError:
-                            if key2 == 'FileName':
-                                setattr(self, 'fileName', val2)
-                            elif key2 == 'SeasonNum':
-                                setattr(self, 'season', int(val2))
-                            elif key2 == 'EpisodeNums':
-                                setattr(self, 'episodeNums', val2)
-                            elif key2 == 'Ext':
-                                setattr(self, 'ext', val2)
-                            else:
-                                setattr(self, key2, val2)
-                elif key == 'tvrage':
-                    for key2, val2 in val.iteritems():
-                        try:
-                            __keysHandler[key2.lower()](key2, val2)
-                        except KeyError:
-                            if key2 in attrs:
-                                setattr(self, key2, val2)
-                            continue
-                elif key == 'tvdb':
-                    for key2, val2 in vars(val).iteritems():
-                        if key2 == 'data':
-                            for key3, val3 in val2.iteritems():
-                                try:
-                                    __keysHandler[key3.lower()](key3, val3)
-                                except KeyError:
-                                    if key3 in attrs:
-                                        setattr(self, key3, val3)
-                                    continue
-                elif key == 'show':
-                    for key2, val2 in val.iteritems():
-                        if key2 == 'ids':
-                            for key3, val3 in val2.iteritems():
-                                try:
-                                    __keysHandler[key3.lower()](key3, val3)
-                                except KeyError:
-                                    if key3 in attrs:
-                                        setattr(self, key3, val3)
-                                    continue
-                        elif key2 == 'title':
-                                try:
-                                    __keysHandler[key2.lower()](key2, val2)
-                                except KeyError:
-                                    if key2 in attrs:
-                                        setattr(self, key2, val2)
-                                    continue
-                        elif key2 == 'year':
-                                try:
-                                    __keysHandler[key2.lower()](key2, val2)
-                                except KeyError:
-                                    if key2 in attrs:
-                                        setattr(self, key2, val2)
-                                    continue
+	def load_attr(self, kwargs):
+		if len(kwargs) > 0:
+			for key, val in kwargs.items():
+				key = self._std_key(key)
+				if key == '__discard':
+					continue
 
-    @property
-    def title(self):
-        """The series title."""
-        return self._title
-    @title.setter
-    def title(self, value):
-        if value is None:
-            return
+				if key in ['show']:
+					self.load_attr(val)
+					continue
+				elif key in ['tvrage', 'tvdb']:
+					for key2, val2 in vars(val).iteritems():
+						if key2 == 'data':
+							for key3, val3 in val2.iteritems():
+								key3 = self._std_key(key3)
+								if key == '__discard':
+									continue
+								if type(val3) is unicode:
+									setattr(self, key3, val3.encode('ascii', 'ignore'))
+								else:
+									setattr(self, key3, val3)
+								continue
+				elif key in ['fileName', 'ext', 'seasonNum', 'episodeNums']:
+					if not hasattr(self, 'fileDetails'):
+						setattr(self, 'fileDetails', {})
+					self.fileDetails[key] = val
+				else:
+					if type(val) is unicode:
+						setattr(self, key, val.encode('ascii', 'ignore'))
+					else:
+						setattr(self, key, val)
 
-        __year = re.compile('^[\(]?(?P<year>(?:19|20)\d{2})[\)]?$', re.I)
-        __country = re.compile('^[\(][a-zA-Z]*[\)]$', re.I)
+		return
 
-        value = value.encode('ascii', 'ignore')
-        _title_parts = value.rsplit(None, 1)
-        if len(_title_parts) > 1:
-            _year = __year.match(_title_parts[1])
-            if _year:
-                _title_parts[1] = _title_parts[1].replace('(', '').replace(')', '')
-                self.titleBase = _title_parts[0]
-                self.titleSuffix = int(_title_parts[1])
-                self.titleType = "Year"
-                self._title = '{} ({})'.format(self.titleBase, self.titleSuffix)
-                return
-            else:
-                _country = __country.match(_title_parts[1])
-                if _country:
-                    _title_parts[1] = _title_parts[1].replace('(', '').replace(')', '')
-                    self.titleBase = _title_parts[0]
-                    self.titleSuffix = _title_parts[1].upper()
-                    self.titleType = "Country"
-                    self.country = _title_parts[1].upper()
-                    self._title = '{} ({})'.format(self.titleBase, self.titleSuffix)
-                    return
+	@property
+	def title(self):
+		"""The series title."""
+		return self._title
+	@title.setter
+	def title(self, value):
+		if value is None:
+			return
 
-        self.titleBase = value
-        self.titleSuffix = None
-        self.titleType = None
-        self._title = value
+		__year = re.compile('^[\(]?(?P<year>(?:19|20)\d{2})[\)]?$', re.I)
+		__country = re.compile('^[\(][a-zA-Z]*[\)]$', re.I)
 
-    def _set_title(self, key, val):
-        self.title = val
-        return
+		_title_parts = value.rsplit(None, 1)
+		if len(_title_parts) > 1:
+			_year = __year.match(_title_parts[1])
+			if _year:
+				_title_parts[1] = _title_parts[1].replace('(', '').replace(')', '')
+				self.titleBase = _title_parts[0].replace('\'', '')
+				self.titleSuffix = int(_title_parts[1])
+				self.titleType = "Year"
+				self._title = '{} ({})'.format(self.titleBase, self.titleSuffix)
+				return
+			else:
+				_country = __country.match(_title_parts[1])
+				if _country:
+					_title_parts[1] = _title_parts[1].replace('(', '').replace(')', '')
+					self.titleBase = _title_parts[0]
+					self.titleSuffix = _title_parts[1].upper()
+					self.titleType = "Country"
+					self.country = _title_parts[1].upper()
+					self._title = '{} ({})'.format(self.titleBase, self.titleSuffix)
+					return
 
-    @property
-    def status(self):
-        """The series status."""
-        return self._status
-    @status.setter
-    def status(self, value):
-        if value in ['New Series', 'Returning Series', 'Continuing', 'Hiatus']:
-            setattr(self, '_status', 'Continuing')
-        elif value in ['Canceled/Ended', 'Ended']:
-            setattr(self, '_status', 'Canceled/Ended')
-        else:
-            setattr(self, '_status', 'Other')
-        return
-
-    def _set_status(self, key, val):
-        self.status = val
-        return
-
-    @property
-    def topShow(self):
-        if self._topShow is None:
-            self.topShow.setter()
-        return self._topShow
-    @topShow.setter
-    def topShow(self):
-        if self.trakt_user:
-            _trakt_top_shows = self.trakt_user.get_list('topshows')
-            _trakt_top_shows_names = {_item.title: _item for _item in _trakt_top_shows.items}
-            if self.title in _trakt_top_shows_names:
-                self._topShow = True
-            else:
-                self._topShow = False
-        else: self._topShow = 'Unknown'
-
-    @property
-    def _search_title(self):
-        """The title of this :class:`Series` formatted in a searchable way"""
-        _title = self.title.replace(' ', '-').lower()
-        _title = _title.replace('&', 'and')
-        _title = re.sub('[^A-Za-z0-9\-]+', '', _title)
-        return _title
-
-    @property
-    def showFromUS(self):
-        if self.country == 'US':
-            return True
-        if self.titleType == None:
-            return None
-        return False
-
-    @property
-    def keysFound(self):
-        if self.tvdb_id is not None or self.tvrage_id is not None:
-            return True
-        return False
-
-    def _set_tvdb_id(self, key, val):
-        if key == 'SeriesID': return
-        setattr(self, 'tvdb_id', int(val))
-        return
-
-    def _set_tvrage_id(self, key, val):
-        if val:
-            setattr(self, 'tvrage_id', int(val))
-        return
-
-    def _set_imdb_id(self, key, val):
-        if val:
-            setattr(self, 'imdb_id', val.encode('ascii', 'ignore'))
-        return
-
-    def _set_firstAired(self, key, firstAired):
-        if type(firstAired) is datetime.date:
-            setattr(self, 'firstAired', firstAired.year)
-        return
-
-    def _set_alias(self, key, val):
-        setattr(self, 'aliasNames', val)
-        return
-
-    def _set_network(self, key, val):
-        setattr(self, 'network', val.encode('ascii', 'ignore'))
-        return
-
-    def search(self, show):
-        pass
-
-    def copy(self, series):
-        for key, val in series.__dict__.iteritems():
-            if val is not None:
-                setattr(self, key, val)
-        return
-
-    def copyShow(self, series):
-        for key, val in series.__dict__.iteritems():
-            if key in ['season', 'episodeNums', 'ext', 'fileName', 'seriesinfo', 'episodeData']:
-                continue
-
-            if val is not None:
-                setattr(self, key, val)
-        return
-
-    def update(self, series):
-        for key, val in series.__dict__.iteritems():
-            #Don't update if it exists
-            if key not in ['_title','titleBase', 'titleType', 'titleSuffix']:
-                if getattr(self, key) or val is None:
-                    continue
-
-            if type(val) is unicode:
-                setattr(self, key, val.encode('ascii', 'ignore'))
-            else:
-                setattr(self, key, val)
-        return
-
-    def getDict(self):
-
-        SeriesDetails = {}
-        SeriesDetails['SeriesName'] = self.title
-        if self.episodeData is not None:
-            SeriesDetails['EpisodeData'] = self.episodeData
-        if self.episodeNums is not None:
-            SeriesDetails['EpisodeNums'] = self.episodeNums
-        if self.ext is not None:
-            SeriesDetails['Ext'] = self.ext
-        if self.fileName is not None:
-            SeriesDetails['FileName'] = self.fileName
-        if self.season is not None:
-            SeriesDetails['SeasonNum'] = self.season
-        if self.tvdb_id is not None:
-            SeriesDetails['tvdb_id'] = int(self.tvdb_id)
-        if self.imdb_id is not None:
-            SeriesDetails['imdb_id'] = self.imdb_id
-        if self.tvrage_id is not None:
-            SeriesDetails['tvrage_id'] = self.tvrage_id
-        if self.status is not None:
-            SeriesDetails['status'] = self.status
-        if self.topShow is not None:
-            SeriesDetails['top_show'] = self.topShow
-        if self.source is not None:
-            SeriesDetails['source'] = self.source
-
-        SeriesDetails['TVSeries'] = self
-        return SeriesDetails
-
-    def addEpisode(self, _season, _episode):
-        if type(_episode.EpisodeName) == unicode:
-            _episode_name = unicodedata.normalize('NFKD', _episode.EpisodeName).encode('ascii', 'ignore')
-            _episode_name = _episode_name.replace("&amp;", "&").replace("/", "_")
-        else:
-            _episode_name = str(_episode.EpisodeName)
-
-        self.episodeData.append({'SeasonNum': _season.season_number,
-                                 'EpisodeNum': _episode.EpisodeNumber,
-                                 'EpisodeTitle': _episode_name,
-                                 'DateAired': _episode.FirstAired})
+		self.titleBase = value
+		self.titleSuffix = None
+		self.titleType = None
+		self._title = value
 
 
-    def addRageEpisode(self, _season, _episode):
-        self.episodeData.append({'SeasonNum': _season.season,
-                                 'EpisodeNum': _episode.episode,
-                                 'EpisodeTitle': _episode.title,
-                                 'DateAired': _episode.first_aired})
+	@property
+	def slug(self):
+		"""The series slug."""
+		return self.ids[u'slug']
+	@slug.setter
+	def slug(self, value):
+		if value is None and self.ids[u'slug'] is None:
+			return
+		if value is '':
+			value = None
+		self, self.ids[u'slug'] = value
+		return
+
+	@property
+	def imdb_id(self):
+		"""The series imdb_id"""
+		return self.ids[u'imdb']
+	@imdb_id.setter
+	def imdb_id(self, value):
+		if value is None and self.ids[u'imdb'] is None:
+			return
+		if value is '':
+			value = None
+		self.ids[u'imdb_id'] = value
+		return
+
+	@property
+	def tmdb_id(self):
+		"""The series tmdb id."""
+		return self.ids[u'tmdb']
+	@tmdb_id.setter
+	def tmdb_id(self, value):
+		if value is None and self.ids[u'tmdb'] is None:
+			return
+		if value is '':
+			value = None
+		self.ids[u'tmdb'] = int(value)
+		return
+
+	@property
+	def trakt_id(self):
+		"""The series trakt id."""
+		return self.ids[u'trakt']
+	@trakt_id.setter
+	def trakt_id(self, value):
+		if value is None and self.ids[u'trakt'] is None:
+			return
+		if value is '':
+			value = None
+		self.ids[u'trakt'] = int(value)
+		return
+
+	@property
+	def tvdb_id(self):
+		"""The series tvdb id."""
+		return self.ids[u'tvdb']
+	@tvdb_id.setter
+	def tvdb_id(self, value):
+		if value is None and self.ids[u'tvdb'] is None:
+			return
+		if value is '':
+			self.ids[u'tvdb'] = None
+			if hasattr(self, 'fileDetails'):
+				self.fileDetails.seriesTitle = None
+			return
+
+		self.ids[u'tvdb'] = value
+		try:
+			_tvdb = db.get_series(self.tvdb_id, "en")
+			self.titleTVDB = _tvdb.SeriesName
+			if type(self.titleTVDB) is unicode:
+				self.titleTVDB = self.titleTVDB.encode('ascii', 'ignore')
+
+			if not self.title == self.titleTVDB:
+				if self.alias is None: self.alias = []
+				self.alias.append(self.titleTVDB)
+
+			if hasattr(self, 'fileDetails'):
+				self.fileDetails.seriesTitle = self.titleTVDB
+		except (ConnectionError, TVDBNotFoundError, TVDBIdError):
+			an_error = traceback.format_exc()
+			self.ids[u'tvdb'] = None
+
+		return
+
+	@property
+	def tvrage_id(self):
+		"""The series tvrage id."""
+		return self.ids[u'tvrage']
+	@tvrage_id.setter
+	def tvrage_id(self, value):
+		if value is None and self.ids[u'tvrage'] is None:
+			return
+		if value is '':
+			value = None
+		self.ids[u'tvrage'] = value
+		return
+
+	@property
+	def status(self):
+		"""The series status."""
+		return self._status
+	@status.setter
+	def status(self, value):
+		if value is None:
+			setattr(self._status, None)
+			return
+		if value.lower() in ['new series', 'returning series', 'continuing', 'hiatus']:
+			setattr(self, '_status', 'Continuing')
+		elif value.lower() in ['canceled/ended', 'ended']:
+			setattr(self, '_status', 'Ended')
+		else:
+			setattr(self, '_status', 'Other')
+		return
+
+	@property
+	def first_aired(self):
+		"""The series premier date"""
+		return self._first_aired
+	@first_aired.setter
+	def first_aired(self, value):
+		if value is None:
+			return
+		if type(value) in [unicode, str]:
+			value = parser.parse(value)
+		if type(value) is datetime.date:
+			setattr(self, '_first_aired', value)
+		elif type(value) is datetime.datetime:
+			setattr(self, '_first_aired', value.date())
+		return
+
+	@property
+	def seasons(self):
+		"""The series season data"""
+		return self._seasons
+	@seasons.setter
+	def seasons(self, value):
+		try:
+			_seasons = getSeasons(self.trakt_id, rtn=str)
+		except:
+			_seasons = None
+
+		if _seasons:
+			self._seasons = {}
+			for _entry in _seasons:
+				self._seasons['<Season {0:02}>'.format(_entry['number'])] = Season(self.trakt_id, **_entry)
+
+	def season(self, number=1):
+		seasonCount = len(self.seasons)-1
+		if not number > (len(self.seasons)-1) and int(number) > -1:
+			return self.seasons['<Season {0:02}>'.format(number)]
+		else:
+			raise SeasonNotFound('SeasonNotFound: {} - Season {}'.format(self.titleTVDB, number))
+
+	def episode(self, snumber, number):
+		_eplist = []
+		_season = self.season(snumber)
+		if _season:
+			for _entry in number:
+				if _entry > 0 and not _entry > len(_season.episodes):
+					_eplist.append(_season.episodes['E{0:02d}'.format(_entry)])
+		else:
+			raise SeasonNotFound('SeasonNotFound: {} - Season {}'.format(self.titleTVDB, snumber))
+		if _eplist:
+			return _eplist
+		else:
+			raise EpisodeNotFound('EpisodeNotFound: {} - Season {}  Episode {}'.format(self.titleTVDB,
+			                                                                           snumber,
+			                                                                           number))
 
 
-    def __str__(self):
-        """Return a string representation of a :class:`TVShow`"""
-        header = '<Series>'
-        header = map(str, header)
-        header = ' '.join(header)
-        return '{}: {}'.format(header, self.title.encode('ascii', 'ignore'))
-    __repr__ = __str__
+	def search(self, rtn=object):
+		_filterOrder = ['tz', 'status', 'rating', 'scores', 'newest']
+		_filter_options = {'scores': self._flt_scores,
+		                   'tz': self._flt_tz,
+		                   'match': self._flt_match,
+		                   'rating': self._flt_rating,
+		                   'status': self._flt_status,
+				           'newest': self._flt_newest
+							}
 
+		try:
+			if self.titleType == "Year":
+				self._list = searchShow(show=self.titleBase, year=self.titleSuffix, rtn=list)
+				if type(self._list) is HTTPError or not len(self._list) > 0:
+					self._list = searchShow(show=self.titleBase, rtn=list)
+			elif self.titleType == 'Country':
+				self._list = searchShow(show=self.title, rtn=list)
+				if type(self._list) is HTTPError or not len(self._list) > 0:
+					self._list = searchShow(show=self.titleBase, rtn=list)
+			else:
+				self._list = searchShow(show=self.titleBase, rtn=list)
+		except:
+			raise SeriesNotFound
+
+		_new_list = filter(_filter_options['match'], self._list)
+		if len(_new_list) > 0:
+			self._list = _new_list
+
+		if type(self._list) is HTTPError:
+			raise SeriesNotFound('SeasonNotFound: {}'.format(self.title))
+		elif rtn is list or len(self._list) < 2:
+			pass
+		else:
+			for _filter in _filterOrder:
+				try:
+					_newlist = filter(_filter_options[_filter], self._list)
+					if len(_newlist) == 1:
+						self._list = _newlist
+						break
+					elif len(_newlist) == 0:
+						if _filter in ['match', 'tz']:
+							continue
+						else:
+							break
+					else:
+						self._list = _newlist
+				except:
+					_an_error = traceback.format_exc()
+					#log.debug(traceback.format_exception_only(type(_an_error), _an_error)[-1])
+					continue
+
+		if hasattr(self, 'fileDetails'):
+			for _entry in self._list:
+				setattr(_entry, 'fileDetails', self.fileDetails)
+				if _entry.titleTVDB:
+					_entry.fileDetails.seriesTitle = _entry.titleTVDB
+				else:
+					_entry.fileDetails.seriesTitle = _entry.title
+
+		if type(self._list) is HTTPError:
+			raise
+		elif len(self._list) == 0:
+			raise SeriesNotFound('SeriesNotFound: {}'.format(self.title))
+		elif rtn is list:
+			for _entry in self._list:
+				delattr(_entry, 'score')
+			return self._list
+		elif rtn is object:
+			_entry = self._list[0]
+			delattr(_entry, 'score')
+			return _entry
+
+
+	def copy(self, series):
+		for key, val in series.__dict__.iteritems():
+			if val is not None:
+				setattr(self, key, val)
+		return
+
+	def copyShow(self, series):
+		for key, val in series.__dict__.iteritems():
+			if key in ['season', 'episodeNums', 'ext', 'fileName', 'seriesinfo', 'episodeData']:
+				continue
+
+			if val is not None:
+				setattr(self, key, val)
+		return
+
+	def update(self, series):
+		for key, val in series.__dict__.iteritems():
+			#Don't update if it exists
+			if key not in ['_title','titleBase', 'titleType', 'titleSuffix']:
+				if not hasattr(self, key) or val is None:
+					continue
+
+			if type(val) is unicode:
+				setattr(self, key, val.encode('ascii', 'ignore'))
+			else:
+				setattr(self, key, val)
+		return
+
+	def getDict(self):
+
+		SeriesDetails = {}
+		SeriesDetails['SeriesName'] = self.title
+		if self.episodeData is not None:
+			SeriesDetails['EpisodeData'] = self.episodeData
+		if self.episodeNums is not None:
+			SeriesDetails['episodeNums'] = self.episodeNums
+		if self.ext is not None:
+			SeriesDetails['ext'] = self.ext
+		if self.fileName is not None:
+			SeriesDetails['fileName'] = self.fileName
+		if self.season is not None:
+			SeriesDetails['seasonNum'] = self.season
+		if self.tvdb_id is not None:
+			SeriesDetails['tvdb_id'] = int(self.tvdb_id)
+		if self.imdb_id is not None:
+			SeriesDetails['imdb_id'] = self.imdb_id
+		if self.tvrage_id is not None:
+			SeriesDetails['tvrage_id'] = self.tvrage_id
+		if self.status is not None:
+			SeriesDetails['status'] = self.status
+
+		SeriesDetails['TVSeries'] = self
+		return SeriesDetails
+
+	def _std_key(self, key):
+		_key_conversions = {'firstaired': 'first_aired',
+							'id': 'tvdb_id',
+		                    'seriesid': 'tvdb_id',
+		                    'seasonnum': 'seasonNum',
+		                    'episodelist': 'episodeNums',
+		                    'episodenums': 'episodeNums',
+		                    'filename': 'fileName',
+							"available_translations": '__discard',
+		                    "homepage": '__discard',
+		                    "votes": '__discard',
+		                    "plays": '__discard',
+		                    "trailer": '__discard',
+		                    "updated_at": '__discard',
+		                    'listed_at': '__discard',
+		                    'type': '__discard',
+		                    'last_collected_at': '__discard',
+		                    'last_watched_at': '__discard',
+		                    "images": '__discard',
+		                    'airs_dayofweek': '__discard',
+		                    'airs_time': '__discard',
+		                    'actors': '__discard',
+		                    'networkid': '__discard',
+		                    'ratingcount': '__discard',
+		                    'runtime': '__discard',
+		                    'actor_objects': '__discard',
+		                    'added': '__discard',
+		                    'addedby': '__discard',
+		                    'api': '__discard',
+		                    'banner': '__discard',
+		                    'banner_objects': '__discard',
+		                    'fanart': '__discard',
+		                    'language': '__discard',
+		                    'lastupdated': '__discard',
+		                    'poster': '__discard',
+		                    'tms_wanted_old': '__discard',
+		                    'zap2it_id': '__discard',
+		                    'contentrating': '__discard'
+		}
+
+		key = key.lower()
+		if key in _key_conversions:
+			return _key_conversions[key]
+		else:
+			return key
+	def __str__(self):
+		"""Return a string representation of a :class:`TVShow`"""
+		header = '<Series>'
+		header = map(str, header)
+		header = ' '.join(header)
+		return '{}: {}'.format(header, self.title.encode('ascii', 'ignore'))
+	__repr__ = __str__
+
+
+	# Series Filters
+	def _flt_tz(self, x): return x.airs['timezone'] == u'America/New_York'
+	def _flt_status(self, x): return x.status in ['Continuing', 'Ended']
+	def _flt_scores(self, x): return x.score == max(x.score for x in self._list)
+	def _flt_newest(self, x): return x.first_aired == max(x.first_aired for x in self._list)
+	def _flt_rating(self, x): return x.rating == max(x.rating for x in self._list)
+	def _flt_match(self, x): return matching(x.titleBase, self.titleBase) == max([max(matching(x.titleBase, self.titleBase) for x in self._list), 60])
+
+
+class Season(object):
+	"""Container for Seasons"""
+	def __init__(self, series, **kwargs):
+		super(Season, self).__init__()
+		self.seriesTrakt = series
+		self.number = None
+		self.ids = {u'tmdb': None, u'trakt': None,
+		            u'tvdb': None, u'tvrage': None}
+		self._episodes = None
+
+		if len(kwargs) > 0:
+			for key, val in kwargs.items():
+				if type(val) is unicode:
+					setattr(self, key, val.encode('ascii', 'ignore'))
+				else:
+					setattr(self, key, val)
+
+
+	@property
+	def tmdb_id(self):
+		"""The series tmdb id."""
+		return self.ids[u'tmdb']
+	@tmdb_id.setter
+	def tmdb_id(self, value):
+		if value is None and self.ids[u'tmdb'] is None:
+			return
+		if value is '':
+			value = None
+		self.ids[u'tmdb'] = int(value)
+		return
+
+	@property
+	def trakt_id(self):
+		"""The series trakt id."""
+		return self.ids[u'trakt']
+	@trakt_id.setter
+	def trakt_id(self, value):
+		if value is None and self.ids[u'trakt'] is None:
+			return
+		if value is '':
+			value = None
+		self.ids[u'trakt'] = int(value)
+		return
+
+	@property
+	def tvdb_id(self):
+		"""The series tvdb id."""
+		return self.ids[u'tvdb']
+	@tvdb_id.setter
+	def tvdb_id(self, value):
+		if value is None and self.ids[u'tvdb'] is None:
+			return
+		if value is '':
+			value = None
+		self.ids[u'tvdb'] = value
+
+		return
+
+	@property
+	def tvrage_id(self):
+		"""The series tvrage id."""
+		return self.ids[u'tvrage']
+	@tvrage_id.setter
+	def tvrage_id(self, value):
+		if value is None and self.ids[u'tvrage'] is None:
+			return
+		if value is '':
+			value = None
+		self.ids[u'tvrage'] = value
+		return
+
+	@property
+	def episodes(self, number=None):
+		"""The series Episode"""
+		return self._episodes
+	@episodes.setter
+	def episodes(self, episodes=None):
+		if episodes: self._episodes = {}
+		for _entry in episodes:
+			self._episodes['E{0:02d}'.format(_entry['number'])] = Episode(self.seriesTrakt, **_entry)
+
+	def __str__(self):
+		"""Return a string representation of a :class:`Season`"""
+		return '<Season>: {0:02d}'.format(self.number)
+	__repr__ = __str__
+
+
+class Episode(object):
+	"""Container for Episodes"""
+	def __init__(self, seriesTrakt, **kwargs):
+		super(Episode, self).__init__()
+		self.seriesTrakt = seriesTrakt
+		self.season = None
+		self.number = None
+		self.title = None
+		self.ids = None
+		self._first_aired = None
+
+		self.load_attr(kwargs)
+		try:
+			self.load_attr(getEpisode(self.seriesTrakt, self.season, self.number))
+		except:
+			return
+
+	def load_attr(self, kwargs):
+		if len(kwargs) > 0:
+			_skip_keys = ['votes', 'rating', 'updated_at', 'available_translations']
+			for key, val in kwargs.items():
+				if key in _skip_keys:
+					continue
+				if type(val) is unicode:
+					setattr(self, key, val.encode('ascii', 'ignore'))
+				else:
+					setattr(self, key, val)
+		return
+
+	@property
+	def tmdb_id(self):
+		"""The series tmdb id."""
+		return self.ids[u'tmdb']
+	@tmdb_id.setter
+	def tmdb_id(self, value):
+		if value is None and self.ids[u'tmdb'] is None:
+			return
+		if value is '':
+			value = None
+		self.ids[u'tmdb'] = int(value)
+		return
+
+	@property
+	def trakt_id(self):
+		"""The series trakt id."""
+		return self.ids[u'trakt']
+	@trakt_id.setter
+	def trakt_id(self, value):
+		if value is None and self.ids[u'trakt'] is None:
+			return
+		if value is '':
+			value = None
+		self.ids[u'trakt'] = int(value)
+		return
+
+	@property
+	def tvdb_id(self):
+		"""The series tvdb id."""
+		return self.ids[u'tvdb']
+	@tvdb_id.setter
+	def tvdb_id(self, value):
+		if value is None and self.ids[u'tvdb'] is None:
+			return
+		if value is '':
+			value = None
+		self.ids[u'tvdb'] = value
+
+		return
+
+	@property
+	def tvrage_id(self):
+		"""The series tvrage id."""
+		return self.ids[u'tvrage']
+	@tvrage_id.setter
+	def tvrage_id(self, value):
+		if value is None and self.ids[u'tvrage'] is None:
+			return
+		if value is '':
+			value = None
+		self.ids[u'tvrage'] = value
+		return
+
+	@property
+	def first_aired(self):
+		"""The episode premier date"""
+		return self._first_aired
+	@first_aired.setter
+	def first_aired(self, value):
+		if type(value) in [unicode, str]:
+			value = parser.parse(value)
+		if type(value) is datetime.date:
+			setattr(self, '_first_aired', value)
+		elif type(value) is datetime.datetime:
+			setattr(self, '_first_aired', value.date())
+		return
+
+	def __str__(self):
+		return '<Episode>: {0:03d}'.format(self.number)
+	__repr__ = __str__
+
+class fileDetails(object):
+	"""Container for Series/Episode Information"""
+	def __init__(self, series, **kwargs):
+		super(fileDetails, self).__init__()
+		self.seriesTitle = series
+		self.seasonNum = None
+		self.episodeNums = None
+		self.fileName = None
+		self.ext = None
+
+		if len(kwargs) > 0:
+			for key, val in kwargs.items():
+				setattr(self, key, val)
+		return
+
+	def add_episodes(self, episodes):
+		self.episodes = episodes
+
+	def __str__(self):
+		return '<FileDetails>: {}'.format(self.seriesTitle)
+	__repr__ = __str__

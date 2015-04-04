@@ -23,11 +23,13 @@ import shutil
 
 from library import Library
 from common import logger
-from common.exceptions import (RegxSelectionError, SeriesNotFound, EpisodeNotFound, DuplicateFilesFound,
-							   FailedVideoCheck, InvalidFilename, UnexpectedErrorOccured)
 from common.chkvideo import chkVideoFile
+from common.exceptions import (SeriesNotFound, SeasonNotFound, EpisodeNotFound,
+                               DuplicateFilesFound, FailedVideoCheck, InvalidFilename,
+                               UnexpectedErrorOccured)
+from library.series import Series
 from library.series.fileparser import FileParser
-from library.series.seriesinfo import SeriesInfo
+from library.trakt.user import getList
 
 
 __pgmname__ = 'rename'
@@ -78,8 +80,9 @@ class RenameSeries(Library):
 			action="store_false", default=True,
 			help="Bypass Video Checks")
 
-		self.seriesinfo = SeriesInfo(rtnDict=True)
+#		self.seriesinfo = SeriesInfo(rtnDict=True)
 		self.parser = FileParser()
+		self.topShows = getList(list='topshows', rtn=dict)
 
 		self.regex_repack = re.compile('^.*(repack|proper).*$', re.IGNORECASE)
 		self.check_suffix = re.compile('^(?P<seriesname>.+?)[ \._\-](?P<year>[0-9][0-9][0-9][0-9]|US|us|Us)$', re.VERBOSE)
@@ -94,6 +97,8 @@ class RenameSeries(Library):
 		self.dup_renamed = None
 		self.selected_file = None
 
+		self.existing_series = os.listdir(self.settings.SeriesDir)
+
 		return
 
 	@useLibraryLogging
@@ -106,7 +111,12 @@ class RenameSeries(Library):
 			log.debug("-----------------------------------------------")
 			log.debug("Directory: %s" % os.path.split(pathname)[0])
 			log.debug("Filename:  %s" % os.path.split(pathname)[1])
-			self.renameFile(pathname)
+			try:
+				self.renameFile(pathname)
+			except (SeriesNotFound, SeasonNotFound, EpisodeNotFound), msg:
+				an_error = traceback.format_exc()
+				log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
+				log.error('Unable to Rename File: {}'.format(msg))
 		elif os.path.isdir(pathname):
 			for _root, _dirs, _files in os.walk(os.path.abspath(pathname), followlinks=False):
 				for _dir in _dirs[:]:
@@ -133,7 +143,7 @@ class RenameSeries(Library):
 						continue
 					try:
 						self.renameFile(_path_name)
-					except (IOError, InvalidFilename, RegxSelectionError, SeriesNotFound, EpisodeNotFound), msg:
+					except (SeriesNotFound, SeasonNotFound, EpisodeNotFound), msg:
 						an_error = traceback.format_exc()
 						log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
 						log.error('Unable to Rename File: {}'.format(msg))
@@ -148,31 +158,41 @@ class RenameSeries(Library):
 		else:
 			raise InvalidFilename('Invalid Request, Neither File or Directory: %s' % pathname)
 
+	def getShowInfo(self, pathname):
+		try:
+			_series = Series(**self.parser.getFileDetails(pathname))
+			_series = _series.search(rtn=object)
+			_series.tvdb_id = _series.tvdb_id
+			_series.seasons = 'Load'
+		except (KeyError, TypeError), msg:
+			raise SeriesNotFound('SeriesNotFound: {}'.format(pathname))
+		except (SeriesNotFound, SeasonNotFound, EpisodeNotFound), msg:
+			raise
+		if _series.seasons is None:
+			raise SeriesNotFound('SeriesNotFound: {}'.format(pathname))
+
+		return _series
+
 	def renameFile(self, pathname):
 
 		if self.args.check_video:
 			if chkVideoFile(pathname):
 				log.error('File Failed Video Check: {}'.format(pathname))
 				raise FailedVideoCheck('File Failed Video Check: {}'.format(pathname))
-#		try:
-		_file_details = self.parser.getFileDetails(pathname)
-		_file_details = self.seriesinfo.getShowInfo(_file_details)
-#		except (InvalidFilename, RegxSelectionError, SeriesNotFound, EpisodeNotFound), msg:
-#			if os.path.splitext(os.path.basename(pathname))[0] != os.path.basename(os.path.dirname(pathname)) \
-#					and os.path.dirname(pathname) != self.settings.NewSeriesDir:
-#				_dir_details = self.parser.getFileDetails(os.path.join(os.path.dirname(pathname), 'E01.txt'))
-#				_file_details['SeriesName'] = _dir_details['SeriesName']
-#				_file_details = self.seriesinfo.getShowInfo(_file_details)
-#			else:
-#				raise
 
-		_new_name, _file_details = self.getFileName(_file_details)
-		_season_folder = os.path.dirname(_new_name)
+		_series = self.getShowInfo(pathname)
+
+		try:
+			_series = self.getFileName(_series)
+		except (SeasonNotFound, EpisodeNotFound):
+			raise
+
+		_season_folder = os.path.dirname(_series.fileDetails.newName)
 		_series_folder = os.path.dirname(_season_folder)
 		_file_exists = False
 
 		if os.path.exists(_season_folder):
-			_file_exists = self._check_for_dups(_file_details, _new_name)
+			_file_exists = self._check_for_dups(_series)
 		else:
 			os.makedirs(_season_folder)
 			os.chmod(_season_folder, 0775)
@@ -180,40 +200,40 @@ class RenameSeries(Library):
 
 		if _file_exists:
 			if self.selected_file is not None:
-				_new_name = self.selected_file
+				_series.fileDetails.newName = self.selected_file
 			log.info('-'*70)
-			log.info('SERIES: {}'.format(_file_details['SeriesName']))
-			log.info('Updated: SEASON: {}'.format(_file_details['SeasonNum']))
-			log.info('Updated:   FILE: {}'.format(os.path.basename(_new_name)))
+			log.info('SERIES: {}'.format(_series.fileDetails.seriesTitle))
+			log.info('Updated: SEASON: {}'.format(_series.fileDetails.seasonNum))
+			log.info('Updated:   FILE: {}'.format(os.path.basename(_series.fileDetails.newName)))
 			if self.dup_renamed:
 				log.info('Renamed: FILE: {}'.format(os.path.basename(self.dup_renamed)))
-			self._update_date(_file_details, _new_name)
+			self._update_date(_series)
 		elif not _file_exists:
-			os.rename(_file_details['FileName'], _new_name)
-			os.chmod(_new_name, 0664)
+			os.rename(_series.fileDetails.fileName, _series.fileDetails.newName)
+			os.chmod(_series.fileDetails.newName, 0664)
 			log.info('-'*70)
-			log.info('SERIES: {}'.format(_file_details['SeriesName']))
-			log.info('Renamed: SEASON: {}'.format(_file_details['SeasonNum']))
-			log.info('Renamed:   FILE: {}'.format(os.path.basename(_new_name)))
-			log.info('Renamed:    New: {}'.format(os.path.basename(_file_details['FileName'])))
-			self._update_date(_file_details, _new_name)
+			log.info('SERIES: {}'.format(_series.fileDetails.seriesTitle))
+			log.info('Renamed: SEASON: {}'.format(_series.fileDetails.seasonNum))
+			log.info('Renamed:   FILE: {}'.format(os.path.basename(_series.fileDetails.newName)))
+			log.info('Renamed:    New: {}'.format(os.path.basename(_series.fileDetails.fileName)))
+			self._update_date(_series)
 			self.xbmc_update_required = True
 
-		if os.path.exists(_file_details['FileName']):
-			self._del_file(_file_details['FileName'])
-			self._del_dir(os.path.dirname(_file_details['FileName']))
+		if os.path.exists(_series.fileDetails.fileName):
+			self._del_file(_series.fileDetails.fileName)
+			self._del_dir(os.path.dirname(_series.fileDetails.fileName))
 		else:
-			self._del_dir(os.path.dirname(_file_details['FileName']))
+			self._del_dir(os.path.dirname(_series.fileDetails.fileName))
 
 		if self.hostname == 'grumpy':
 			try:
 				self.db = sqlite3.connect(self.settings.DBFile)
 				self.cursor = self.db.cursor()
 				self.cursor.execute('INSERT INTO Files(SeriesName, SeasonNum, EpisodeNum, Filename) \
-						 VALUES ("{}", {}, {}, "{}")'.format(_file_details['SeriesName'],
-															 _file_details['SeasonNum'],
-															 _file_details['EpisodeNums'][0],
-															 _file_details['FileName']
+						 VALUES ("{}", {}, {}, "{}")'.format(_series.fileDetails.seriesTitle,
+															 _series.fileDetails.seasonNum,
+															 _series.fileDetails.episodeNums[0],
+															 _series.fileDetails.fileName
 															 )
 							   )
 				self.db.commit()
@@ -222,38 +242,47 @@ class RenameSeries(Library):
 				self.db.close()
 			except sqlite3.Error, e:
 				self.db.close()
-				raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, _file_details))
+				raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, _series.__dict__))
 
 		return
 
-	def getFileName(self, _file_details):
+	def getFileName(self, _series):
 
-		_file_details['EpisodeNumFmt'] = self._format_episode_numbers(_file_details)
-		_file_details['EpisodeTitle'] = self._format_episode_name(_file_details['EpisodeData'],
-																  join_with=self.settings.ConversionsPatterns['multiep_join_name_with'])
-		_file_details['DateAired'] = self._get_date_aired(_file_details)
-		_file_details['BaseDir'] = self.settings.SeriesDir
+		join_with = self.settings.ConversionsPatterns['multiep_join_name_with']
+		_ep_title = []
+		_episodes = _series.episode(_series.fileDetails.seasonNum,
+		                           _series.fileDetails.episodeNums)
+		for _entry in _episodes:
+			_ep_title.append(_entry.title)
 
-		_repack = self.regex_repack.search(_file_details['FileName'])
+		setattr(_series.fileDetails, 'baseDir', self.settings.SeriesDir)
+
+		setattr(_series.fileDetails, 'episodeNumFmt', self._format_episode_numbers(_series.fileDetails))
+
+		setattr(_series.fileDetails, 'episodeTitle', self._format_episode_name(_ep_title, join_with=join_with))
+
+		_repack = self.regex_repack.search(_series.fileDetails.fileName)
 		if _repack:
-			_new_name = self.settings.ConversionsPatterns['proper_fqn'] % _file_details
+			_new_name = self.settings.ConversionsPatterns['proper_fqn'] % _series.fileDetails.__dict__
 		else:
-			_new_name = self.settings.ConversionsPatterns['std_fqn'] % _file_details
+			_new_name = self.settings.ConversionsPatterns['std_fqn'] % _series.fileDetails.__dict__
 
-		return _new_name, _file_details
+		_series.fileDetails.newName = _new_name
 
-	def _check_for_dups(self, file_details, _new_name):
+		return _series
+
+	def _check_for_dups(self, series):
 
 		_already_exists = False
-		_directory = os.path.dirname(_new_name)
-		_title_new = os.path.splitext(os.path.basename(_new_name))[0]
+		_directory = os.path.dirname(series.fileDetails.newName)
+		_title_new = os.path.splitext(os.path.basename(series.fileDetails.newName))[0]
 		_ep_new = _title_new.split(None, 1)[0]
 
 		for _file in [f for f in os.listdir(_directory) if f.split(None, 1)[0] == _ep_new]:
 			self.dup_queue.append(os.path.join(_directory, _file))
 
 		for f in self.dup_queue:
-			if os.path.join(_directory, f) == file_details['FileName']:
+			if os.path.join(_directory, f) == series.fileDetails.fileName:
 				_already_exists = True
 				self.dup_queue.remove(f)
 				break
@@ -262,37 +291,39 @@ class RenameSeries(Library):
 			return _already_exists
 
 		_min_met = False
-		if file_details['top_show']:
+		if series.title in self.topShows:
+			series.topShow = True
 			_desired_quality = ['mkv']
 			_acceptable_quality = ['mp4', 'avi']
 		else:
+			series.topShow = False
 			_desired_quality = ['mp4']
 			_acceptable_quality = ['mkv', 'avi']
 
-		if file_details['Ext'] in _desired_quality + _acceptable_quality:
+		if series.fileDetails.ext in _desired_quality + _acceptable_quality:
 			_min_met = True
-		_last_file = self._clean_out_queue(_desired_quality, _acceptable_quality, _min_met, file_details['top_show'])
+		_last_file = self._clean_out_queue(_desired_quality, _acceptable_quality, _min_met, series.topShow)
 
 		if _last_file is None: return _already_exists
 
-		self.selected_file = self._evaluate_keeper(file_details['FileName'],
+		self.selected_file = self._evaluate_keeper(series.fileDetails.fileName,
 												   _last_file,
-												   file_details['top_show'] )
+												   series.topShow)
 
-		if self.selected_file == file_details['FileName']:
+		if self.selected_file == series.fileDetails.fileName:
 			self._del_file(_last_file)
 			self.selected_file = None
 			return False
 		else:
-			file_details_new = file_details.copy()
-			file_details_new['FileName'] = self.selected_file
-			_new_name, _file_details_new = self.getFileName(file_details_new)
-			_title_new = os.path.splitext(os.path.basename(_new_name))[0]
+			series_new = series.copy()
+			series_new.fileDetails.fileName = self.selected_file
+			series_new = self.getFileName(series_new)
+			_title_new = os.path.splitext(os.path.basename(series_new.fileDetails.seriesTitle))[0]
 			if os.path.splitext(os.path.basename(self.selected_file))[0] != _title_new:
-				os.rename(self.selected_file, _new_name)
-				os.chmod(_new_name, 0664)
+				os.rename(self.selected_file, series_new.fileDetails.newName)
+				os.chmod(series_new.fileDetails.newName, 0664)
 				self.dup_renamed = self.selected_file
-				self.selected_file = _new_name
+				self.selected_file = series_new.fileDetails.newName
 			return True
 
 	def _evaluate_keeper(self, file_1, file_2, top_show):
@@ -368,14 +399,10 @@ class RenameSeries(Library):
 
 		return _file_1
 
-	def _update_date(self, file_details, new_name):
+	def _update_date(self, series):
 
-		if 'DateAired' not in file_details:
-			log.warn('_update_date: Unable to update the Date Aired, Missing Information')
-			return
-
-		_date_aired = file_details['DateAired']
-		cur_date = time.localtime(os.path.getmtime(new_name))
+		_date_aired = series.episode(series.fileDetails.seasonNum, series.fileDetails.episodeNums)[0].first_aired
+		cur_date = time.localtime(os.path.getmtime(series.fileDetails.newName))
 		if _date_aired:
 			_date_aired = datetime.datetime.combine(_date_aired, datetime.time())
 			tt = _date_aired.timetuple()
@@ -386,10 +413,12 @@ class RenameSeries(Library):
 				time_epoc = time.mktime(tup)
 				try:
 					log.info("Updating First Aired: %s" % _date_aired)
-					os.utime(new_name, (time_epoc, time_epoc))
+					os.utime(series.fileDetails.newName, (time_epoc, time_epoc))
 				except (OSError, IOError), exc:
-					log.error("Skipping, Unable to update time: %s" % new_name)
+					log.error("Skipping, Unable to update time: %s" % series.fileDetails.newName)
 					log.error("Unexpected error: %s" % exc)
+		else:
+			log.warn('_update_date: Unable to update the Date Aired, Missing Information')
 
 	def _ignored(self, name):
 		""" Check for ignored pathnames.
@@ -399,33 +428,21 @@ class RenameSeries(Library):
 		_skip.append(any(fnmatch.fnmatch(name.lower(), pattern) for pattern in self.settings.ExcludeList))
 		return any(_skip)
 
-	def _get_date_aired(self, file_details):
-		if 'DateAired' in file_details:
-			return file_details['DateAired']
-
-		_dates = []
-		for _episode in file_details['EpisodeData']:
-			if 'DateAired' in _episode:
-				_dates.append(_episode['DateAired'])
-
-		if len(_dates) > 0:
-			return _dates[0]
-		else:
-			return None
-
 	def _format_episode_numbers(self, file_details):
 		"""Format episode number(s) into string, using configured values
 		"""
-		if "EpisodeNums" in file_details:
-			if len(file_details['EpisodeNums']) == 1:
-				_episode_num_fmt = self.settings.ConversionsPatterns['episode_single'] % file_details['EpisodeNums'][0]
+		if hasattr(file_details, "episodeNums"):
+			if len(file_details.episodeNums) == 1:
+				_episode_num_fmt = self.settings.ConversionsPatterns['episode_single'] % file_details.episodeNums[0]
 			else:
-				_episode_num_fmt = self.settings.ConversionsPatterns['episode_separator'].join(self.settings.ConversionsPatterns['episode_single'] % x for x in file_details['EpisodeNums'])
+				_episode_num_fmt = self.settings.ConversionsPatterns['episode_separator'].join(self.settings.ConversionsPatterns['episode_single'] % x for x in file_details.episodeNums)
 		else:
-			pass
+			raise EpisodeNotFound('EpisodeNotFound: {} - S {} E {}'.format(file_details.seriesTitle,
+			                                                               file_details.seasonNum,
+			                                                               file_details.episodeNums))
 		return _episode_num_fmt
 
-	def _format_episode_name(self, EpisodeData, join_with):
+	def _format_episode_name(self, episodes, join_with):
 		"""Takes a list of episode names, formats them into a string.
 		If two names are supplied, such as "Pilot (1)" and "Pilot (2)", the
 		returned string will be "Pilot (1-2)"
@@ -434,16 +451,15 @@ class RenameSeries(Library):
 		"Something else" it will return "The first, Something else"
 		"""
 
+		if len(episodes) == 0:
+			raise EpisodeNotFound('formatEpisodeName no Episode Titles Found: {!s}'.format(episodes))
+
 		_names = []
-		for _episode_entry in EpisodeData:
-			_new_name = _episode_entry['EpisodeTitle']
+		for _new_name in episodes:
 			if type(_new_name) == unicode:
 				_new_name = unicodedata.normalize('NFKD', _new_name).encode('ascii', 'ignore')
 			_new_name = _new_name.replace("&amp;", "&").replace("/", "_")
 			_names.append(_new_name)
-
-		if len(_names) == 0:
-			raise EpisodeNotFound('formatEpisodeName no Episode Titles Found: {!s}'.format(EpisodeData))
 
 		if len(_names) == 1:
 			log.debug("formatEpisodeName: Only One Episode Name Found: %s" % (_names[0]))

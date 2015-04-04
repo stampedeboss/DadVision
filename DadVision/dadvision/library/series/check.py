@@ -18,9 +18,9 @@ import traceback
 import unicodedata
 
 from fuzzywuzzy import fuzz
-
 import trakt
 from trakt.users import User
+
 from common.exceptions import (SeriesNotFound, EpisodeNotFound)
 from common import logger
 from library import Library
@@ -30,7 +30,7 @@ from library.series.rename import RenameSeries
 
 
 __pgmname__ = 'check'
-__version__ = '$Rev$'
+__version__ = '$Rev: 474 $'
 
 __author__ = "@author: AJ Reynolds"
 __email__ = "@contact: stampedeboss@gmail.com"

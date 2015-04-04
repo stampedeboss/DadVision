@@ -19,16 +19,15 @@ from fuzzywuzzy import fuzz
 from pytvdbapi import api, error
 from pytvdbapi.error import TVDBAttributeError, TVDBIndexError, TVDBValueError
 from tvrage import feeds
+import trakt
+from trakt.users import User
+from trakt.tv import TVShow
 
 from common import logger
 from common.exceptions import InvalidArgumentType, InvalidArgumentValue, DictKeyError
 from common.exceptions import SeriesNotFound, EpisodeNotFound
 from library import Library
 from library.series import Series
-from library.series.seriesobj import TVSeason, TVEpisode
-import trakt
-from trakt.users import User
-from trakt.tv import TVShow
 
 
 __pgmname__ = 'seriesinfo'
@@ -149,7 +148,7 @@ class SeriesInfo(Library):
 				action="append_const", const='trakt',
 				help="Information to come from trakt.tv")
 		seriesinfo_group.add_argument("--series-only", "--so", dest="get_episodes",
-				action="store_false", default=True,
+				action="store_false", default=False,
 				help="Information to come from trakt.tv")
 
 		self.db = api.TVDB("959D8E76B796A1FB")
@@ -187,7 +186,7 @@ class SeriesInfo(Library):
 					request['SeasonNum'] = self.args.season
 				if self.args.epno is not None:
 					request['EpisodeNums'] = self.args.epno
-				self.series = Series(seriesinfo=request)
+				self.series = Series(**request)
 			elif self.args.series_name is not None:
 				self.series.title = self.args.series_name
 				if self.args.season is not None:
@@ -204,8 +203,8 @@ class SeriesInfo(Library):
 			raise InvalidArgumentType(error_msg)
 
 		self._checkForAlias()
-		if self.series.episodeNums:
-				self._adjEpisodeNums()
+#		if  hasattr(self.series, 'episodenums'):
+#			self._adjEpisodeNums()
 
 		#Valid Request: Locate Show IDs
 		try:
@@ -239,8 +238,7 @@ class SeriesInfo(Library):
 			self.series.copyShow(self.last_series)
 			return
 		else:
-			self.last_series = Series()
-			self.last_series.title = self.series.title
+			self.last_series = Series(title=self.series.title)
 
 		options = {'tvdb': self._tvdbGetInfo,
 				   'trakt': self._traktGetInfo,
@@ -316,40 +314,40 @@ class SeriesInfo(Library):
 
 		try:
 			_shows = self.db.search(self.series.titleBase, "en")
-			if len(_shows) == 0: raise SeriesNotFound
-			if len(_shows) == 1:
-				if _matching(self.series.title.lower(), _decode(_shows[0].SeriesName).lower(), factor=85):
-					_shows[0].update()
-					_series = Series(tvdb=_shows[0])
-
-					self.series.update(_series)
-					self.series.source = 'tvdb'
-					self.series.tvdb_info = _series
-					return
-				else:
-					raise SeriesNotFound
-
-			_rankings = {'Continuing': {}, 'Canceled/Ended': {}, 'Other': {}}
-			for _show in _shows:
-				_title_suffix = self._check_suffix.match(_decode(_show.SeriesName))
-				if _title_suffix:
-					_score = _matching(self.series.titleBase.lower(), _title_suffix.group('SeriesName').lower())
-				else:
-					_score = _matching(self.series.titleBase.lower(), _decode(_show.SeriesName).lower())
-				if _score < 90:
-					continue
-
-				_show.update()
-				_series = Series(tvdb=_show)
-				if _score in _rankings[_series.status]:
-					_rankings[_series.status][_score][_series.title] = _series
-				else:
-					_rankings[_series.status][_score] = {_series.title: _series}
-
 		except (TVDBAttributeError, TVDBIndexError, TVDBValueError, error.BadData):
 			_an_error = traceback.format_exc()
 			log.debug(traceback.format_exception_only(type(_an_error), _an_error)[-1])
 			raise SeriesNotFound
+
+		if len(_shows) == 0: raise SeriesNotFound
+		if len(_shows) == 1:
+			if _matching(self.series.title.lower(), _decode(_shows[0].SeriesName).lower(), factor=85):
+				_shows[0].update()
+				_series = Series(tvdb=_shows[0])
+
+				self.series.update(_series)
+				self.series.source = 'tvdb'
+				self.series.tvdb_info = _series
+				return
+			else:
+				raise SeriesNotFound
+
+		_rankings = {'Continuing': {}, 'Ended': {}, 'Other': {}}
+		for _show in _shows:
+			_title_suffix = self._check_suffix.match(_decode(_show.SeriesName))
+			if _title_suffix:
+				_score = _matching(self.series.titleBase.lower(), _title_suffix.group('SeriesName').lower())
+			else:
+				_score = _matching(self.series.titleBase.lower(), _decode(_show.SeriesName).lower())
+			if _score < 90:
+				continue
+
+			_show.update()
+			_series = Series(tvdb=_show)
+			if _score in _rankings[_series.status]:
+				_rankings[_series.status][_score][_series.title] = _series
+			else:
+				_rankings[_series.status][_score] = {_series.title: _series}
 
 		if not _rankings: raise SeriesNotFound
 
@@ -393,9 +391,9 @@ class SeriesInfo(Library):
 
 	def _reviewShowData(self, _rankings, source):
 
-		_check_order = ['Continuing', 'Canceled/Ended', 'Other']
+		_check_order = ['Continuing', 'Ended', 'Other']
 		_show_status = {'Continuing': self._activeShows,
-				        'Canceled/Ended': self._notActiveShows,
+				        'Ended': self._notActiveShows,
 				        'Other': self._notActiveShows}
 
 		for _status in _check_order:
