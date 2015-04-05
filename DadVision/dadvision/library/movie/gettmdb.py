@@ -5,17 +5,20 @@ Purpose:
 Program to rename files associated with Movie Content
 
 """
-from library import Library
-from common import logger
-from common.exceptions import MovieNotFound, DictKeyError, InvalidArgumentType
-from fuzzywuzzy import fuzz
 import logging
 import os
 import re
 import sys
-import tmdb3
 import unicodedata
 import fnmatch
+
+import tmdb3
+
+from library import Library
+from common import logger
+from common.exceptions import MovieNotFound, DictKeyError, InvalidArgumentType
+from common.matching import matching
+
 
 __pgmname__ = 'gettmdb'
 __version__ = '$Rev: 341 $'
@@ -56,21 +59,6 @@ def uselibrarylogging(func):
             logger.set_library('')
 
     return wrapper
-
-
-def _matching(value1, value2):
-    log.trace("="*30)
-    log.trace("_matching: Compare: {} --> {}".format(value1, value2))
-
-    fuzzy = [fuzz.ratio(value1, value2), fuzz.token_set_ratio(value1, value2), fuzz.token_sort_ratio(value1, value2),
-             fuzz.token_set_ratio(value1, value2)]
-
-    log.debug('fuzzy Ratio" {} for {} - {}'.format(fuzzy[0], value1, value2))
-    log.debug('fuzzy Partial Ratio" {} for {} - {}'.format(fuzzy[1], value1, value2))
-    log.debug('fuzzy Token Sort Ratio" {} for {} - {}'.format(fuzzy[2], value1, value2))
-    log.debug('fuzzy Token Set Ratio" {} for {} - {}'.format(fuzzy[3], value1, value2))
-
-    return any([fr > 85 for fr in fuzzy])
 
 
 class GetOutOfLoop(Exception):
@@ -199,12 +187,12 @@ class TMDBInfo(Library):
                 _title = _title.replace("&amp;", "&").replace("/", "_")
 
                 if 'Year' in moviedetails:
-                    if _matching(_title.lower() + ' ' + str(_movie.releasedate.year),
+                    if matching(_title.lower() + ' ' + str(_movie.releasedate.year),
                                  moviedetails['MovieName'].lower() + ' ' + str(moviedetails['Year'])):
                         moviedetails['MovieName'] = _title
                         raise GetOutOfLoop
                 else:
-                    if _matching(_title.lower(), moviedetails['MovieName'].lower()):
+                    if matching(_title.lower(), moviedetails['MovieName'].lower()):
                         moviedetails['MovieName'] = _title
                         raise GetOutOfLoop
                 # Check Alternate Titles: list(AlternateTitle) alternate_titles
@@ -213,7 +201,7 @@ class TMDBInfo(Library):
                     _alt_title = unicodedata.normalize('NFKD', _alternate_title.title).encode("ascii", 'ignore')
                     _alt_title = _alt_title.replace("&amp;", "&").replace("/", "_")
                     log.trace('Check Alternate Titles: {}'.format(_alt_title.title))
-                    if _alt_title and _matching(_alt_title, moviedetails['MovieName']):
+                    if _alt_title and matching(_alt_title, moviedetails['MovieName']):
                         moviedetails['MovieName'] = _title
                         moviedetails['AltMovieName'] = _alt_title
                         raise GetOutOfLoop
@@ -333,7 +321,6 @@ if __name__ == "__main__":
     log.trace("MAIN: -------------------------------------------------")
     from library.movie.fileparser import FileParser
     from library.movie.rename import RenameMovie
-    import traceback
 
     library = TMDBInfo()
     parser = FileParser()
