@@ -13,15 +13,13 @@ import re
 import sys
 import shutil
 
-from fuzzywuzzy import fuzz
-
-from library import Library
-from library.movie.fileparser import FileParser
-from library.movie.gettmdb import TMDBInfo
 from common import logger
 from common.chkvideo import chkVideoFile
 from common.exceptions import (InvalidPath, InvalidFilename, UnexpectedErrorOccured,
                             MovieNotFound, RegxSelectionError, NoValidFilesFound, NotMediaFile)
+from library import Library
+from library.movie.fileparser import FileParser
+from library.movie.gettmdb import TMDBInfo
 
 
 __pgmname__ = 'rename'
@@ -79,20 +77,6 @@ def _del_file(pathname):
         os.remove(pathname)
     except:
         log.warn('Delete File: Unable to Delete requested file: %s' % (sys.exc_info()[1]))
-
-
-def _matching(value1, value2):
-    log.trace("_matching: Compare: {} --> {}".format(value1, value2))
-
-    fuzzy = [fuzz.ratio(value1, value2), fuzz.token_set_ratio(value1, value2),
-             fuzz.token_sort_ratio(value1, value2), fuzz.token_set_ratio(value1, value2)]
-
-    log.debug('fuzzy Ratio" {} for {} - {}'.format(fuzzy[0], value1, value2))
-    log.debug('fuzzy Partial Ratio" {} for {} - {}'.format(fuzzy[1], value1, value2))
-    log.debug('fuzzy Token Sort Ratio" {} for {} - {}'.format(fuzzy[2], value1, value2))
-    log.debug('fuzzy Token Set Ratio" {} for {} - {}'.format(fuzzy[3], value1, value2))
-
-    return any([fr > 85 for fr in fuzzy])
 
 
 class RenameMovie(Library):
