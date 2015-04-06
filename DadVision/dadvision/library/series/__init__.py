@@ -392,20 +392,12 @@ class Series(object):
 			return _entry
 
 
-	def copy(self, series):
-		for key, val in series.__dict__.iteritems():
+	def copy(self):
+		_series = Series()
+		for key, val in self.__dict__.iteritems():
 			if val is not None:
-				setattr(self, key, val)
-		return
-
-	def copyShow(self, series):
-		for key, val in series.__dict__.iteritems():
-			if key in ['season', 'episodeNums', 'ext', 'fileName', 'seriesinfo', 'episodeData']:
-				continue
-
-			if val is not None:
-				setattr(self, key, val)
-		return
+				setattr(_series, key, val)
+		return _series
 
 	def update(self, series):
 		for key, val in series.__dict__.iteritems():
