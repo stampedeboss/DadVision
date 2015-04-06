@@ -318,7 +318,6 @@ class Series(object):
 			                                                                           snumber,
 			                                                                           number))
 
-
 	def search(self, rtn=object):
 		_filterOrder = ['tz', 'status', 'rating', 'scores', 'newest']
 		_filter_options = {'scores': self._flt_scores,
@@ -391,52 +390,12 @@ class Series(object):
 			delattr(_entry, 'score')
 			return _entry
 
-
 	def copy(self):
 		_series = Series()
 		for key, val in self.__dict__.iteritems():
 			if val is not None:
 				setattr(_series, key, val)
 		return _series
-
-	def update(self, series):
-		for key, val in series.__dict__.iteritems():
-			#Don't update if it exists
-			if key not in ['_title','titleBase', 'titleType', 'titleSuffix']:
-				if not hasattr(self, key) or val is None:
-					continue
-
-			if type(val) is unicode:
-				setattr(self, key, val.encode('ascii', 'ignore'))
-			else:
-				setattr(self, key, val)
-		return
-
-	def getDict(self):
-
-		SeriesDetails = {}
-		SeriesDetails['SeriesName'] = self.title
-		if self.episodeData is not None:
-			SeriesDetails['EpisodeData'] = self.episodeData
-		if self.episodeNums is not None:
-			SeriesDetails['episodeNums'] = self.episodeNums
-		if self.ext is not None:
-			SeriesDetails['ext'] = self.ext
-		if self.fileName is not None:
-			SeriesDetails['fileName'] = self.fileName
-		if self.season is not None:
-			SeriesDetails['seasonNum'] = self.season
-		if self.tvdb_id is not None:
-			SeriesDetails['tvdb_id'] = int(self.tvdb_id)
-		if self.imdb_id is not None:
-			SeriesDetails['imdb_id'] = self.imdb_id
-		if self.tvrage_id is not None:
-			SeriesDetails['tvrage_id'] = self.tvrage_id
-		if self.status is not None:
-			SeriesDetails['status'] = self.status
-
-		SeriesDetails['TVSeries'] = self
-		return SeriesDetails
 
 	def _std_key(self, key):
 		_key_conversions = {'firstaired': 'first_aired',
@@ -483,6 +442,7 @@ class Series(object):
 			return _key_conversions[key]
 		else:
 			return key
+
 	def __str__(self):
 		"""Return a string representation of a :class:`TVShow`"""
 		header = '<Series>'
@@ -687,6 +647,7 @@ class Episode(object):
 	def __str__(self):
 		return '<Episode>: {0:03d}'.format(self.number)
 	__repr__ = __str__
+
 
 class fileDetails(object):
 	"""Container for Series/Episode Information"""
