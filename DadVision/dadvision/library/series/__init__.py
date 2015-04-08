@@ -53,7 +53,6 @@ class Series(object):
 		self.alias = None
 		self.overview = None
 		self.airs = {u'timezone': 'Not Specified', u'day': None, u'time': None}
-		self.topShow = None
 
 		self.load_attr(kwargs)
 
@@ -331,10 +330,12 @@ class Series(object):
 		try:
 			if self.titleType == "Year":
 				self._list = searchShow(show=self.titleBase, year=self.titleSuffix, rtn=list)
+				self._list = filter(_filter_options['match'], self._list)
 				if type(self._list) is HTTPError or not len(self._list) > 0:
 					self._list = searchShow(show=self.titleBase, rtn=list)
 			elif self.titleType == 'Country':
 				self._list = searchShow(show=self.title, rtn=list)
+				self._list = filter(_filter_options['match'], self._list)
 				if type(self._list) is HTTPError or not len(self._list) > 0:
 					self._list = searchShow(show=self.titleBase, rtn=list)
 			else:
