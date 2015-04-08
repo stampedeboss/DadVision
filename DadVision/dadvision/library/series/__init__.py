@@ -295,8 +295,7 @@ class Series(object):
 				self._seasons['<Season {0:02}>'.format(_entry['number'])] = Season(self.trakt_id, **_entry)
 
 	def season(self, number=1):
-		seasonCount = len(self.seasons)-1
-		if not number > (len(self.seasons)-1) and int(number) > -1:
+		if '<Season {0:02}>'.format(number) in self.seasons:
 			return self.seasons['<Season {0:02}>'.format(number)]
 		else:
 			raise SeasonNotFound('SeasonNotFound: {} - Season {}'.format(self.titleTVDB, number))
