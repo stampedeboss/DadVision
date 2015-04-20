@@ -328,7 +328,7 @@ class Series(object):
 
 		try:
 			if self.titleType == "Year":
-				self._list = searchShow(show=self.title, year=self.titleSuffix, rtn=list)
+				self._list = searchShow(show=self.titleBase, year=self.titleSuffix, rtn=list)
 				for _entry in self._list:
 					if _entry.country:
 						if _entry.country == self.country.lower():
@@ -339,18 +339,20 @@ class Series(object):
 					self._list = searchShow(show=self.titleBase, rtn=list)
 			elif self.titleType == 'Country':
 				self._list = searchShow(show=self.titleBase, rtn=list)
+				if type(self._list) is HTTPError or not len(self._list) > 0:
+					raise SeriesNotFound
 				for _entry in self._list:
 					if _entry.country:
 						if _entry.country.upper() == self.country:
 							continue
 						_entry.title = 'SKIP'
-				self._list = filter(_filter_options['match'], self._list)
-				if type(self._list) is HTTPError or not len(self._list) > 0:
-					self._list = searchShow(show=self.titleBase, rtn=list)
 			else:
-				self._list = searchShow(show=self.titleBase, rtn=list)
+				self._list = searchShow(show=self.title, rtn=list)
 		except:
 			_an_error = traceback.format_exc()
+			raise SeriesNotFound
+
+		if type(self._list) is HTTPError or not len(self._list) > 0:
 			raise SeriesNotFound
 
 		_new_list = filter(_filter_options['match'], self._list)
