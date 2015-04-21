@@ -84,6 +84,8 @@ class Series(object):
 				if key in ['show']:
 					self.load_attr(val)
 					continue
+				elif key in ['seasons']:
+					continue
 				elif key in ['tvrage', 'tvdb']:
 					for key2, val2 in vars(val).iteritems():
 						if key2 == 'data':
