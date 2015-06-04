@@ -17,9 +17,10 @@ import unicodedata
 
 from fuzzywuzzy import fuzz
 
-from common.exceptions import (SeriesNotFound, EpisodeNotFound)
+from common.exceptions import (SeriesNotFound)
 from common import logger
 from library import Library
+from library.series import Series
 from library.trakt.user import *
 from library.series.seriesinfo import SeriesInfo
 from library.series.fileparser import FileParser
@@ -155,38 +156,38 @@ class CheckSeries(Library):
 			log.error('Collection: Invalid Return Code - {}'.format(self._trakt_top_shows))
 			sys.exit(99)
 
-		_series = self.getSeriesData(pathname)
+		_seriesData = self.getSeriesData(pathname)
 
 		if self.args.dup_check_only:
 			sys.exit(0)
 
-		for _show_name, _file_data in sorted(_series.iteritems()):
+		for _show_name, _file_data in sorted(_seriesData.iteritems()):
 			DadVision = _file_data['DadVision']
 			try:
-				_tv_series = self.seriesinfo.getShowInfo({'SeriesName': _show_name},
-				                                         processOrder=['tvdb'])['TVSeries']
-			except (SeriesNotFound, EpisodeNotFound):
-				an_error = traceback.format_exc()
-				log.debug(traceback.format_exception_only(type(an_error), an_error)[-1])
-				log.warn("Skipping series: %s" % (_show_name))
+				_series = Series(title=_show_name)
+				_series = _series.search(rtn=object)
+#				_series.tvdb_id = _series.tvdb_id
+				_series.seasons = 'Load'
+			except (KeyError, TypeError), msg:
+				raise SeriesNotFound('SeriesNotFound: {}'.format(_series.title))
 
 			date_boundry = date.today() - timedelta(days=self.args.age_limit)
 			missing = {}
-			for _season in sorted(_tv_series.seasons.itervalues()):
-				if not self.args.specials and _season.season == 0:
+			for _season in sorted(_series.seasons.itervalues()):
+				if not self.args.specials and _season.number == 0:
 					continue
 				for _episode in _season.episodes.itervalues():
 					if _episode.first_aired:
 						if _episode.first_aired < date_boundry or _episode.first_aired >= datetime.today().date():
 							continue
 						try:
-							if _episode.episode not in DadVision[_season.season]:
+							if _episode.number not in DadVision[_season.number]:
 								raise KeyError
 						except KeyError:
-							if _season.season in missing:
-								missing[int(_season.season)].append(_episode.episode)
+							if _season.number in missing:
+								missing[int(_season.number)].append(_episode.number)
 							else:
-								missing[int(_season.season)] = [_episode.episode]
+								missing[int(_season.number)] = [_episode.number]
 
 			_total_missing = 0
 			for _missing_season, _missing_episodes in missing.iteritems():
@@ -201,7 +202,7 @@ class CheckSeries(Library):
 			message = "         Season: {}  Episode: {}  Aired: {} Title: {}"
 			for key, val in sorted(missing.iteritems()):
 				_season_number = u'<Season {0:02}>'.format(key)
-				_episodes = _tv_series.seasons[_season_number].episodes
+				_episodes = _series.seasons[_season_number].episodes
 				_season_num_msg = "S%2.2d" % key
 				if len(val) == len(_episodes):
 					log.warning(season_message.format(_season_num_msg))
