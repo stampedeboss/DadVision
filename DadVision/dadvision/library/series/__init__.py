@@ -337,9 +337,8 @@ class Series(object):
 			if self.titleType == "Year":
 				self._list = searchShow(show=self.titleBase, year=self.titleSuffix, rtn=list)
 				for _entry in self._list:
-					if _entry.country:
-						if _entry.country == self.country.lower():
-							continue
+					if _entry.year == self.titleSuffix:
+						continue
 					_entry.title = 'SKIP'
 				self._list = filter(_filter_options['match'], self._list)
 				if type(self._list) is HTTPError or not len(self._list) > 0:
