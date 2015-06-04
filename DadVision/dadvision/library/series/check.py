@@ -17,6 +17,8 @@ import unicodedata
 
 from fuzzywuzzy import fuzz
 
+from tqdm import tqdm
+
 from common.exceptions import (SeriesNotFound)
 from common import logger
 from library import Library
@@ -161,7 +163,7 @@ class CheckSeries(Library):
 		if self.args.dup_check_only:
 			sys.exit(0)
 
-		for _show_name, _file_data in sorted(_seriesData.iteritems()):
+		for _show_name, _file_data in tqdm(sorted(_seriesData.iteritems()), leave=True):
 			DadVision = _file_data['DadVision']
 			try:
 				_series = Series(title=_show_name)
