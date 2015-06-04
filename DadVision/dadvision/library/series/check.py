@@ -168,8 +168,9 @@ class CheckSeries(Library):
 				_series = _series.search(rtn=object)
 #				_series.tvdb_id = _series.tvdb_id
 				_series.seasons = 'Load'
-			except (KeyError, TypeError), msg:
-				raise SeriesNotFound('SeriesNotFound: {}'.format(_series.title))
+			except (SeriesNotFound), msg:
+				log.error('Series Not Found, Skipping: {}'.format(_show_name))
+				continue
 
 			date_boundry = date.today() - timedelta(days=self.args.age_limit)
 			missing = {}
