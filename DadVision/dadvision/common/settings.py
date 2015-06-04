@@ -87,6 +87,7 @@ class Settings(object):
 		self.DownloadDir = HostName['DownloadDir']
 		self.UnpackDir = HostName['UnpackDir']
 		self.DownloadMovies = HostName['DownloadMovies']
+		self.DownloadSeries = HostName['DownloadSeries']
 		self.TraktUserID = HostName['TraktUserID']
 		self.TraktPassWord = HostName['TraktPassWord']
 		self.TraktAuthorization = HostName['TraktAuthorization']
