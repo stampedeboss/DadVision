@@ -16,7 +16,6 @@ import traceback
 import unicodedata
 
 from fuzzywuzzy import fuzz
-
 from tqdm import tqdm
 
 from common.exceptions import (SeriesNotFound)
@@ -24,7 +23,6 @@ from common import logger
 from library import Library
 from library.series import Series
 from library.trakt.user import *
-from library.series.seriesinfo import SeriesInfo
 from library.series.fileparser import FileParser
 from library.series.rename import RenameSeries
 
@@ -99,34 +97,37 @@ class CheckSeries(Library):
 		super(CheckSeries, self).__init__()
 
 		check_group1= self.options.parser.add_argument_group("Series Unique Options", description=None)
+		check_group1.add_argument("-a", "--all-shows", dest="all_shows",
+		                          action="store_true", default=False,
+		                          help="Process all shows not just Continuing")
 		check_group1.add_argument("-x", "--no-excludes", dest="no_excludes",
-			action="store_true", default=False,
-			help="Ignore Exclude File")
+		                          action="store_true", default=False,
+		                          help="Ignore Exclude File")
 		check_group1.add_argument("-s", "--include-specials", dest="specials",
-			action="store_true", default=False,
-			help="Include specials in checks)")
+		                          action="store_true", default=False,
+		                          help="Include specials in checks)")
 		check_group1.add_argument("-r", "--remove", dest="remove",
-			action="store_true", default=False,
-			help="Remove duplicate files that are found in the duplicate check")
+		                          action="store_true", default=False,
+		                          help="Remove duplicate files that are found in the duplicate check")
 		check_group1.add_argument("-d", "--days", dest="age_limit",
-			action="store", type=int, default=120,
-			help="Limit check back x number of days, default 30")
+		                          action="store", type=int, default=120,
+		                          help="Limit check back x number of days, default 30")
 		check_group1.add_argument("-f", "--no-age-limit-requested", dest="age_limit",
-			action="store_const", const=99999,
-			help="Full Check")
+		                          action="store_const", const=99999,
+		                          help="Full Check")
 		check_group1.add_argument("--dco", '--dup-check-only', dest="dup_check_only",
-			action="store_true", default=False,
-			help="Duplicate File Check Only")
+		                          action="store_true", default=False,
+		                          help="Duplicate File Check Only")
 		check_group1.add_argument("--check", '--check-names', dest="check_names",
-			action="store_true", default=False,
-			help="Perform Name Check")
+		                          action="store_true", default=False,
+		                          help="Perform Name Check")
 		check_group1.add_argument("--check-quick", dest="quick",
-			action="store_true", default=False,
-			help="Perform Name Check")
+		                          action="store_true", default=False,
+		                          help="Perform Name Check")
 
 		self.parser = FileParser()
-		self.seriesinfo = SeriesInfo()
 		self.rename = RenameSeries()
+		self.Series = Series()
 
 		self.regex_season = re.compile('^(?:Season).(?P<SeasonNum>[0-9]+)$', re.I)
 		self.regex_episode = re.compile('^(?:E)(?P<EpisodeNum>[0-9][0-9])[\-]?(?:E)?(?P<EpisodeNum2>[0-9][0-9])?(?P<EpisodeName>.+)?\.(?P<Ext>.+?)$', re.I)
@@ -134,6 +135,7 @@ class CheckSeries(Library):
 
 		self.last_request = {}
 		self.last_request['LastRequestName'] = ''
+		self._trakt_top_shows = None
 
 		return
 
@@ -144,6 +146,7 @@ class CheckSeries(Library):
 		_series_details = []
 
 		log.info("==== Begin Scan: {} ====".format(pathname))
+		print("==== Begin Scan: {} ====".format(pathname))
 
 		if self.args.check_names:
 			self.check_series_name(pathname)
@@ -153,24 +156,26 @@ class CheckSeries(Library):
 			self.check_series_name_quick(pathname)
 			sys.exit(0)
 
-		self._trakt_top_shows = getList(list='topshows', rtn=dict)
-		if type(self._trakt_top_shows) == HTTPError:
-			log.error('Collection: Invalid Return Code - {}'.format(self._trakt_top_shows))
-			sys.exit(99)
-
 		_seriesData = self.getSeriesData(pathname)
 
 		if self.args.dup_check_only:
 			sys.exit(0)
 
-		for _show_name, _file_data in tqdm(sorted(_seriesData.iteritems()), leave=True):
+		for _show_name, _file_data in tqdm(sorted(_seriesData.iteritems()),
+		                                   mininterval=0.5,
+		                                   miniters=1,
+		                                   leave=True):
 			DadVision = _file_data['DadVision']
 			try:
-				_series = Series(title=_show_name)
-				_series = _series.search(rtn=object)
-#				_series.tvdb_id = _series.tvdb_id
-				_series.seasons = 'Load'
+				_series = self.Series.search(title=_show_name, rtn=object)
+				if _series.status == 'Continuing' or self.args.all_shows:
+					_series.seasons = 'min'
+				else:
+					continue
+				if _series.seasons is None:
+					raise SeriesNotFound
 			except (SeriesNotFound), msg:
+				print('Series Not Found, Skipping: {}'.format(_show_name))
 				log.error('Series Not Found, Skipping: {}'.format(_show_name))
 				continue
 
@@ -180,17 +185,20 @@ class CheckSeries(Library):
 				if not self.args.specials and _season.number == 0:
 					continue
 				for _episode in _season.episodes.itervalues():
-					if _episode.first_aired:
-						if _episode.first_aired < date_boundry or _episode.first_aired >= datetime.today().date():
+					try:
+						if _episode.number not in DadVision[_season.number]:
+							raise KeyError
+					except KeyError:
+						_episode.getDetails()
+						if not _episode.first_aired:
+								continue
+						if _episode.first_aired < date_boundry or \
+						   _episode.first_aired >= datetime.today().date():
 							continue
-						try:
-							if _episode.number not in DadVision[_season.number]:
-								raise KeyError
-						except KeyError:
-							if _season.number in missing:
-								missing[int(_season.number)].append(_episode.number)
-							else:
-								missing[int(_season.number)] = [_episode.number]
+						if _season.number in missing:
+							missing[int(_season.number)].append(_episode.number)
+						else:
+							missing[int(_season.number)] = [_episode.number]
 
 			_total_missing = 0
 			for _missing_season, _missing_episodes in missing.iteritems():
@@ -248,6 +256,7 @@ class CheckSeries(Library):
 			#Check for Duplicate Series Directories
 			_matches = difflib.get_close_matches(_show, _series_dir, 2, cutoff=0.9)
 			if len(_matches) > 1:
+				print('WARNING: Possible Duplicate Directories: {} - {}'.format(_matches[0], _matches[1]))
 				log.warning('Possible Duplicate Directories: {} - {}'.format(_matches[0], _matches[1]))
 
 			DadVision = {}
@@ -324,6 +333,13 @@ class CheckSeries(Library):
 
 	def _handle_dups(self, dups):
 
+		if self._trakt_top_shows is None:
+			self._trakt_top_shows = getList(list='topshows', rtn=dict)
+			if type(self._trakt_top_shows) == HTTPError:
+				print('Collection: Invalid Return Code - {}'.format(self._trakt_top_shows))
+				log.error('Collection: Invalid Return Code - {}'.format(self._trakt_top_shows))
+				sys.exit(99)
+
 		fmt_dups = '{0: <8.8s} {1: <8.8s} SERIES: {2: <25.25s} SEA:{3:2d} 1: {4: <35.35s} 2: {5: <35.35s}'
 
 		_prefered_fmts = ['mp4', 'mkv']
@@ -333,7 +349,7 @@ class CheckSeries(Library):
 			for i in range(1, len(_episode)):
 				file_2 = _episode[i]
 
-				if file_1['series'] in self._trakt_top_shows_names:
+				if file_1['series'] in self._trakt_top_shows:
 					_TOP_SHOW = True
 				else:
 					_TOP_SHOW = False
@@ -342,7 +358,7 @@ class CheckSeries(Library):
 					log.info(fmt_dups.format('Duplicate', 'Found',
 										file_1['series'], file_1['season'],
 										os.path.basename(file_1['file']),
-						                os.path.basename(file_2['file'])))
+										os.path.basename(file_2['file'])))
 					continue
 				if file_1['ext'] == file_2['ext']:
 					if self.regex_repack.search(file_1['file']):
@@ -579,7 +595,7 @@ if __name__ == "__main__":
 
 #	from library import Library
 
-	logger.initialize()
+	logger.initialize(console=False)
 
 	library = CheckSeries()
 
@@ -604,6 +620,7 @@ if __name__ == "__main__":
 
 	if len(library.args.library) == 0:
 		msg = 'Missing Scan Starting Point (Input Directory), Using Default: {}'.format(library.settings.SeriesDir)
+		print(msg)
 		log.info(msg)
 		library.args.library = [library.settings.SeriesDir]
 
@@ -611,7 +628,9 @@ if __name__ == "__main__":
 		if os.path.exists(_lib_path):
 			library.check(_lib_path)
 		else:
+			print('Skipping Rename: Unable to find File/Directory: {}'.format(_lib_path))
 			log.warn('Skipping Rename: Unable to find File/Directory: {}'.format(_lib_path))
 
-
+	with open(log_file, 'r') as fin:
+		print(fin.read())
 

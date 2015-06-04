@@ -294,7 +294,10 @@ class Series(object):
 		if _seasons:
 			self._seasons = {}
 			for _entry in _seasons:
-				self._seasons['<Season {0:02}>'.format(_entry['number'])] = Season(self.trakt_id, **_entry)
+				if value.lower() == 'min':
+					self._seasons['<Season {0:02}>'.format(_entry['number'])] = Season(self.trakt_id, level='min', **_entry)
+				else:
+					self._seasons['<Season {0:02}>'.format(_entry['number'])] = Season(self.trakt_id, **_entry)
 
 	def season(self, number=1):
 		if '<Season {0:02}>'.format(number) in self.seasons:
@@ -318,7 +321,7 @@ class Series(object):
 			                                                                           snumber,
 			                                                                           number))
 
-	def search(self, rtn=object):
+	def search(self, title=None, rtn=object):
 		_filterOrder = ['tz', 'status', 'rating', 'scores', 'newest']
 		_filter_options = {'scores': self._flt_scores,
 		                   'tz': self._flt_tz,
@@ -329,6 +332,8 @@ class Series(object):
 							}
 
 		try:
+			if not title is None:
+				self.title = title
 			if self.titleType == "Year":
 				self._list = searchShow(show=self.titleBase, year=self.titleSuffix, rtn=list)
 				for _entry in self._list:
@@ -478,9 +483,10 @@ class Series(object):
 
 class Season(object):
 	"""Container for Seasons"""
-	def __init__(self, series, **kwargs):
+	def __init__(self, series, level=None, **kwargs):
 		super(Season, self).__init__()
 		self.seriesTrakt = series
+		self.level = level
 		self.number = None
 		self.ids = {u'tmdb': None, u'trakt': None,
 		            u'tvdb': None, u'tvrage': None}
@@ -555,7 +561,7 @@ class Season(object):
 	def episodes(self, episodes=None):
 		if episodes: self._episodes = {}
 		for _entry in episodes:
-			self._episodes['E{0:02d}'.format(_entry['number'])] = Episode(self.seriesTrakt, **_entry)
+			self._episodes['E{0:02d}'.format(_entry['number'])] = Episode(self.seriesTrakt, level=self.level, **_entry)
 
 	def __str__(self):
 		"""Return a string representation of a :class:`Season`"""
@@ -565,9 +571,10 @@ class Season(object):
 
 class Episode(object):
 	"""Container for Episodes"""
-	def __init__(self, seriesTrakt, **kwargs):
+	def __init__(self, seriesTrakt, level=None, **kwargs):
 		super(Episode, self).__init__()
 		self.seriesTrakt = seriesTrakt
+		self.level = level
 		self.season = None
 		self.number = None
 		self.title = None
@@ -575,10 +582,11 @@ class Episode(object):
 		self._first_aired = None
 
 		self.load_attr(kwargs)
-		try:
-			self.load_attr(getEpisode(self.seriesTrakt, self.season, self.number))
-		except:
-			return
+		if self.level is None:
+			try:
+				self.load_attr(getEpisode(self.seriesTrakt, self.season, self.number))
+			except:
+				return
 
 	def load_attr(self, kwargs):
 		if len(kwargs) > 0:
@@ -657,6 +665,10 @@ class Episode(object):
 			setattr(self, '_first_aired', value)
 		elif type(value) is datetime.datetime:
 			setattr(self, '_first_aired', value.date())
+		return
+
+	def getDetails(self):
+		self.load_attr(getEpisode(self.seriesTrakt, self.season, self.number))
 		return
 
 	def __str__(self):
