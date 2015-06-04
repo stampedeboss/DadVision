@@ -166,7 +166,7 @@ class RenameSeries(Library):
 			_series.seasons = 'Load'
 		except (KeyError, TypeError), msg:
 			raise SeriesNotFound('SeriesNotFound: {}'.format(pathname))
-		except (SeriesNotFound, SeasonNotFound, EpisodeNotFound), msg:
+		except (InvalidFilename, SeriesNotFound, SeasonNotFound, EpisodeNotFound), msg:
 			raise
 		if _series.seasons is None:
 			raise SeriesNotFound('SeriesNotFound: {}'.format(pathname))
