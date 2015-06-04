@@ -10,20 +10,17 @@ from __future__ import division
 from datetime import datetime, date, timedelta
 import difflib
 import fnmatch
-import logging
 import os
 import re
-import sys
 import traceback
 import unicodedata
 
 from fuzzywuzzy import fuzz
-import trakt
-from trakt.users import User
 
 from common.exceptions import (SeriesNotFound, EpisodeNotFound)
 from common import logger
 from library import Library
+from library.trakt.user import *
 from library.series.seriesinfo import SeriesInfo
 from library.series.fileparser import FileParser
 from library.series.rename import RenameSeries
@@ -153,11 +150,10 @@ class CheckSeries(Library):
 			self.check_series_name_quick(pathname)
 			sys.exit(0)
 
-		trakt.api_key = self.settings.TraktAPIKey
-		trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
-		self.trakt_user = User(self.settings.TraktUserID)
-		self._trakt_top_shows = self.trakt_user.get_list('topshows')
-		self._trakt_top_shows_names = {_item.title: _item for _item in self._trakt_top_shows.items}
+		self._trakt_top_shows = getList(list='topshows', rtn=dict)
+		if type(self._trakt_top_shows) == HTTPError:
+			log.error('Collection: Invalid Return Code - {}'.format(self._trakt_top_shows))
+			sys.exit(99)
 
 		_series = self.getSeriesData(pathname)
 
