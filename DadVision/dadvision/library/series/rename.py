@@ -231,6 +231,10 @@ class RenameSeries(Library):
 	def getShowInfo(self, pathname):
 		try:
 			_series = Series(**self.parser.getFileDetails(pathname))
+			if self._last_series:
+				if self._last_series.title == _series.title:
+					_series.merge(self._last_series)
+					return _series
 			_series = _series.search(rtn=object)
 			if self._last_series:
 				if self._last_series.title == _series.title:
