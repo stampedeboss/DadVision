@@ -99,7 +99,7 @@ class RenameMovie(Library):
 		rename_group.add_argument("--no-check_video", dest="check_video",
 								  action="store_false", default=True,
 								  help="Bypass Video Checks")
-		rename_group.add_argument("--no-move", dest="move",
+		rename_group.add_argument("--no-move", "--nm", dest="move",
 								  action="store_false", default=True,
 								  help="Do not change directories, rename in place")
 		rename_group.add_argument("--dir", type=str, dest='dir',
