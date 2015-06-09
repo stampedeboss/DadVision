@@ -78,8 +78,11 @@ class RenameSeries(Library):
 		rename_group.add_argument("--no-check_video", dest="check_video",
 			action="store_false", default=True,
 			help="Bypass Video Checks")
+		rename_group.add_argument("--sn", "--name", dest='series_name',
+            type=str, default=None, nargs='?',
+            help="Override Parsed Series Name with this value")
 
-#		self.seriesinfo = SeriesInfo(rtnDict=True)
+
 		self.parser = FileParser()
 		self.topShows = getList(list='topshows', rtn=dict)
 
@@ -231,6 +234,9 @@ class RenameSeries(Library):
 	def getShowInfo(self, pathname):
 		try:
 			_series = Series(**self.parser.getFileDetails(pathname))
+			if self.args.series_name:
+				_series.title = self.args.series_name
+				_series.fileDetails.seriesTitle = self.args.series_name
 			if self._last_series:
 				if self._last_series.title == _series.title:
 					_series.merge(self._last_series)
