@@ -64,11 +64,11 @@ class FileParser(Library, dict):
 
 	def _guess(self, fq_name):
 
-		if self.RegxParse['Standard Library: Regx #1'].match(fq_name) \
-				or self.RegxParse['Standard Library: Regx #2'].match(fq_name):
-			_series = guess_file_info(fq_name)
-		else:
-			_series = guess_file_info(os.path.basename(fq_name))
+#		if self.RegxParse['Standard Library: Regx #1'].match(fq_name) \
+#				or self.RegxParse['Standard Library: Regx #2'].match(fq_name):
+		_series = guess_file_info(fq_name)
+#		else:
+#			_series = guess_file_info(os.path.basename(fq_name))
 
 		if _series['type'] == u'episode':
 			fileDetails = {}
