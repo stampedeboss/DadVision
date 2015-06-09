@@ -23,9 +23,8 @@ import shutil
 
 from library import Library
 from common import logger
-from common.chkvideo import chkVideoFile
 from common.exceptions import (SeriesNotFound, SeasonNotFound, EpisodeNotFound,
-                               DuplicateFilesFound, FailedVideoCheck, InvalidFilename,
+                               DuplicateFilesFound, InvalidFilename,
                                UnexpectedErrorOccured)
 from library.series import Series
 from library.series.fileparser import FileParser
@@ -96,6 +95,7 @@ class RenameSeries(Library):
 		self.dup_queue = []
 		self.dup_renamed = None
 		self.selected_file = None
+		self._last_series = None
 
 		self.existing_series = os.listdir(self.settings.SeriesDir)
 
@@ -104,8 +104,6 @@ class RenameSeries(Library):
 	@useLibraryLogging
 	def renameSeries(self, pathname):
 		log.trace("rename method: pathname:{}".format(pathname))
-
-		_last_series = None
 
 		if os.path.isfile(pathname):
 			log.debug("-----------------------------------------------")
@@ -158,27 +156,7 @@ class RenameSeries(Library):
 		else:
 			raise InvalidFilename('Invalid Request, Neither File or Directory: %s' % pathname)
 
-	def getShowInfo(self, pathname):
-		try:
-			_series = Series(**self.parser.getFileDetails(pathname))
-			_series = _series.search(rtn=object)
-			_series.tvdb_id = _series.tvdb_id
-			_series.seasons = 'Load'
-		except (KeyError, TypeError), msg:
-			raise SeriesNotFound('SeriesNotFound: {}'.format(pathname))
-		except (InvalidFilename, SeriesNotFound, SeasonNotFound, EpisodeNotFound), msg:
-			raise
-		if _series.seasons is None:
-			raise SeriesNotFound('SeriesNotFound: {}'.format(pathname))
-
-		return _series
-
 	def renameFile(self, pathname):
-
-		if self.args.check_video:
-			if chkVideoFile(pathname):
-				log.error('File Failed Video Check: {}'.format(pathname))
-				raise FailedVideoCheck('File Failed Video Check: {}'.format(pathname))
 
 		_series = self.getShowInfo(pathname)
 
@@ -187,43 +165,47 @@ class RenameSeries(Library):
 		except (SeasonNotFound, EpisodeNotFound):
 			raise
 
-		_season_folder = os.path.dirname(_series.fileDetails.newName)
-		_series_folder = os.path.dirname(_season_folder)
-		_file_exists = False
-
-		if os.path.exists(_season_folder):
-			_file_exists = self._check_for_dups(_series)
-		else:
-			os.makedirs(_season_folder)
-			os.chmod(_season_folder, 0775)
-			os.chmod(_series_folder, 0775)
-
-		if _file_exists:
-			if self.selected_file is not None:
-				_series.fileDetails.newName = self.selected_file
-			log.info('-'*70)
-			log.info('SERIES: {}'.format(_series.fileDetails.seriesTitle))
-			log.info('Updated: SEASON: {}'.format(_series.fileDetails.seasonNum))
-			log.info('Updated:   FILE: {}'.format(os.path.basename(_series.fileDetails.newName)))
-			if self.dup_renamed:
-				log.info('Renamed: FILE: {}'.format(os.path.basename(self.dup_renamed)))
+		log.info('-'*70)
+		log.info('SERIES: {}'.format(_series.fileDetails.seriesTitle))
+		if _series.fileDetails.fileName == _series.fileDetails.newName:
+			log.info('Processed:   SEASON: {} FILE: {}'.format(_series.fileDetails.seasonNum,
+			                                                      os.path.basename(_series.fileDetails.newName)))
 			self._update_date(_series)
-		elif not _file_exists:
-			os.rename(_series.fileDetails.fileName, _series.fileDetails.newName)
-			os.chmod(_series.fileDetails.newName, 0664)
-			log.info('-'*70)
-			log.info('SERIES: {}'.format(_series.fileDetails.seriesTitle))
-			log.info('Renamed: SEASON: {}'.format(_series.fileDetails.seasonNum))
-			log.info('Renamed:   FILE: {}'.format(os.path.basename(_series.fileDetails.newName)))
-			log.info('Renamed:    New: {}'.format(os.path.basename(_series.fileDetails.fileName)))
-			self._update_date(_series)
-			self.xbmc_update_required = True
-
-		if os.path.exists(_series.fileDetails.fileName):
-			self._del_file(_series.fileDetails.fileName)
-			self._del_dir(os.path.dirname(_series.fileDetails.fileName))
+			return
 		else:
-			self._del_dir(os.path.dirname(_series.fileDetails.fileName))
+			_season_folder = os.path.dirname(_series.fileDetails.newName)
+			_series_folder = os.path.dirname(_season_folder)
+			_file_exists = False
+
+			if not os.path.exists(_season_folder):
+				os.makedirs(_season_folder)
+				os.chmod(_season_folder, 0775)
+				os.chmod(_series_folder, 0775)
+			else:
+				_file_exists = self._episode_already_exist(_series)
+
+			if _file_exists:
+				if self.selected_file is not None:
+					_series.fileDetails.newName = self.selected_file
+				log.info('Renamed: SEASON: {}'.format(_series.fileDetails.seasonNum))
+				log.info('Renamed:   FILE: {}'.format(os.path.basename(_series.fileDetails.newName)))
+				if self.dup_renamed:
+					log.info('Renamed: FILE: {}'.format(os.path.basename(self.dup_renamed)))
+				self._update_date(_series)
+			elif not _file_exists:
+				os.rename(_series.fileDetails.fileName, _series.fileDetails.newName)
+				os.chmod(_series.fileDetails.newName, 0664)
+				log.info('Renamed: SEASON: {}'.format(_series.fileDetails.seasonNum))
+				log.info('Renamed:   FILE: {}'.format(os.path.basename(_series.fileDetails.newName)))
+				log.info('Renamed:    New: {}'.format(os.path.basename(_series.fileDetails.fileName)))
+				self._update_date(_series)
+				self.xbmc_update_required = True
+
+			if os.path.exists(_series.fileDetails.fileName):
+				self._del_file(_series.fileDetails.fileName)
+				self._del_dir(os.path.dirname(_series.fileDetails.fileName))
+			else:
+				self._del_dir(os.path.dirname(_series.fileDetails.fileName))
 
 		if self.hostname == 'grumpy':
 			try:
@@ -245,6 +227,26 @@ class RenameSeries(Library):
 				raise UnexpectedErrorOccured("File Information Insert: {} {}".format(e, _series.__dict__))
 
 		return
+
+	def getShowInfo(self, pathname):
+		try:
+			_series = Series(**self.parser.getFileDetails(pathname))
+			_series = _series.search(rtn=object)
+			if self._last_series:
+				if self._last_series.title == _series.title:
+					_series.merge(self._last_series)
+					return _series
+			_series.tvdb_id = _series.tvdb_id
+			_series.seasons = 'Load'
+		except (KeyError, TypeError), msg:
+			raise SeriesNotFound('SeriesNotFound: {}'.format(pathname))
+		except (InvalidFilename, SeriesNotFound, SeasonNotFound, EpisodeNotFound), msg:
+			raise
+		if _series.seasons is None:
+			raise SeriesNotFound('SeriesNotFound: {}'.format(pathname))
+
+		self._last_series = _series
+		return _series
 
 	def getFileName(self, _series):
 
@@ -271,7 +273,7 @@ class RenameSeries(Library):
 
 		return _series
 
-	def _check_for_dups(self, series):
+	def _episode_already_exist(self, series):
 
 		_already_exists = False
 		_directory = os.path.dirname(series.fileDetails.newName)
@@ -283,7 +285,7 @@ class RenameSeries(Library):
 
 		for f in self.dup_queue:
 			if os.path.join(_directory, f) == series.fileDetails.fileName:
-				_already_exists = True
+				_already_exists = False
 				self.dup_queue.remove(f)
 				break
 
@@ -407,7 +409,15 @@ class RenameSeries(Library):
 			_date_aired = datetime.datetime.combine(_date_aired, datetime.time())
 			tt = _date_aired.timetuple()
 			log.debug('Current File Date: %s  Air Date: %s' % (time.asctime(cur_date), time.asctime(tt)))
-			tup_cur = [cur_date[0], cur_date[1], cur_date[2], cur_date[3], cur_date[4], cur_date[5], cur_date[6], cur_date[7], -1]
+			tup_cur = [cur_date[0],
+			           cur_date[1],
+			           cur_date[2],
+			           cur_date[3],
+			           cur_date[4],
+			           cur_date[5],
+			           cur_date[6],
+			           cur_date[7],
+			           -1]
 			tup = [tt[0], tt[1], tt[2], 20, 0, 0, tt[6], tt[7], tt[8]]
 			if tup != tup_cur:
 				time_epoc = time.mktime(tup)
@@ -417,6 +427,8 @@ class RenameSeries(Library):
 				except (OSError, IOError), exc:
 					log.error("Skipping, Unable to update time: %s" % series.fileDetails.newName)
 					log.error("Unexpected error: %s" % exc)
+			else:
+					log.info("First Aired Correct: %s" % _date_aired)
 		else:
 			log.warn('_update_date: Unable to update the Date Aired, Missing Information')
 
