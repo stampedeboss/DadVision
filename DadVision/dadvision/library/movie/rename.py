@@ -153,7 +153,7 @@ class RenameMovie(Library):
 				for _file in _files:
 					_path_name = os.path.join(_root, _file)
 					log.trace("Movie Filename: %s" % _file)
-					if self._ignored(_path_name):
+					if self._ignored(_file):
 						if self.regex_NewMoviesDir.match(_path_name):
 							try:
 								_del_file(_path_name)
@@ -340,12 +340,11 @@ class RenameMovie(Library):
 	def _ignored(self, name):
 		""" Check for ignored pathnames.
 		"""
-		if self.args.ignore_excludes:
-			rc = False
-		else:
-			rc = any(fnmatch.fnmatch(name.lower(), pattern) for pattern in self.settings.ExcludeList)
-
-		return rc
+		_skip = []
+		_skip.append(any(fnmatch.fnmatch(name.lower(), pattern) for pattern in self.settings.IgnoreGlob))
+		if not self.args.ignore_excludes:
+			_skip.append(any(fnmatch.fnmatch(name.lower(), pattern) for pattern in self.settings.ExcludeList))
+		return any(_skip)
 
 
 if __name__ == "__main__":
