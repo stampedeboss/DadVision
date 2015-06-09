@@ -102,6 +102,9 @@ class RenameMovie(Library):
 		rename_group.add_argument("--no-move", dest="move",
 								  action="store_false", default=True,
 								  help="Do not change directories, rename in place")
+		rename_group.add_argument("--dir", type=str, dest='dir',
+		                          nargs='?', default=None,
+								  help="Rename and place in this directory")
 
 		self.fileparser = FileParser()
 		self.tmdbinfo = TMDBInfo()
@@ -256,7 +259,8 @@ class RenameMovie(Library):
 				log.info("Successfully Renamed: %s" % _fq_new_file_name)
 				if len(os.listdir(os.path.dirname(movie_details['FileName']))) > 0:
 					return
-				_del_dir(os.path.dirname(movie_details['FileName']))
+				if self.args.move:
+					_del_dir(os.path.dirname(movie_details['FileName']))
 		except OSError, exc:
 			log.error("Skipping, Unable to Rename File: %s" % movie_details['FileName'])
 			log.error("Unexpected error: %s" % exc)
@@ -281,10 +285,14 @@ class RenameMovie(Library):
 			_new_dir = '%s' % (movie_details['MovieName'])
 			_new_file_name = '%s%s.%s' % (movie_details['MovieName'], _trailer, movie_details['Ext'])
 
-		if self.args.move:
+		if self.args.dir:
+			_fq_new_file_name = os.path.join(self.args.dir, _new_dir, _new_file_name)
+		elif self.args.move:
 			_fq_new_file_name = os.path.join(self.settings.MoviesDir, _new_dir, _new_file_name)
 		else:
-			_fq_new_file_name = os.path.join(os.path.dirname(os.path.dirname(movie_details['FileName'])), _new_dir, _new_file_name)
+			_fq_new_file_name = os.path.join(os.path.dirname(os.path.dirname(movie_details['FileName'])),
+			                                 _new_dir,
+			                                 _new_file_name)
 
 		return _fq_new_file_name
 
