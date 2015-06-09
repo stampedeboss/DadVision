@@ -69,7 +69,7 @@ def searchShow(show, year=None, rtn=dict, userid=userid, authorization=authoriza
 
 def getSeasons(trakt_id, rtn=dict, userid=userid, authorization=authorization):
 
-	_url = 'https://api-v2launch.trakt.tv/shows/{}/seasons?extended=episodes'.format(trakt_id)
+	_url = 'https://api-v2launch.trakt.tv/shows/{}/seasons?extended=episodes,full'.format(trakt_id)
 	_list = getBase(_url, userid, authorization, rtn)
 
 	return _list

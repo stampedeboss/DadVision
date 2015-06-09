@@ -64,7 +64,7 @@ def getBase(url, userid=userid, authorization=authorization, rtn=dict):
 
 	for entry in data:
 		if 'type' in entry:
-			if entry['type'] == u'show':
+			if entry['type'] in [u'show', u'episode']:
 				_object = Series(**entry)
 			elif entry['type'] == u'movie':
 				_object = Movie(**entry)
