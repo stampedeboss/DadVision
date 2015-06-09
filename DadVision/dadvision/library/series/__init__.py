@@ -294,10 +294,7 @@ class Series(object):
 		if _seasons:
 			self._seasons = {}
 			for _entry in _seasons:
-				if value.lower() == 'min':
-					self._seasons['<Season {0:02}>'.format(_entry['number'])] = Season(self.trakt_id, level='min', **_entry)
-				else:
-					self._seasons['<Season {0:02}>'.format(_entry['number'])] = Season(self.trakt_id, **_entry)
+				self._seasons['<Season {0:02}>'.format(_entry['number'])] = Season(self.trakt_id, **_entry)
 
 	def season(self, number=1):
 		if '<Season {0:02}>'.format(number) in self.seasons:
@@ -388,6 +385,9 @@ class Series(object):
 					#log.debug(traceback.format_exception_only(type(_an_error), _an_error)[-1])
 					continue
 
+		if not matching(self.title, self._list[0].title, 70):
+			raise SeriesNotFound('SeasonNotFound: {}'.format(self.title))
+
 		if hasattr(self, 'fileDetails'):
 			for _entry in self._list:
 				setattr(_entry, 'fileDetails', self.fileDetails)
@@ -415,6 +415,16 @@ class Series(object):
 			if val is not None:
 				setattr(_series, key, val)
 		return _series
+
+	def merge(self, source):
+		for key, val in source.__dict__.iteritems():
+			if key == 'fileDetails':
+				continue
+			if val is not None:
+				setattr(self, key, val)
+		if not self.titleTVDB is None and hasattr(self, 'fileDetails'):
+			self.fileDetails.seriesTitle = self.titleTVDB
+		return self
 
 	def _std_key(self, key):
 		_key_conversions = {'firstaired': 'first_aired',
@@ -482,10 +492,9 @@ class Series(object):
 
 class Season(object):
 	"""Container for Seasons"""
-	def __init__(self, series, level=None, **kwargs):
+	def __init__(self, series, **kwargs):
 		super(Season, self).__init__()
 		self.seriesTrakt = series
-		self.level = level
 		self.number = None
 		self.ids = {u'tmdb': None, u'trakt': None,
 		            u'tvdb': None, u'tvrage': None}
@@ -560,7 +569,7 @@ class Season(object):
 	def episodes(self, episodes=None):
 		if episodes: self._episodes = {}
 		for _entry in episodes:
-			self._episodes['E{0:02d}'.format(_entry['number'])] = Episode(self.seriesTrakt, level=self.level, **_entry)
+			self._episodes['E{0:02d}'.format(_entry['number'])] = Episode(self.seriesTrakt, **_entry)
 
 	def __str__(self):
 		"""Return a string representation of a :class:`Season`"""
@@ -570,10 +579,9 @@ class Season(object):
 
 class Episode(object):
 	"""Container for Episodes"""
-	def __init__(self, seriesTrakt, level=None, **kwargs):
+	def __init__(self, seriesTrakt, **kwargs):
 		super(Episode, self).__init__()
 		self.seriesTrakt = seriesTrakt
-		self.level = level
 		self.season = None
 		self.number = None
 		self.title = None
@@ -581,11 +589,6 @@ class Episode(object):
 		self._first_aired = None
 
 		self.load_attr(kwargs)
-		if self.level is None:
-			try:
-				self.load_attr(getEpisode(self.seriesTrakt, self.season, self.number))
-			except:
-				return
 
 	def load_attr(self, kwargs):
 		if len(kwargs) > 0:
