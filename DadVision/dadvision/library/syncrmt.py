@@ -22,7 +22,7 @@ from tqdm import tqdm
 from library import Library
 from common import logger
 from common.decode import decode
-from common.exceptions import UnexpectedErrorOccured, ConfigValueError
+from common.exceptions import ConfigValueError
 from library.trakt.user import *
 from library.movie.gettmdb import TMDBInfo
 
@@ -68,9 +68,9 @@ class SyncLibrary(Library):
 		sync1.add_argument("-g", "--goofy", dest="hostname",
 			action="store_const", const="goofy",
 			help="Sync Goofy for Kim")
-		sync1.add_argument("-e", "--eeyore", dest="hostname",
-			action="store_const", const="eeyore",
-			help="Sync Eeyore for Daniel")
+		sync1.add_argument("-j", "--jude", dest="hostname",
+			action="store_const", const="jude",
+			help="Sync Jude for Daniel")
 		sync1.add_argument("-p", "--pluto", dest="hostname",
 			action="store_const", const="pluto",
 			help="Sync Pluto for Ben and Mac")
@@ -110,7 +110,7 @@ class SyncLibrary(Library):
 			help='Do not reuse existing links, even if possible')
 		sync3.add_argument("--reverse", dest="reverse",
 			action="store_true", default=False,
-			help="Reverse flow of Update, RMT --> Local")
+			help="Reverse flow of Update, RMT --> Local, --ignore-existing, --rsync, --update implied")
 		sync3.add_argument("--rsync", dest="rsync",
 			action="store_true", default=False,
 			help='Bypass database and run full download')
