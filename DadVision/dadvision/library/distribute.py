@@ -291,6 +291,9 @@ class Distribute(Library):
 
 		print self.contentType
 		print '{}'.format(unpackFileList[0])
+		print len(self.settings.DownloadDir), self.settings.DownloadDir
+		print len(self.settings.DownloadMovies), self.settings.DownloadMovies
+		print len(self.settings.DownloadSeries), self.settings.DownloadSeries
 		print unpackFileList[0][:len(self.settings.DownloadDir)]
 		print unpackFileList[0][:len(self.settings.DownloadMovies)]
 		print unpackFileList[0][:len(self.settings.DownloadSeries)]
