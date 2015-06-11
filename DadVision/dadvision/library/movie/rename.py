@@ -177,7 +177,7 @@ class RenameMovie(Library):
 		log.trace("_retrieve_movie_info method: pathname:{!s}".format(pathname))
 
 		_ext = os.path.splitext(pathname)[1][1:]
-		if not _ext in self.settings.MediaExt:
+		if not _ext.lower() in self.settings.MediaExt:
 			raise NotMediaFile
 
 		if self.args.check_video:
