@@ -290,6 +290,7 @@ class Distribute(Library):
 #			raise UnexpectedErrorOccured(unpackFileList[0])
 
 		print self.contentType
+		print '{}'.format(unpackFileList[0])
 		print unpackFileList[0][:len(self.settings.DownloadDir)]
 		print unpackFileList[0][:len(self.settings.DownloadMovies)]
 		print unpackFileList[0][:len(self.settings.DownloadSeries)]
