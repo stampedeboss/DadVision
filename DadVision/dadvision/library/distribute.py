@@ -239,6 +239,13 @@ class Distribute(Library):
 				self.contentType = "NonVideo"
 			return
 
+		if pathname[:len(self.settings.DownloadMovies)] == self.settings.DownloadMovies:
+			self.contentType = 'Movies'
+			return
+		elif pathname[0][:len(self.settings.DownloadSeries)] == self.settings.DownloadSeries:
+			self.contentType = 'Series'
+			return
+
 		_guessit_info = guess_file_info(pathname)
 		print '-'*60
 		print _guessit_info['type']
@@ -270,38 +277,18 @@ class Distribute(Library):
 
 	def _unpackDirectory(self, unpackFileList):
 
+		self._setContentType(unpackFileList[0])
 		if unpackFileList[0][:len(self.settings.DownloadDir)] == self.settings.DownloadDir:
 			_destinationDir = os.path.dirname(unpackFileList[0][len(self.settings.DownloadDir)+1:])
 		elif unpackFileList[0][:len(self.settings.DownloadMovies)] == self.settings.DownloadMovies:
 			_destinationDir = os.path.dirname(unpackFileList[0][len(self.settings.DownloadMovies)+1:])
-			self.args.content = 'Movies'
 		elif unpackFileList[0][:len(self.settings.DownloadSeries)] == self.settings.DownloadSeries:
 			_destinationDir = os.path.dirname(unpackFileList[0][len(self.settings.DownloadMovies)+1:])
-			self.args.content = 'Series'
 		else:
 			raise UnexpectedErrorOccured(unpackFileList[0])
 
-		if self.args.content:
-			if self.args.content == 'Series':
-				_type = "series"
-			elif self.args.content == "Movies":
-				_type = "movies"
-			else:
-				_type = "unpack"
-		else:
-			_guessit_info = guess_file_info(os.path.dirname(unpackFileList[0]))
-			if _guessit_info:
-				if _guessit_info['type'] == 'episode':
-					_type = "series"
-				elif _guessit_info['type'] == 'movies':
-					_type = "movies"
-				else:
-					_type = "unpack"
-			else:
-				_type = "unpack"
-
-		if _type == 'series': _destinationDir = os.path.join(self.settings.NewSeriesDir, _destinationDir)
-		elif _type == 'movies': _destinationDir = os.path.join(self.settings.NewMoviesDir, _destinationDir)
+		if self.contentType == 'Series': _destinationDir = os.path.join(self.settings.NewSeriesDir, _destinationDir)
+		elif self.contentType == 'Movies': _destinationDir = os.path.join(self.settings.NewMoviesDir, _destinationDir)
 		else: _destinationDir = os.path.join(self.settings.UnpackDir, _destinationDir)
 
 		# create destination directory
@@ -329,9 +316,9 @@ class Distribute(Library):
 			_cleanupfilesCreated = False
 
 		try:
-			if _type == "series":
+			if self.contentType == "Series":
 				self.rename_series.renameSeries(_destinationDir)
-			elif _type == "movies":
+			elif self.contentType == "Movies":
 				self.rename_movies.renameMovie(_destinationDir)
 		except:
 			an_error = traceback.format_exc()
