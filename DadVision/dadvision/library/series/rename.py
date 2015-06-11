@@ -95,9 +95,6 @@ class RenameSeries(Library):
 		self.hostname = socket.gethostname()
 		self.xbmc_update_required = False
 
-		self.dup_queue = []
-		self.dup_renamed = None
-		self.selected_file = None
 		self._last_series = None
 
 		self.existing_series = os.listdir(self.settings.SeriesDir)
@@ -161,14 +158,17 @@ class RenameSeries(Library):
 
 	def renameFile(self, pathname):
 
-		_series = self.getShowInfo(pathname)
+		log.info('-'*70)
+		_series = None
 
 		try:
+			_series = self.getShowInfo(pathname)
 			_series = self.getFileName(_series)
 		except (SeasonNotFound, EpisodeNotFound):
+			if _series and _series.title:
+				log.error('SERIES: {}'.format(_series.title))
 			raise
 
-		log.info('-'*70)
 		log.info('SERIES: {}'.format(_series.fileDetails.seriesTitle))
 		if _series.fileDetails.fileName == _series.fileDetails.newName:
 			log.info('Processed:   SEASON: {} FILE: {}'.format(_series.fileDetails.seasonNum,
@@ -178,31 +178,21 @@ class RenameSeries(Library):
 		else:
 			_season_folder = os.path.dirname(_series.fileDetails.newName)
 			_series_folder = os.path.dirname(_season_folder)
-			_file_exists = False
 
+			log.info('Renamed: SEASON: {}'.format(_series.fileDetails.seasonNum))
 			if not os.path.exists(_season_folder):
 				os.makedirs(_season_folder)
 				os.chmod(_season_folder, 0775)
 				os.chmod(_series_folder, 0775)
 			else:
-				_file_exists = self._episode_already_exist(_series)
+				_series = self._replace_existing(_series)
 
-			if _file_exists:
-				if self.selected_file is not None:
-					_series.fileDetails.newName = self.selected_file
-				log.info('Renamed: SEASON: {}'.format(_series.fileDetails.seasonNum))
-				log.info('Renamed:   FILE: {}'.format(os.path.basename(_series.fileDetails.newName)))
-				if self.dup_renamed:
-					log.info('Renamed: FILE: {}'.format(os.path.basename(self.dup_renamed)))
-				self._update_date(_series)
-			elif not _file_exists:
-				os.rename(_series.fileDetails.fileName, _series.fileDetails.newName)
-				os.chmod(_series.fileDetails.newName, 0664)
-				log.info('Renamed: SEASON: {}'.format(_series.fileDetails.seasonNum))
-				log.info('Renamed:   FILE: {}'.format(os.path.basename(_series.fileDetails.newName)))
-				log.info('Renamed:    New: {}'.format(os.path.basename(_series.fileDetails.fileName)))
-				self._update_date(_series)
-				self.xbmc_update_required = True
+			os.rename(_series.fileDetails.fileName, _series.fileDetails.newName)
+			os.chmod(_series.fileDetails.newName, 0664)
+			log.info('Renamed:   FILE: {}'.format(os.path.basename(_series.fileDetails.newName)))
+			log.info('Renamed:    New: {}'.format(os.path.basename(_series.fileDetails.fileName)))
+			self._update_date(_series)
+			self.xbmc_update_required = True
 
 			if os.path.exists(_series.fileDetails.fileName):
 				self._del_file(_series.fileDetails.fileName)
@@ -283,26 +273,45 @@ class RenameSeries(Library):
 
 		return _series
 
-	def _episode_already_exist(self, series):
+	def _replace_existing(self, series):
 
-		_already_exists = False
 		_directory = os.path.dirname(series.fileDetails.newName)
 		_title_new = os.path.splitext(os.path.basename(series.fileDetails.newName))[0]
 		_ep_new = _title_new.split(None, 1)[0]
+		_dup_queue = []
 
 		for _file in [f for f in os.listdir(_directory) if f.split(None, 1)[0] == _ep_new]:
-			self.dup_queue.append(os.path.join(_directory, _file))
+			_dup_queue.append(os.path.join(_directory, _file))
 
-		for f in self.dup_queue:
-			if os.path.join(_directory, f) == series.fileDetails.fileName:
-				_already_exists = False
-				self.dup_queue.remove(f)
-				break
+		if not _dup_queue:
+			return series
 
-		if not self.dup_queue:
-			return _already_exists
+		# Remove Entry if In Place Rename is requested
+		if len(_dup_queue) == 1:
+			if _dup_queue[0] == series.fileDetails.fileName:
+				return series
 
-		_min_met = False
+		_selected_file = self._best_duplicate(series, _dup_queue)
+
+		if _selected_file == series.fileDetails.fileName:
+			return series
+		else:
+			if os.path.exists(series.fileDetails.fileName):
+				log.info('Deleted:   FILE: {}'.format(os.path.basename(series.fileDetails.fileName)))
+				self._del_file(series.fileDetails.fileName)
+				self._del_dir(os.path.dirname(series.fileDetails.fileName))
+			else:
+				self._del_dir(os.path.dirname(series.fileDetails.fileName))
+
+			series.fileDetails.fileName = _selected_file
+			series.fileDetails.ext = os.path.splitext(os.path.basename(_selected_file))[1][1:].lower()
+			series = self.getFileName(series)
+			return series
+
+	def _best_duplicate(self, series, queue):
+
+		if len(queue) == 1: return queue.pop()
+
 		if series.title in self.topShows:
 			series.topShow = True
 			_desired_quality = ['mkv']
@@ -312,31 +321,39 @@ class RenameSeries(Library):
 			_desired_quality = ['mp4']
 			_acceptable_quality = ['mkv', 'avi']
 
-		if series.fileDetails.ext in _desired_quality + _acceptable_quality:
-			_min_met = True
-		_last_file = self._clean_out_queue(_desired_quality, _acceptable_quality, _min_met, series.topShow)
+		_available = [x for x in queue if os.path.splitext(x)[1][1:] in _desired_quality]
+		if not _available:
+			_available = [x for x in queue if os.path.splitext(x)[1][1:] in _acceptable_quality]
 
-		if _last_file is None: return _already_exists
-
-		self.selected_file = self._evaluate_keeper(series.fileDetails.fileName,
-												   _last_file,
-												   series.topShow)
-
-		if self.selected_file == series.fileDetails.fileName:
-			self._del_file(_last_file)
-			self.selected_file = None
-			return False
+		if _available:
+			while len(queue) > 0:
+				_file_1 = queue.pop()
+				if _file_1 not in _available:
+					log.info('Deleted:   FILE: {}'.format(os.path.basename(_file_1)))
+					self._del_file(_file_1)
 		else:
-			series_new = series.copy()
-			series_new.fileDetails.fileName = self.selected_file
-			series_new = self.getFileName(series_new)
-			_title_new = os.path.splitext(os.path.basename(series_new.fileDetails.seriesTitle))[0]
-			if os.path.splitext(os.path.basename(self.selected_file))[0] != _title_new:
-				os.rename(self.selected_file, series_new.fileDetails.newName)
-				os.chmod(series_new.fileDetails.newName, 0664)
-				self.dup_renamed = self.selected_file
-				self.selected_file = series_new.fileDetails.newName
-			return True
+			raise DuplicateFilesFound
+
+		if not _available:
+			return None
+
+		if len(_available) == 1: return _available[0]
+
+		_file_1 = _available.pop()
+		while len(_available) > 0:
+			_file_2 = _available.pop()
+			_selected_file = self._evaluate_keeper(_file_1,
+												   _file_2,
+												   series.topShow )
+			if _selected_file == _file_2:
+				log.info('Deleted:   FILE: {}'.format(os.path.basename(_file_1)))
+				self._del_file(_file_1)
+				_file_1 = _file_2
+			else:
+				log.info('Deleted:   FILE: {}'.format(os.path.basename(_file_2)))
+				self._del_file(_file_2)
+
+		return _file_1
 
 	def _evaluate_keeper(self, file_1, file_2, top_show):
 
@@ -370,46 +387,6 @@ class RenameSeries(Library):
 			return file_2
 		else:
 			return file_1
-
-	def _clean_out_queue(self, _desired_quality, _acceptable_quality, _min_met, top_show):
-
-		if len(self.dup_queue) == 1: return self.dup_queue.pop()
-
-		_available = [x for x in self.dup_queue if os.path.splitext(x)[1][1:] in _desired_quality]
-		if not _available:
-			_available = [x for x in self.dup_queue if os.path.splitext(x)[1][1:] in _acceptable_quality]
-
-		if _min_met:
-			while len(self.dup_queue) > 0:
-				_file_1 = self.dup_queue.pop()
-				if _file_1 not in _available:
-					self._del_file(_file_1)
-		elif _available:
-			while len(self.dup_queue) > 0:
-				_file_1 = self.dup_queue.pop()
-				if _file_1 not in _available:
-					self._del_file(_file_1)
-		else:
-			raise DuplicateFilesFound
-
-		if not _available:
-			return None
-
-		if len(_available) == 1: return _available[0]
-
-		_file_1 = _available.pop()
-		while len(_available) > 0:
-			_file_2 = _available.pop()
-			_selected_file = self._evaluate_keeper(_file_1,
-												   _file_2,
-												   top_show )
-			if _selected_file == _file_2:
-				self._del_file(_file_1)
-				_file_1 = _file_2
-			else:
-				self._del_file(_file_2)
-
-		return _file_1
 
 	def _update_date(self, series):
 

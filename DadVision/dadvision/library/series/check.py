@@ -169,13 +169,13 @@ class CheckSeries(Library):
 			try:
 				_series = self.Series.search(title=_show_name, rtn=object)
 				if _series.status == 'Continuing' or self.args.all_shows:
-					_series.seasons = 'min'
+					_series.seasons = 'Load'
 				else:
 					continue
 				if _series.seasons is None:
 					raise SeriesNotFound
 			except (SeriesNotFound), msg:
-				print('Series Not Found, Skipping: {}'.format(_show_name))
+				print('\nSeries Not Found, Skipping: {}'.format(_show_name))
 				log.error('Series Not Found, Skipping: {}'.format(_show_name))
 				continue
 
@@ -205,8 +205,10 @@ class CheckSeries(Library):
 				_total_missing += len(_missing_episodes)
 			message = "Missing %3i episode(s) - SERIES: %-35.35s" % (_total_missing, _show_name)
 			if _total_missing > 0:
+				print('  {}'.format(message))
 				log.warning(message)
 			else:
+				print('  {}'.format(message))
 				log.verbose(message)
 
 			season_message = "         Season: {}  Episode: ALL"
@@ -216,6 +218,7 @@ class CheckSeries(Library):
 				_episodes = _series.seasons[_season_number].episodes
 				_season_num_msg = "S%2.2d" % key
 				if len(val) == len(_episodes):
+#					print(season_message.format(_season_num_msg))
 					log.warning(season_message.format(_season_num_msg))
 				else:
 					for _ep_no in sorted(val):
@@ -225,6 +228,10 @@ class CheckSeries(Library):
 							_first_aired = _episode.first_aired
 						else:
 							_first_aired = "Unknown"
+#						print(message.format(key,
+#											 _ep_no,
+#											 _first_aired,
+#											 _decode(_episode.title)))
 						log.warning(message.format(key,
 												 _ep_no,
 												 _first_aired,

@@ -35,15 +35,15 @@ __credits__ = []
 
 log = logging.getLogger(__pgmname__)
 
-def useLibraryLogging(func):
-	def wrapper(self, *args, **kw):
-		# Set the library name in the logger
-		logger.set_library(self.contentType)
-		try:
-			return func(self, *args, **kw)
-		finally:
-			logger.set_library('')
-	return wrapper
+# def useLibraryLogging(func):
+# 	def wrapper(self, *args, **kw):
+# 		# Set the library name in the logger
+# 		logger.set_library(self.contentType)
+# 		try:
+# 			return func(self, *args, **kw)
+# 		finally:
+# 			logger.set_library('')
+# 	return wrapper
 
 class Distribute(Library):
 
@@ -92,7 +92,7 @@ class Distribute(Library):
 		self.RAR_RE = re.compile(r"\.([rR][aA][rR]|[rR]\d{2,3})$")
 		self.RAR_PART_RE = re.compile(r"\.part\d{2,3}\.rar$")
 
-	@useLibraryLogging
+#	@useLibraryLogging
 	def distribute(self, pathname):
 		log.trace('ProcessFile: %s' % pathname)
 
@@ -116,7 +116,7 @@ class Distribute(Library):
 		else:
 			raise InvalidFilename('Content Type can not be determined due to naming convention: Skipped')
 
-	@useLibraryLogging
+#	@useLibraryLogging
 	def distributeFile(self, sourceFile):
 		log.trace('distributeFile: %s %s' % (self.contentType, sourceFile))
 		""" Move or copy a single file.
@@ -126,7 +126,7 @@ class Distribute(Library):
 			log.verbose("Ignoring %r!" % (sourceFile))
 			return
 
-		if os.path.splitext(sourceFile)[1][1:] not in self.settings.MediaExt:
+		if os.path.splitext(sourceFile)[1][1:].lower() not in self.settings.MediaExt:
 			log.verbose("Ignoring %r!" % (sourceFile))
 			return
 
@@ -187,7 +187,7 @@ class Distribute(Library):
 
 		return
 
-	@useLibraryLogging
+#	@useLibraryLogging
 	def distributeDirectory(self, sourceDirectory):
 		""" Move or copy a folder.
 		"""
@@ -274,6 +274,10 @@ class Distribute(Library):
 			_destinationDir = os.path.dirname(unpackFileList[0][len(self.settings.DownloadDir)+1:])
 		elif unpackFileList[0][:len(self.settings.DownloadMovies)] == self.settings.DownloadMovies:
 			_destinationDir = os.path.dirname(unpackFileList[0][len(self.settings.DownloadMovies)+1:])
+			self.args.content = 'Movies'
+		elif unpackFileList[0][:len(self.settings.DownloadSeries)] == self.settings.DownloadSeries:
+			_destinationDir = os.path.dirname(unpackFileList[0][len(self.settings.DownloadMovies)+1:])
+			self.args.content = 'Series'
 		else:
 			raise UnexpectedErrorOccured(unpackFileList[0])
 
@@ -357,7 +361,7 @@ class Distribute(Library):
 
 		return
 
-	@useLibraryLogging
+#	@useLibraryLogging
 	def _clean_names(self, destinationDir):
 		# map ugly scene short names to original directory name
 		# get common prefix of unpacked media files

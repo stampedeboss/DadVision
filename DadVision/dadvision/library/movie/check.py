@@ -5,13 +5,15 @@ Purpose:
      Scan Movie Library and report any possible issues discovered
 '''
 
-from library import Library
-from common import logger
-from common.countfiles import countFiles
 import fnmatch
 import logging
 import os
 import sys
+
+from library import Library
+from common import logger
+from common.countfiles import countFiles
+
 
 __pgmname__ = 'library.movie.check'
 __version__ = '@version: $Rev$'
@@ -34,7 +36,9 @@ class Check(Library):
 
     def check(self, pathname):
         _files_checked = 0
-        _total_files = countFiles(pathname, exclude_list=(self.settings.ExcludeList + self.settings.ExcludeScanList), types=self.settings.MediaExt)
+        _total_files = countFiles(pathname,
+                                  exclude_list=(self.settings.ExcludeList + self.settings.ExcludeScanList),
+                                  types=self.settings.MediaExt)
 
         log.info("==== Begin Scan: {} ====".format(pathname))
 
@@ -72,7 +76,7 @@ class Check(Library):
                 _number_of_formats += 1
 
             if _number_of_formats > 1:
-                log.info('Possible DUps Found: {}'.format(_root))
+                log.info('Possible Dups Found: {}'.format(_root))
                 for _file in _file_names:
                     log.info('    FileName: {}'.format(_file))
 
