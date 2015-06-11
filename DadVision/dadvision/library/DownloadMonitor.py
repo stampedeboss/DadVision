@@ -8,18 +8,20 @@ Purpose:
 	Subject matter is arranged in the following categories:
 		Series, Movies, or Other/Unknown
 """
+import logging
+import os
+import sys
+import traceback
+
+from pyinotify import IN_CREATE, IN_MOVED_TO
+import pyinotify
+
 from library import Library
 from common import logger
 from common.daemon import Daemon
 from common.exceptions import ConfigValueError
 from library.distribute import Distribute
-from logging import INFO, WARNING, ERROR, DEBUG
-from pyinotify import IN_CREATE, IN_MOVED_TO
-import logging
-import os
-import pyinotify
-import sys
-import traceback
+
 
 TRACE = 5
 VERBOSE = 15
@@ -68,6 +70,8 @@ class MyDaemon(Daemon):
 			log.info('Watching Directory: %s' % library.settings.DownloadDir)
 			DownloadDir2 = self.watchManager.add_watch(library.settings.DownloadMovies, self.mask, rec=True)
 			log.info('Watching Directory: %s' % library.settings.DownloadMovies)
+			DownloadDir3 = self.watchManager.add_watch(library.settings.DownloadSeries, self.mask, rec=True)
+			log.info('Watching Directory: %s' % library.settings.DownloadSeries)
 
 			if library.args.loglevel not in ['DEBUG', 'TRACE']:
 				try:
