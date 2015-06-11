@@ -278,10 +278,7 @@ class Distribute(Library):
 	def _unpackDirectory(self, unpackFileList):
 
 		self._setContentType(unpackFileList[0])
-		print self.contentType
-		print unpackFileList[0][:len(self.settings.DownloadDir)]
-		print unpackFileList[0][:len(self.settings.DownloadMovies)]
-		print unpackFileList[0][:len(self.settings.DownloadSeries)] == self.settings.DownloadSeries:
+
 		if unpackFileList[0][:len(self.settings.DownloadDir)] == self.settings.DownloadDir:
 			_destinationDir = os.path.dirname(unpackFileList[0][len(self.settings.DownloadDir)+1:])
 		elif unpackFileList[0][:len(self.settings.DownloadMovies)] == self.settings.DownloadMovies:
@@ -291,6 +288,11 @@ class Distribute(Library):
 		else:
 			_destinationDir = 'UNKNOWN'
 #			raise UnexpectedErrorOccured(unpackFileList[0])
+
+		print self.contentType
+		print unpackFileList[0][:len(self.settings.DownloadDir)]
+		print unpackFileList[0][:len(self.settings.DownloadMovies)]
+		print unpackFileList[0][:len(self.settings.DownloadSeries)]
 
 		print _destinationDir
 
