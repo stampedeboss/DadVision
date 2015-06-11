@@ -57,7 +57,7 @@ class Distribute(Library):
 			action="store_const", const="Series",
 			help="Process as Series")
 		dist1.add_argument("-m", "--movies", dest="content",
-			action="store_const", const="Movie",
+			action="store_const", const="Movies",
 			help="Process as Movies")
 		dist1.add_argument("-n", "--non-video", dest="content",
 			action="store_const", const="NonVideo",
@@ -137,7 +137,7 @@ class Distribute(Library):
 
 		if self.contentType == "Series":
 			_destinationDir = self.settings.NewSeriesDir
-		elif self.contentType == "Movie":
+		elif self.contentType == "Movies":
 			_destinationDir = self.settings.NewMoviesDir
 		else:
 			_destinationDir = self.settings.UnpackDir
@@ -178,7 +178,7 @@ class Distribute(Library):
 		try:
 			if self.contentType == "Series":
 				self.rename_series.renameFile(_distributedFile)
-			elif self.contentType == "Movie":
+			elif self.contentType == "Movies":
 				self.rename_movies.renameMovie(_distributedFile)
 		except:
 			an_error = traceback.format_exc()
@@ -233,8 +233,8 @@ class Distribute(Library):
 		if self.args.content:
 			if self.args.content == 'Series':
 				self.contentType = "Series"
-			elif self.args.content == "Movie":
-				self.contentType = "Movie"
+			elif self.args.content == "Movies":
+				self.contentType = "Movies"
 			else:
 				self.contentType = "NonVideo"
 			return
@@ -248,7 +248,7 @@ class Distribute(Library):
 			self.contentType = "Series"
 			return
 		elif _guessit_info['type'] == 'movie':
-			self.contentType = 'Movie'
+			self.contentType = 'Movies'
 			return
 
 		_file_name = os.path.basename(pathname)
@@ -262,7 +262,7 @@ class Distribute(Library):
 				return
 
 		if any(pathname.lower().count(key) > 0 for key in self.settings.MovieGlob):
-			self.contentType = "Movie"
+			self.contentType = "Movies"
 			return
 		else:
 			self.contentType = "NonVideo"
@@ -284,7 +284,7 @@ class Distribute(Library):
 		if self.args.content:
 			if self.args.content == 'Series':
 				_type = "series"
-			elif self.args.content == "Movie":
+			elif self.args.content == "Movies":
 				_type = "movies"
 			else:
 				_type = "unpack"
@@ -293,7 +293,7 @@ class Distribute(Library):
 			if _guessit_info:
 				if _guessit_info['type'] == 'episode':
 					_type = "series"
-				elif _guessit_info['type'] == 'movie':
+				elif _guessit_info['type'] == 'movies':
 					_type = "movies"
 				else:
 					_type = "unpack"
@@ -331,8 +331,8 @@ class Distribute(Library):
 		try:
 			if _type == "series":
 				self.rename_series.renameSeries(_destinationDir)
-			elif _type == "movie":
-				self.rename_movies.renameSeries(_destinationDir)
+			elif _type == "movies":
+				self.rename_movies.renameMovie(_destinationDir)
 		except:
 			an_error = traceback.format_exc()
 			log.error(traceback.format_exception_only(type(an_error), an_error)[-1])
