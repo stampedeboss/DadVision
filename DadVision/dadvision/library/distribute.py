@@ -278,6 +278,7 @@ class Distribute(Library):
 	def _unpackDirectory(self, unpackFileList):
 
 		self._setContentType(unpackFileList[0])
+		print self.contentType
 		if unpackFileList[0][:len(self.settings.DownloadDir)] == self.settings.DownloadDir:
 			_destinationDir = os.path.dirname(unpackFileList[0][len(self.settings.DownloadDir)+1:])
 		elif unpackFileList[0][:len(self.settings.DownloadMovies)] == self.settings.DownloadMovies:
