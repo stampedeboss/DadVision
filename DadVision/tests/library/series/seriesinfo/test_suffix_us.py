@@ -38,6 +38,7 @@ class KnownValues(unittest.TestCase):
 				'The Americans (2013)': 261690,
 				'The Bridge (2013)': 264085,
 				'The Newsroom (2012)': 256227,
+				'The Twilight Zone': 73587,
 				'Zero Hour (2013)': 258773,
 	}
 
@@ -434,6 +435,11 @@ class SeriesInfoSuffix(unittest.TestCase):
 		KnownValues.SeriesData = {'SeriesName': "SYTYCD"}
 		self.assertEqual(self.library.getShowInfo(KnownValues.SeriesData)['tvdb_id'],
 						 KnownValues.TVDB_ID["So You Think You Can Dance"])
+
+	def test_suffix_us_and_year_350(self):
+		KnownValues.SeriesData = {'SeriesName': "The Twilight Zone"}
+		self.assertEqual(self.library.getShowInfo(KnownValues.SeriesData)['tvdb_id'],
+						 KnownValues.TVDB_ID["The Twilight Zone"])
 
 
 	def theSuite(self):
