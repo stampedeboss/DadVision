@@ -623,7 +623,7 @@ if __name__ == "__main__":
     log_level = logging.getLevelName(library.args.loglevel.upper())
 
     if library.args.logfile == 'daddyvision.log':
-        log_file = '{}.log'.format(__pgmname__)
+        log_file = '{}.log'.format('check_series')
     else:
         log_file = os.path.expanduser(library.args.logfile)
 
@@ -631,7 +631,7 @@ if __name__ == "__main__":
     if not os.path.isabs(log_file):
         log_file = os.path.join(logger.LogDir, log_file)
 
-    logger.start(log_file, log_level, timed=True)
+    logger.start(log_file, log_level, timed=False)
 
     if library.args.no_excludes:
         library.settings.ExcludeScanList = []

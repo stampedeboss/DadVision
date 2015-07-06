@@ -99,7 +99,7 @@ if __name__ == '__main__':
     log_level = logging.getLevelName(Library.args.loglevel.upper())
 
     if Library.args.logfile == 'daddyvision.log':
-        log_file = '{}.log'.format(__pgmname__)
+        log_file = '{}.log'.format('check_movie')
     else:
         log_file = os.path.expanduser(Library.args.logfile)
 
@@ -107,7 +107,7 @@ if __name__ == '__main__':
     if not os.path.isabs(log_file):
         log_file = os.path.join(logger.LogDir, log_file)
 
-    logger.start(log_file, log_level, timed=True)
+    logger.start(log_file, log_level, timed=False)
 
     _lib_paths = Library.args.library
 
