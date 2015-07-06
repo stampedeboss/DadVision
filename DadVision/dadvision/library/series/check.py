@@ -174,6 +174,8 @@ class CheckSeries(Library):
                     continue
                 if _series.seasons is None:
                     raise SeriesNotFound
+            except KeyboardInterrupt:
+                sys.exit(99)
             except (SeriesNotFound), msg:
                 print('\nSeries Not Found, Skipping: {}'.format(_show_name))
                 log.error('Series Not Found, Skipping: {}'.format(_show_name))
@@ -198,6 +200,8 @@ class CheckSeries(Library):
                     try:
                         if _episode.number not in DadVision[_season.number]:
                             raise KeyError
+                    except KeyboardInterrupt:
+                        sys.exit(99)
                     except KeyError:
                         _episode.getDetails()
                         if not _episode.first_aired:
