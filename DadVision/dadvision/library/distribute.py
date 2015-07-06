@@ -59,7 +59,7 @@ class Distribute(Library):
         dist1.add_argument("-m", "--movies", dest="content",
             action="store_const", const="Movies",
             help="Process as Movies")
-        dist1.add_argument("-n", "--non-video", "--nv", dest="content",
+        dist1.add_argument("-n", "--non-video", dest="content",
             action="store_const", const="NonVideo",
             help="Process as Non-Video")
 
@@ -70,7 +70,7 @@ class Distribute(Library):
         dist2.add_argument("--no-ignore", "--ni", dest="ignore",
             action="store_false", default=True,
             help="Process all files, Ignore nothing")
-        dist2.add_argument("--no-movies", "--nm", dest="suppress_movies",
+        dist2.add_argument("--no-movies", dest="suppress_movies",
             action="store_true", default=False,
             help="Do Not Process Movie files")
         dist2.add_argument("--no-rename", "--nr", dest="rename",
