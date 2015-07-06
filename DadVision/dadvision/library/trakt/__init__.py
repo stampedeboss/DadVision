@@ -36,161 +36,161 @@ userid = 'stampedeboss'
 
 def getBase(url, userid=userid, authorization=authorization, rtn=dict):
 
-	from library.series import Series
-	from library.movie import Movie
+    from library.series import Series
+    from library.movie import Movie
 
-	headers = {
-	  'Content-Type': 'application/json',
-	  'trakt-api-version': '2',
-	  'trakt-api-key': client_id,
-	  'Authorization': authorization
-	}
+    headers = {
+      'Content-Type': 'application/json',
+      'trakt-api-version': '2',
+      'trakt-api-key': client_id,
+      'Authorization': authorization
+    }
 
-	request = Request(url, headers=headers)
-	try:
-		response_body = urlopen(request).read()
-	except HTTPError, e:
-		return e
-	data = json.loads(response_body.decode('UTF-8', 'ignore'))
+    request = Request(url, headers=headers)
+    try:
+        response_body = urlopen(request).read()
+    except HTTPError, e:
+        return e
+    data = json.loads(response_body.decode('UTF-8', 'ignore'))
 
-	if rtn == str:
-		return data
-	elif rtn is dict:
-		_list = {}
-	elif rtn is list:
-		_list = []
-	else:
-		raise UnexpectedErrorOccured('Invalid rtn object type requested')
+    if rtn == str:
+        return data
+    elif rtn is dict:
+        _list = {}
+    elif rtn is list:
+        _list = []
+    else:
+        raise UnexpectedErrorOccured('Invalid rtn object type requested')
 
-	for entry in data:
-		if 'type' in entry:
-			if entry['type'] in [u'show', u'episode']:
-				_object = Series(**entry)
-			elif entry['type'] == u'movie':
-				_object = Movie(**entry)
-			else:
-				sys.exit(99)
-		elif 'show' in entry:
-			_object = Series(**entry)
-		elif 'movie' in entry:
-			_object = Movie(**entry['movie'])
-		else:
-			_object = Series(**data)
-			if type(_list) is dict:
-				_list[_object.title] = _object
-			else:
-				_list.append(_object)
-			return _list
+    for entry in data:
+        if 'type' in entry:
+            if entry['type'] in [u'show', u'episode']:
+                _object = Series(**entry)
+            elif entry['type'] == u'movie':
+                _object = Movie(**entry)
+            else:
+                sys.exit(99)
+        elif 'show' in entry:
+            _object = Series(**entry)
+        elif 'movie' in entry:
+            _object = Movie(**entry['movie'])
+        else:
+            _object = Series(**data)
+            if type(_list) is dict:
+                _list[_object.title] = _object
+            else:
+                _list.append(_object)
+            return _list
 
-		if rtn is dict:
-			_list[_object.title] = _object
-		else:
-			_list.append(_object)
+        if rtn is dict:
+            _list[_object.title] = _object
+        else:
+            _list.append(_object)
 
-	return _list
+    return _list
 
 def postBase(_url, userid=userid, authorization=authorization, entries=None):
 
-	from library.series import Series
+    from library.series import Series
 
-	if entries is None:
-		return 'No Data'
+    if entries is None:
+        return 'No Data'
 
-	_list = {'shows': [], 'movies': []}
-	for entry in entries:
-		if hasattr(entry, 'ids'):
-			show_entry = entry.ids
-		else:
-			show_entry = {}
-			if hasattr(entry, 'imdb_id'):
-				show_entry['imdb'] = entry.imdb_id
-			if hasattr(entry, 'tmdb_id'):
-				show_entry['tmdb'] = entry.tmdb_id
-			if hasattr(entry, 'trakt_id'):
-				show_entry['trakt'] = entry.trakt_id
+    _list = {'shows': [], 'movies': []}
+    for entry in entries:
+        if hasattr(entry, 'ids'):
+            show_entry = entry.ids
+        else:
+            show_entry = {}
+            if hasattr(entry, 'imdb_id'):
+                show_entry['imdb'] = entry.imdb_id
+            if hasattr(entry, 'tmdb_id'):
+                show_entry['tmdb'] = entry.tmdb_id
+            if hasattr(entry, 'trakt_id'):
+                show_entry['trakt'] = entry.trakt_id
 
-		if type(entry) is Series:
-			_list['shows'].append({'ids': show_entry})
-		else:
-			_list['movies'].append({'ids': entry.ids})
+        if type(entry) is Series:
+            _list['shows'].append({'ids': show_entry})
+        else:
+            _list['movies'].append({'ids': entry.ids})
 
-	if len(_list['shows']) == 0:
-		del _list['shows']
+    if len(_list['shows']) == 0:
+        del _list['shows']
 
-	if len(_list['movies']) == 0:
-		del _list['movies']
+    if len(_list['movies']) == 0:
+        del _list['movies']
 
-	json_data = json.dumps(_list)
-	clen = len(json_data)
+    json_data = json.dumps(_list)
+    clen = len(json_data)
 
-	headers = {
-				'Content-Type': 'application/json',
-				'trakt-api-version': '2',
-				'trakt-api-key': client_id,
-				'Authorization': authorization,
-				'Content-Length': clen
-			}
+    headers = {
+                'Content-Type': 'application/json',
+                'trakt-api-version': '2',
+                'trakt-api-key': client_id,
+                'Authorization': authorization,
+                'Content-Length': clen
+            }
 
-	request = Request(_url, data=json_data, headers=headers)
-	try:
-		response_body = urlopen(request).read()
-	except HTTPError, e:
-		return e
-	data = json.loads(response_body.decode('UTF-8', 'ignore'))
+    request = Request(_url, data=json_data, headers=headers)
+    try:
+        response_body = urlopen(request).read()
+    except HTTPError, e:
+        return e
+    data = json.loads(response_body.decode('UTF-8', 'ignore'))
 
-	return data
+    return data
 
 def modifyBase(url, userid=userid, authorization=authorization, entries=None, entrytype=None):
 
-	from library.series import Series
-	from library.movie import Movie
+    from library.series import Series
+    from library.movie import Movie
 
-	if entries is None:
-		return 'No Data'
+    if entries is None:
+        return 'No Data'
 
-	if entrytype is None:
-		entrytype = type(entries[0])
-		if entrytype == Movie:
-			entrytype = 'movies'
-		elif entrytype == Series:
-			entrytype = 'shows'
+    if entrytype is None:
+        entrytype = type(entries[0])
+        if entrytype == Movie:
+            entrytype = 'movies'
+        elif entrytype == Series:
+            entrytype = 'shows'
 
-	_list = []
-	for entry in entries:
-		if hasattr(entry, 'ids'):
-			_list.append({'ids': entry.ids})
-		else:
-			show_entry = {}
-			if entry.imdb_id:
-				show_entry['imdb'] = entry.imdb_id
-			if entry.tmdb_id:
-				show_entry['tmdb'] = entry.tmdb_id
-			if entry.tvdb_id:
-				show_entry['tvdb'] = entry.tvdb_id
-			if entry.tvrage_id:
-				show_entry['tvrage'] = entry.tvrage_id
-			_list.append({'ids': show_entry})
+    _list = []
+    for entry in entries:
+        if hasattr(entry, 'ids'):
+            _list.append({'ids': entry.ids})
+        else:
+            show_entry = {}
+            if entry.imdb_id:
+                show_entry['imdb'] = entry.imdb_id
+            if entry.tmdb_id:
+                show_entry['tmdb'] = entry.tmdb_id
+            if entry.tvdb_id:
+                show_entry['tvdb'] = entry.tvdb_id
+            if entry.tvrage_id:
+                show_entry['tvrage'] = entry.tvrage_id
+            _list.append({'ids': show_entry})
 
-	if entrytype == 'shows':
-		json_data = json.dumps({'shows': _list})
-	else:
-		json_data = json.dumps({'movies': _list})
+    if entrytype == 'shows':
+        json_data = json.dumps({'shows': _list})
+    else:
+        json_data = json.dumps({'movies': _list})
 
-	clen = len(json_data)
+    clen = len(json_data)
 
-	headers = {
-				'Content-Type': 'application/json',
-				'trakt-api-version': '2',
-				'trakt-api-key': client_id,
-				'Authorization': authorization,
-				'Content-Length': clen
-			}
+    headers = {
+                'Content-Type': 'application/json',
+                'trakt-api-version': '2',
+                'trakt-api-key': client_id,
+                'Authorization': authorization,
+                'Content-Length': clen
+            }
 
-	request = Request(url, data=json_data, headers=headers)
-	try:
-		response_body = urlopen(request).read()
-	except HTTPError, e:
-		return e
-	data = json.loads(response_body.decode('UTF-8', 'ignore'))
+    request = Request(url, data=json_data, headers=headers)
+    try:
+        response_body = urlopen(request).read()
+    except HTTPError, e:
+        return e
+    data = json.loads(response_body.decode('UTF-8', 'ignore'))
 
-	return data
+    return data
