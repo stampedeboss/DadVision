@@ -321,7 +321,7 @@ class Distribute(Library):
             _cleanupfilesCreated = False
 
         try:
-            if rename:
+            if self.args.rename:
                 if self.contentType == "Series":
                     self.rename_series.renameSeries(_destinationDir)
                 elif self.contentType == "Movies":
