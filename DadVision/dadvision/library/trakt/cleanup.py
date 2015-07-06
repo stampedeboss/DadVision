@@ -412,7 +412,7 @@ class CleanUp(Library):
 
         if _new_shows:
             for _entry in _new_shows:
-                log.info('Adding: {}'.format(_entry.title))
+                log.info('Adding to StdShows: {}'.format(_entry.title))
             _rc = addToList(self.args.TraktUserID,
                             self.args.TraktAuthorization,
                             list='stdshows', entries=_new_shows)
@@ -424,14 +424,14 @@ class CleanUp(Library):
 
         if _newly_collected:
             for _entry in _newly_collected:
-                log.info('Adding: {}'.format(_entry.title))
-            _rc = addCollection(self.args.TraktUserID,
+                log.info('Adding to Collection: {}'.format(_entry.title))
+            _rc = addToCollection(self.args.TraktUserID,
                             self.args.TraktAuthorization,
                             entries=_newly_collected)
 
-            log.info('New Shows Added: {}  Existed: {}  Not Found: {}'.format(_rc['added']['shows'],
-                                                                              _rc['existing']['shows'],
-                                                                              _rc['not_found']['shows']))
+            log.info('New Episodes Added: {}  Existed: {}  Not Found: {}'.format(_rc['added']['episodes'],
+                                                                              _rc['existing']['episodes'],
+                                                                              _rc['not_found']['episodes']))
 
         return
 
