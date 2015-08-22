@@ -110,7 +110,7 @@ class RenameSeries(Library):
             log.debug("Directory: %s" % os.path.split(pathname)[0])
             log.debug("Filename:  %s" % os.path.split(pathname)[1])
             try:
-                self.renameFile(pathname)
+                self.renameFile(os.path.realpath(pathname))
             except (SeriesNotFound, SeasonNotFound, EpisodeNotFound), msg:
                 an_error = traceback.format_exc()
                 log.verbose(traceback.format_exception_only(type(an_error), an_error)[-1])
