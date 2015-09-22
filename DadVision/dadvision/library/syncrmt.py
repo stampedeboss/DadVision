@@ -69,8 +69,8 @@ class SyncLibrary(Library):
             action="store_const", const="goofy",
             help="Sync Goofy for Kim")
         sync1.add_argument("-p", "--pooh", dest="hostname",
-            action="store_const", const="jude",
-            help="Sync Jude for Daniel")
+            action="store_const", const="pooh",
+            help="Sync Pooh for Michelle")
         sync1.add_argument("-l", "--pluto", dest="hostname",
             action="store_const", const="pluto",
             help="Sync Pluto for Ben and Mac")
