@@ -71,10 +71,10 @@ class getToken(Library):
         trakt_auth_group.add_argument("-g", "--goofy", dest="HostName",
             action="append_const", const="goofy",
             help="Entries for Goofy")
-        trakt_auth_group.add_argument("-e", "--eeyore", dest="HostName",
-            action="append_const", const="eeyore",
+        trakt_auth_group.add_argument("-p", "--pooh", dest="HostName",
+            action="append_const", const="pooh",
             help="Entries for Eeore")
-        trakt_auth_group.add_argument("-p", "--pluto", dest="HostName",
+        trakt_auth_group.add_argument("-l", "--pluto", dest="HostName",
             action="append_const", const="pluto",
             help="Entries for Pluto")
 
