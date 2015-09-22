@@ -91,7 +91,7 @@ class getToken(Library):
                                        "local",
                                        "etc",
                                        "daddyvision",
-                                       'settings.cfg.new')
+                                       'settings.cfg')
 
 
     def ProcessRequest(self):
