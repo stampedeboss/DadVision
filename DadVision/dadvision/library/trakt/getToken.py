@@ -141,6 +141,7 @@ class getToken(Library):
                 log.error(e)
                 return e
 
+            data = json.loads(response_body.decode('UTF-8', 'ignore'))
             hostConfig['TraktToken'] = data
             config.write()
 
