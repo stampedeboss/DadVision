@@ -1,13 +1,12 @@
 # -*- coding: UTF-8 -*-
 '''
-	Initialization Routine for common
+    Initialization Routine for common
 
-	Routine is call on any import of a module in the library
+    Routine is call on any import of a module in the library
 
 '''
 from common.settings import Settings
 from common.cmdoptions import CmdOptions
-import sys
 
 __pgmname__     = 'common.__init__'
 __version__     = '@version: $Rev$'

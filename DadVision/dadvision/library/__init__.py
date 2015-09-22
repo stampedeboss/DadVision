@@ -6,8 +6,7 @@
 
 '''
 
-from common.settings import Settings
-from common.cmdoptions import CmdOptions
+from common import Common
 
 __pgmname__     = 'library.__init__'
 __version__     = '@version: $Rev$'
@@ -23,8 +22,8 @@ __credits__     = []
 
 class Library(object):
 
-    settings = Settings()
-    options = CmdOptions()
+    settings = Common.settings
+    options = Common.options
     args = {}
 
     def __init__(self):
