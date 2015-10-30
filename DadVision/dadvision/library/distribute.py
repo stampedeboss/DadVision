@@ -104,11 +104,11 @@ class Distribute(Library):
         #TODO: Check to ensure request within DadVision Scope
         if os.path.isfile(pathname):
             log.trace("file - %r..." % (pathname))
-            self.distributeFile(pathname)
+            self.distributeFile(os.path.realpath(os.path.abspath(pathname)))
         elif os.path.isdir(pathname):
             log.trace("directory ...%r" % (os.path.basename(pathname)))
             try:
-                self.distributeDirectory(pathname)
+                self.distributeDirectory(os.path.realpath(os.path.abspath(pathname)))
             except KeyboardInterrupt:
                 sys.exit(8)
             except:
@@ -283,29 +283,14 @@ class Distribute(Library):
 
         self._setContentType(unpackFileList[0])
 
-        if self.contentType == 'Series':
-            _destinationDir = os.path.join(self.settings.SeriesDir,
-                                           self.settings.NewSeriesDir,
-                                           os.path.basename(os.path.dirname(unpackFileList[0]))
-                                            )
-        elif self.contentType == 'Movies':
-            _destinationDir = os.path.join(self.settings.MoviesDir,
-                                           self.settings.NewMoviesDir,
-                                           os.path.basename(os.path.dirname(unpackFileList[0]))
-                                            )
-        else: _destinationDir = os.path.join(self.settings.UnpackDir,
-                                             'UNKNOWN',
-                                             os.path.basename(os.path.dirname(unpackFileList[0]))
-                                            )
-
-#        if unpackFileList[0][:len(self.settings.DownloadDir)] == self.settings.DownloadDir:
-#            _destinationDir = os.path.dirname(unpackFileList[0][len(self.settings.DownloadDir)+1:])
-#        elif unpackFileList[0][:len(self.settings.DownloadMovies)] == self.settings.DownloadMovies:
-#            _destinationDir = os.path.dirname(unpackFileList[0][len(self.settings.DownloadMovies)+1:])
-#        elif unpackFileList[0][:len(self.settings.DownloadSeries)] == self.settings.DownloadSeries:
-#            _destinationDir = os.path.dirname(unpackFileList[0][len(self.settings.DownloadMovies)+1:])
-#        else:
-#            _destinationDir = 'UNKNOWN'
+        if unpackFileList[0][:len(self.settings.DownloadDir)] == self.settings.DownloadDir:
+            _destinationDir = os.path.dirname(unpackFileList[0][len(self.settings.DownloadDir)+1:])
+        elif unpackFileList[0][:len(self.settings.DownloadMovies)] == self.settings.DownloadMovies:
+            _destinationDir = os.path.dirname(unpackFileList[0][len(self.settings.DownloadMovies)+1:])
+        elif unpackFileList[0][:len(self.settings.DownloadSeries)] == self.settings.DownloadSeries:
+            _destinationDir = os.path.dirname(unpackFileList[0][len(self.settings.DownloadMovies)+1:])
+        else:
+            _destinationDir = 'UNKNOWN'
 
         if self.contentType == 'Series': _destinationDir = os.path.join(self.settings.NewSeriesDir, _destinationDir)
         elif self.contentType == 'Movies': _destinationDir = os.path.join(self.settings.NewMoviesDir, _destinationDir)
