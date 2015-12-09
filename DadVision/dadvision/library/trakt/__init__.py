@@ -30,11 +30,10 @@ log = logging.getLogger(__pgmname__)
 
 client_id = '54d65f67401b045bc720ef109d4d05a107c0f5e28badf2f413f89f9bee514ae7'
 client_secret = '85f06b5b6d29265a8be4fa113bbaefb0dd58826cbfd4b85da9a709459a0cb9b1'
-authorization = 'Bearer a4313dbb0a9f3f87676c4517dad33982b567fed0bdd2e7296ea1750d157a9325'
-userid = 'stampedeboss'
 
 
-def getBase(url, userid=userid, authorization=authorization, rtn=dict):
+
+def getBase(url, userid='', authorization='', rtn=dict):
 
     from library.series import Series
     from library.movie import Movie
@@ -89,7 +88,7 @@ def getBase(url, userid=userid, authorization=authorization, rtn=dict):
 
     return _list
 
-def postBase(_url, userid=userid, authorization=authorization, entries=None):
+def postBase(_url, userid='', authorization='', entries=None):
 
     from library.series import Series
 
@@ -140,7 +139,7 @@ def postBase(_url, userid=userid, authorization=authorization, entries=None):
 
     return data
 
-def modifyBase(url, userid=userid, authorization=authorization, entries=None, entrytype=None):
+def modifyBase(url, userid='', authorization='', entries=None, entrytype=None):
 
     from library.series import Series
     from library.movie import Movie

@@ -29,7 +29,7 @@ __credits__ = []
 log = logging.getLogger(__pgmname__)
 
 
-def getCollection(userid=userid, authorization=authorization, entrytype='shows', rtn=dict):
+def getCollection(userid='', authorization='', entrytype='shows', rtn=dict):
 
 #	_url = 'https://api-v2launch.trakt.tv/users/{}/collection/{}?extended=full'.format(userid, entrytype)
     _url = 'https://api-v2launch.trakt.tv/sync/collection/{}?extended=full'.format(entrytype)
@@ -38,7 +38,7 @@ def getCollection(userid=userid, authorization=authorization, entrytype='shows',
 
     return _list
 
-def addToCollection(userid=userid, authorization=authorization, entries=None):
+def addToCollection(userid='', authorization='', entries=None):
 
     _url = 'https://api-v2launch.trakt.tv/sync/collection'
     data = postBase(_url, userid=userid, authorization=authorization, entries=entries)
@@ -46,7 +46,7 @@ def addToCollection(userid=userid, authorization=authorization, entries=None):
     return data
 
 
-def removeFromCollection(self, userid=userid, authorization=authorization, entries=None, entrytype=None):
+def removeFromCollection(userid='', authorization='', entries=None):
 
     _url = 'https://api-v2launch.trakt.tv/sync/collection/remove'
     data = postBase(_url, userid=userid, authorization=authorization, entries=entries)
@@ -54,49 +54,49 @@ def removeFromCollection(self, userid=userid, authorization=authorization, entri
     return data
 
 
-def getList(userid=userid, authorization=authorization, list='stdshows', rtn=dict):
+def getList(userid='', authorization='', list='stdshows', rtn=dict):
 
     _url = 'https://api-v2launch.trakt.tv/users/{}/lists/{}/items?extended=full'.format(userid, list)
     _list = getBase(_url, userid, authorization, rtn)
 
     return _list
 
-def getWatchList(userid=userid, authorization=authorization, entrytype='shows', rtn=dict):
+def getWatchList(userid='', authorization='', entrytype='shows', rtn=dict):
 
     _url = 'https://api-v2launch.trakt.tv/users/{}/watchlist/{}?extended=full'.format(userid, entrytype)
     _list = getBase(_url, userid, authorization, rtn)
 
     return _list
 
-def getWatched(userid=userid, authorization=authorization, entrytype='shows', rtn=dict):
+def getWatched(userid='', authorization='', entrytype='shows', rtn=dict):
 
     _url = 'https://api-v2launch.trakt.tv/users/{}/watched/{}?extended=full'.format(userid, entrytype)
     _list = getBase(_url, userid, authorization, rtn)
 
     return _list
 
-def addToList(userid=userid, authorization=authorization, list='stdshows', entries=None):
+def addToList(userid='', authorization='', list='stdshows', entries=None):
 
     _url = 'https://api-v2launch.trakt.tv/users/{}/lists/{}/items'.format(userid, list)
     data = postBase(_url, userid=userid, authorization=authorization, entries=entries)
 
     return data
 
-def removeFromWatchlist(userid=userid, authorization=authorization, entries=None):
+def removeFromWatchlist(userid='', authorization='', entries=None):
 
     _url = 'https://api-v2launch.trakt.tv/sync/watchlist/remove'
     data = postBase(_url, userid=userid, authorization=authorization, entries=entries)
 
     return data
 
-def removeFromList(userid=userid, authorization=authorization, list='stdshows', entries=None):
+def removeFromList(userid='', authorization='', list='stdshows', entries=None):
 
     _url = 'https://api-v2launch.trakt.tv/users/{}/lists/{}/items/remove'.format(userid, list)
     data = postBase(_url, userid=userid, authorization=authorization, entries=entries)
 
     return data
 
-def removeFromHistory(userid=userid, authorization=authorization, entries=None, entrytype=None):
+def removeFromHistory(userid='', authorization='', entries=None, entrytype=None):
 
     _url = 'https://api-v2launch.trakt.tv/sync/history/remove'
     data = postBase(_url, userid=userid, authorization=authorization, entries=entries)

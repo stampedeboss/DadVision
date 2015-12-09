@@ -124,10 +124,9 @@ class CleanUp(Library):
 
             log.info('Processing entires for: {}'.format(self.args.TraktUserID))
 
-            if hostname == 'grumpy':
-                self.cleanup_lists()
-
             if self.args.Clear == 'None':
+                if hostname == 'grumpy':
+                    self.cleanup_lists()
                 self.cleanup_shows()
                 self.cleanup_movies()
                 return
@@ -136,6 +135,8 @@ class CleanUp(Library):
 #					self.clear_shows()
             if 'movies' in self.args.Clear:
                 self.clear_movies()
+
+
         return
 
     def cleanup_shows(self):
@@ -281,7 +282,150 @@ class CleanUp(Library):
         return
 
 
+    def dir_check(self):
+
+        _collected = getCollection(self.args.TraktUserID,
+                                   self.args.TraktAuthorization,
+                                   entrytype='shows',
+                                  rtn=dict)
+        if type(_collected) == HTTPError:
+            log.error('Collected: Invalid Return Code - {}'.format(_collected))
+            sys.exit(99)
+
+        _trakt_top_shows = getList(self.args.TraktUserID,
+                                          self.args.TraktAuthorization,
+                                          list='topshows',
+                                          rtn=dict)
+        if type(_trakt_top_shows) == HTTPError:
+            log.error('Top Shows: Invalid Return Code - {}'.format(_trakt_top_shows))
+            sys.exit(99)
+
+        _trakt_std_shows = getList(self.args.TraktUserID,
+                                           self.args.TraktAuthorization,
+                                           list='stdshows',
+                                           rtn=dict)
+        if type(_trakt_std_shows) == HTTPError:
+            log.error('Std Shows: Invalid Return Code - {}'.format(_trakt_std_shows))
+            sys.exit(99)
+
+        #load entries to std-shows, exclude shows in top-shows and any that have ended
+        _remove_shows = []
+        _new_shows = []
+        _newly_collected = []
+
+        for _dir in tqdm(sorted(os.listdir(self.settings.SeriesDir)), desc='Check Lists'):
+
+            _entry = None
+            _rc = None
+            _show = None
+            _show_list = None
+
+            if _ignored(_dir): continue
+
+            if _dir in _collected:
+                if _dir in _trakt_top_shows or _dir in _trakt_std_shows:
+                    if _collected[_dir].status == 'Ended':
+                        _remove_shows.append(_collected[_dir])
+                elif _collected[_dir].status == 'Continuing':
+                    _new_shows.append(_collected[_dir])
+                del _collected[_dir]
+                continue
+
+            # Check Collected for Alternate Name
+            try:
+                _show_list = difflib.get_close_matches(_dir, _collected, 5, cutoff=0.6)
+                if len(_show_list) > 0:
+                    for _entry in _show_list:
+                        _show = self.db.get_series(_collected[_entry].tvdb_id, 'en')
+                        if _dir.lower() == decode(_show.SeriesName).lower():
+                            raise GetOutOfLoop
+            except error.TVDBIdError:
+                log.warning('Unable to locate Series in TVDB: {}'.format(_dir))
+                continue
+            except GetOutOfLoop:
+                if _show.Status in [u"Ended"]:
+                    if _entry in _trakt_top_shows or _entry in _trakt_std_shows:
+                        _remove_shows.append(_collected[_entry])
+                del _collected[_entry]
+                continue
+            except KeyError:  # NEW SHOW
+                pass
+
+            _show_list = getShow(_dir,
+                                list,
+                                self.args.TraktUserID,
+                                self.args.TraktAuthorization,
+                                )
+            if type(_show_list) == HTTPError:
+                log.warning('Unable to locate Series: {}'.format(_dir))
+                continue
+
+            try:
+                for _entry in _show_list:
+                    _show = self.db.get_series(_entry.tvdb_id, 'en')
+                    if _dir.lower() == decode(_show.SeriesName).lower():
+                        if _entry.status == 'Continuing':
+                            _new_shows.append(_entry)
+                        _newly_collected.append(_entry)
+                        break
+            except error.TVDBIdError:
+                log.error('TBDBIdError: Skipping - {}'.format(_show_list))
+                continue
+
+        if _new_shows:
+            for _entry in _new_shows:
+                log.info('Adding to StdShows: {}'.format(_entry.title))
+            _rc = addToList(self.args.TraktUserID,
+                            self.args.TraktAuthorization,
+                            list='stdshows', entries=_new_shows)
+
+            log.info('New Shows Added: {}  Existed: {}  Not Found: {}'.format(_rc['added']['shows'],
+                                                                              _rc['existing']['shows'],
+                                                                              _rc['not_found']['shows']))
+
+        if _newly_collected:
+            for _entry in _newly_collected:
+                log.info('Adding to Collection: {}'.format(_entry.title))
+            _rc = addToCollection(self.args.TraktUserID,
+                            self.args.TraktAuthorization,
+                            entries=_newly_collected)
+
+            log.info('New Episodes Added: {}  Existed: {}  Not Found: {}'.format(_rc['added']['episodes'],
+                                                                              _rc['existing']['episodes'],
+                                                                              _rc['not_found']['episodes']))
+
+        if _remove_shows:
+            for _entry in _remove_shows:
+                log.info('Removing: {}'.format(_entry.title))
+            _rc = removeFromList(self.args.TraktUserID,
+                                self.args.TraktAuthorization,
+                                list='topshows', entries=_remove_shows)
+
+            log.info('TopShows Removed: {}  Not Found: {}'.format(_rc['deleted']['shows'],
+                                                                  _rc['not_found']['shows']))
+
+            _rc = removeFromList(self.args.TraktUserID,
+                                self.args.TraktAuthorization,
+                                list='stdshows', entries=_remove_shows)
+
+            log.info('StdShows Removed: {}  Not Found: {}'.format(_rc['deleted']['shows'],
+                                                                  _rc['not_found']['shows']))
+
+        if _collected:
+            _remove_shows = []
+            for key, value in _collected.iteritems():
+                _remove_shows.append(value)
+
+            _rc = removeFromCollection(userid=self.args.TraktUserID,
+                                       authorization=self.args.TraktAuthorization,
+                                       entries=_remove_shows)
+            log.info(_rc)
+
+        return
+
     def cleanup_lists(self):
+
+        self.dir_check()
 
         _collected = getCollection(self.args.TraktUserID,
                                    self.args.TraktAuthorization,
@@ -335,103 +479,6 @@ class CleanUp(Library):
 
             log.info('StdShows Removed: {}  Not Found: {}'.format(_rc['deleted']['shows'],
                                                                   _rc['not_found']['shows']))
-
-            _trakt_top_shows = getList(self.args.TraktUserID,
-                                              self.args.TraktAuthorization,
-                                              list='topshows',
-                                              rtn=dict)
-            if type(_trakt_top_shows) == HTTPError:
-                log.error('Top Shows: Invalid Return Code - {}'.format(_trakt_top_shows))
-                sys.exit(99)
-
-            _trakt_std_shows = getList(self.args.TraktUserID,
-                                               self.args.TraktAuthorization,
-                                               list='stdshows',
-                                               rtn=dict)
-            if type(_trakt_std_shows) == HTTPError:
-                log.error('Std Shows: Invalid Return Code - {}'.format(_trakt_std_shows))
-                sys.exit(99)
-
-        #load entries to std-shows, exclude shows in top-shows and any that have ended
-        _remove_shows = []
-        _new_shows = []
-        _newly_collected = []
-
-        for _dir in tqdm(os.listdir(self.settings.SeriesDir), desc='Check Lists'):
-
-            _entry = None
-            _rc = None
-            _show = None
-            _show_list = None
-
-            if _ignored(_dir): continue
-
-            if _dir in _collected:
-                if _collected[_dir].status == 'Ended':
-                    if _dir in _trakt_top_shows or _dir in _trakt_std_shows:
-                        _remove_shows.append(_collected[_dir])
-                continue
-
-            # Check Collected for Alternate Name
-            try:
-                _show_list = difflib.get_close_matches(_dir, _collected, 5, cutoff=0.6)
-                if len(_show_list) > 0:
-                    for _entry in _show_list:
-                        _show = self.db.get_series(_collected[_entry].tvdb_id, 'en')
-                        if _dir.lower() == decode(_show.SeriesName).lower():
-                            raise GetOutOfLoop
-            except error.TVDBIdError:
-                continue
-            except GetOutOfLoop:
-                if _show.Status in [u"Ended"]:
-                    if _entry in _trakt_top_shows or _entry in _trakt_std_shows:
-                        _remove_shows.append(_collected[_entry])
-                continue
-            except KeyError:  # NEW SHOW
-                pass
-
-            _show_list = getShow(_dir,
-                                list,
-                                self.args.TraktUserID,
-                                self.args.TraktAuthorization,
-                                )
-            if type(_show_list) == HTTPError:
-                continue
-
-            try:
-                for _entry in _show_list:
-                    _show = self.db.get_series(_entry.tvdb_id, 'en')
-                    if _dir.lower() == decode(_show.SeriesName).lower():
-                        if _entry.status == 'Continuing':
-                            _new_shows.append(_entry)
-                        _newly_collected.append(_entry)
-                        break
-            except error.TVDBIdError:
-                log.error('TBDBIdError: Skipping - {}'.format(_show_list))
-                continue
-
-        if _new_shows:
-            for _entry in _new_shows:
-                log.info('Adding to StdShows: {}'.format(_entry.title))
-            _rc = addToList(self.args.TraktUserID,
-                            self.args.TraktAuthorization,
-                            list='stdshows', entries=_new_shows)
-
-            log.info('New Shows Added: {}  Existed: {}  Not Found: {}'.format(_rc['added']['shows'],
-                                                                              _rc['existing']['shows'],
-                                                                              _rc['not_found']['shows']))
-
-
-        if _newly_collected:
-            for _entry in _newly_collected:
-                log.info('Adding to Collection: {}'.format(_entry.title))
-            _rc = addToCollection(self.args.TraktUserID,
-                            self.args.TraktAuthorization,
-                            entries=_newly_collected)
-
-            log.info('New Episodes Added: {}  Existed: {}  Not Found: {}'.format(_rc['added']['episodes'],
-                                                                              _rc['existing']['episodes'],
-                                                                              _rc['not_found']['episodes']))
 
         return
 

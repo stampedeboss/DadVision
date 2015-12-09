@@ -34,8 +34,6 @@ __credits__ = []
 
 client_id = '54d65f67401b045bc720ef109d4d05a107c0f5e28badf2f413f89f9bee514ae7'
 client_secret = '85f06b5b6d29265a8be4fa113bbaefb0dd58826cbfd4b85da9a709459a0cb9b1'
-authorization = 'Bearer 23ce6843ef4296053b117ec9e37f4dc9b124cc4ed05c50556812014cc17effa6'
-userid = 'stampedeboss'
 
 log = logging.getLogger(__pgmname__)
 
@@ -44,7 +42,7 @@ from slugify import Slugify
 myslug = Slugify(pretranslate={"'": '_'}, translate=unidecode.unidecode, to_lower=True)
 
 
-def getShow(show, rtn=dict, userid=userid, authorization=authorization):
+def getShow(show, rtn=dict, userid='', authorization=''):
 
 	if type(show) in [str, unicode, dict]:
 		show = myslug(show)
@@ -54,7 +52,7 @@ def getShow(show, rtn=dict, userid=userid, authorization=authorization):
 
 	return _list
 
-def searchShow(show, year=None, rtn=dict, userid=userid, authorization=authorization):
+def searchShow(show, year=None, rtn=dict, userid='', authorization=''):
 
 	show = { 'query' : show, 'type': 'show'}
 	if year: show['year'] = year
@@ -67,7 +65,7 @@ def searchShow(show, year=None, rtn=dict, userid=userid, authorization=authoriza
 	return _list
 
 
-def getSeasons(trakt_id, rtn=dict, userid=userid, authorization=authorization):
+def getSeasons(trakt_id, rtn=dict, userid='', authorization=''):
 
 	_url = 'https://api-v2launch.trakt.tv/shows/{}/seasons?extended=episodes,full'.format(trakt_id)
 	_list = getBase(_url, userid, authorization, rtn)
@@ -75,7 +73,7 @@ def getSeasons(trakt_id, rtn=dict, userid=userid, authorization=authorization):
 	return _list
 
 
-def getEpisode(trakt_id, season, episode,rtn=str, userid=userid, authorization=authorization):
+def getEpisode(trakt_id, season, episode,rtn=str, userid='', authorization=''):
 
 	_url = 'https://api-v2launch.trakt.tv/shows/{}/seasons/{}/episodes/{}?extended=full'.format(trakt_id, season, episode)
 	_list = getBase(_url, userid, authorization, rtn)
