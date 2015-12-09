@@ -110,7 +110,7 @@ class CheckSeries(Library):
                                   action="store_true", default=False,
                                   help="Remove duplicate files that are found in the duplicate check")
         check_group1.add_argument("-d", "--days", dest="age_limit",
-                                  action="store", type=int, default=120,
+                                  action="store", type=int, default=180,
                                   help="Limit check back x number of days, default 30")
         check_group1.add_argument("-f", "--no-age-limit-requested", dest="age_limit",
                                   action="store_const", const=99999,
@@ -352,7 +352,10 @@ class CheckSeries(Library):
     def _handle_dups(self, dups):
 
         if self._trakt_top_shows is None:
-            self._trakt_top_shows = getList(list='topshows', rtn=dict)
+            self._trakt_top_shows = getList(list='topshows',
+                                            userid=self.settings.TraktUserID,
+                                            authorization=self.settings.TraktAuthorization,
+                                            rtn=dict)
             if type(self._trakt_top_shows) == HTTPError:
                 print('Collection: Invalid Return Code - {}'.format(self._trakt_top_shows))
                 log.error('Collection: Invalid Return Code - {}'.format(self._trakt_top_shows))
