@@ -57,7 +57,7 @@ or conditions of any kind, either express or implied.
 USAGE:
 ''' % (str(__date__))
 
-configdir = os.path.join(os.sep, "usr", "local", "etc", "daddyvision")
+configdir = os.path.join(os.sep, "usr", "local", "etc", "dadvision")
 ConfigDir = configdir
 ConfigFile = os.path.join(ConfigDir, '{}.cfg'.format(__pgmname__))
 host = socket.gethostname()
@@ -118,7 +118,6 @@ class Settings(object):
         self.DownloadMovies = hostConfig['DownloadMovies']
         self.DownloadSeries = hostConfig['DownloadSeries']
         self.TraktUserID = hostConfig['TraktUserID']
-        self.TraktPassWord = hostConfig['TraktPassWord']
         self.TraktAuthorization = hostConfig['TraktToken']['token_type'] + ' ' + hostConfig['TraktToken']['access_token']
 
         Program = self.config['Program']
@@ -198,7 +197,6 @@ class Settings(object):
         self.UnpackDir = hostConfig['UnpackDir']
         self.DownloadMovies = hostConfig['DownloadMovies']
         self.TraktUserID = hostConfig['TraktUserID']
-        self.TraktPassWord = hostConfig['TraktPassWord']
         self.TraktAuthorization = hostConfig['TraktToken']['token_type'] + ' ' + hostConfig['TraktToken']['access_token']
 
         Program = self.config['Program']
@@ -231,8 +229,7 @@ class Settings(object):
                           'DownloadDir': _HOSTNAME['DownloadDir'],
                           'UnpackDir': _HOSTNAME['UnpackDir'],
                           'DownloadMovies': _HOSTNAME['DownloadMovies'],
-                          'TraktUserID': _HOSTNAME['TraktUserID'],
-                          'TraktPassWord': _HOSTNAME['TraktPassWord']}
+                          'TraktUserID': _HOSTNAME['TraktUserID']}
             if 'TraktToken' in _HOSTNAME:
                 _token = _HOSTNAME['TraktToken']
                 if 'token_type' in _token and 'access_token' in _token:
