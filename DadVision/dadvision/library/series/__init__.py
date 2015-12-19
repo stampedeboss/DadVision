@@ -148,7 +148,6 @@ class Series(object):
 		self.titleType = None
 		self._title = value
 
-
 	@property
 	def slug(self):
 		"""The series slug."""

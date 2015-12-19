@@ -82,7 +82,7 @@ def getBase(url, userid='', authorization='', rtn=dict):
             return _list
 
         if rtn is dict:
-            _list[_object.title] = _object
+            _list[_object.slug] = _object
         else:
             _list.append(_object)
 

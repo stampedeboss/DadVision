@@ -125,6 +125,8 @@ class Settings(object):
         self.TraktAPIKey = Program['TraktClientID']
         self.TraktClientID = Program['TraktClientID']
         self.TraktClientSecret = Program['TraktClientSecret']
+        self.TraktFollowed = Program['TraktFollowed']
+        self.TraktFollowed720 = Program['TraktFollowed720']
 
         self.NewMoviesDir = os.path.join(self.MoviesDir, Program['NewDir'])
         self.NewSeriesDir = os.path.join(self.SeriesDir, Program['NewDir'])
