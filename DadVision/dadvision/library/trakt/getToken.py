@@ -90,7 +90,7 @@ class getToken(Library):
                                        "usr",
                                        "local",
                                        "etc",
-                                       "daddyvision",
+                                       "dadvision",
                                        'settings.cfg')
 
 
