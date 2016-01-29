@@ -33,7 +33,6 @@ __maintainer__ = "@organization: AJ Reynolds"
 __credits__ = []
 
 client_id = '54d65f67401b045bc720ef109d4d05a107c0f5e28badf2f413f89f9bee514ae7'
-client_secret = '85f06b5b6d29265a8be4fa113bbaefb0dd58826cbfd4b85da9a709459a0cb9b1'
 
 log = logging.getLogger(__pgmname__)
 
