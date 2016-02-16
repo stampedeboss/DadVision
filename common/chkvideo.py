@@ -7,14 +7,15 @@ Purpose:
     structure or conent
 '''
 from __future__ import division
-from library import Library
-from common import logger
-from common.countfiles import countFiles
-from subprocess import Popen, check_call as Call, PIPE
-import logging
+
 import os
-import tempfile
 import re
+import tempfile
+from subprocess import Popen, PIPE
+
+from common.countfiles import countFiles
+from common import logger
+from library import Library
 
 __pgmname__ = 'common.chkvideo'
 __version__ = '$Rev$'
@@ -28,7 +29,7 @@ __maintainer__ = "@organization: AJ Reynolds"
 __status__ = "@status: Development"
 __credits__ = []
 
-log = logging.getLogger(__pgmname__)
+log = logger.logging.getLogger(__pgmname__)
 
 FilesWithIssues = {}
 
@@ -37,8 +38,8 @@ class ChkVideo(Library):
 
         super(ChkVideo, self).__init__()
 
-        self.options.parser.add_argument('library', help="paths to folder(s) with file(s) [default: %(default)s]", metavar="library", nargs='*', default=['/srv/DadVision/Series/'])
-        chkvideo_group = self.options.parser.add_argument_group("ChkVideo Options", description=None)
+        self.cmdoptions.parser.add_argument('library', help="paths to folder(s) with file(s) [default: %(default)s]", metavar="library", nargs='*', default=['/srv/DadVision/Series/'])
+        chkvideo_group = self.cmdoptions.parser.add_argument_group("ChkVideo Options", description=None)
         chkvideo_group.add_argument("-d", "--deep", dest="deep",
             action="store_true", default=False,
             help="Perform Detailed Check of AVI Files")
@@ -134,18 +135,17 @@ def chkMKV(pathname):
 if __name__ == '__main__':
     import sys
 
-    logger.initialize()
-
     library = ChkVideo()
-    args = library.options.parser.parse_args(sys.argv[1:])
-    log.debug("Parsed command line: {!s}".format(args))
+    logger.initialize()
+    library.args = library.cmdoptions.parser.parse_args(sys.argv[1:])
+    log.debug("Parsed command line: {!s}".format(library.args))
 
-    log_level = logging.getLevelName(args.loglevel.upper())
+    log_level = logger.logging.getLevelName(library.args.loglevel.upper())
 
-    if args.logfile == 'daddyvision.log':
+    if library.args.logfile == 'daddyvision.log':
         log_file = '{}.log'.format(__pgmname__)
     else:
-        log_file = os.path.expanduser(args.logfile)
+        log_file = os.path.expanduser(library.args.logfile)
 
     # If an absolute path is not specified, use the default directory.
     if not os.path.isabs(log_file):
@@ -153,11 +153,11 @@ if __name__ == '__main__':
 
     logger.start(log_file, log_level, timed=True)
 
-    _lib_paths = args.library
+    _lib_paths = library.args.library
 
     for _lib_path in _lib_paths:
         if os.path.exists(_lib_path):
-            FilesWithIssues = chkVideoDir(_lib_path, args.deep)
+            FilesWithIssues = chkVideoDir(_lib_path, library.args.deep)
         else:
             log.error('Skipping: Pathname Not Found: {}'.format(_lib_path))
 

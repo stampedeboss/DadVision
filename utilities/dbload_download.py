@@ -6,12 +6,12 @@ Purpose:
 
 '''
 from __future__ import division
-from daddyvision.common import logger
-from daddyvision.common.exceptions import UnexpectedErrorOccured, DuplicateRecord, InvalidFilename
-from daddyvision.common.options import OptionParser, OptionGroup
-from daddyvision.common.settings import Settings
-from daddyvision.common.countfiles import countFiles
-from daddyvision.series.fileparser import FileParser
+from common import logger
+from common.exceptions import UnexpectedErrorOccured, DuplicateRecord, InvalidFilename
+from common.options import OptionParser, OptionGroup
+from common.settings import Settings
+from common.countfiles import countFiles
+from library.series.fileparser import FileParser
 import logging
 import os
 import sqlite3

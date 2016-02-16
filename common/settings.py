@@ -15,13 +15,10 @@ Purpose:
   or conditions of any kind, either express or implied.
 """
 
-import logging
 import os
 import sys
 import time
 import socket
-import base64
-import hashlib
 
 from configobj import ConfigObj
 
@@ -44,25 +41,11 @@ __status__ = "Development"
 __date__ = '2013-06-25'
 __updated__ = '2014-07-27'
 
-program_version_message = '%%(prog)s %s (%s)' % (__version__, __updated__)
-program_license = '''
-Created by AJ Reynolds on %s.
-Copyright 2014 AJ Reynolds. All rights reserved.
-
-Licensed under the GPL License
-
-Distributed on an "AS IS" basis without warranties
-or conditions of any kind, either express or implied.
-
-USAGE:
-''' % (str(__date__))
-
-configdir = os.path.join(os.sep, "usr", "local", "etc", "dadvision")
-ConfigDir = configdir
+ConfigDir = os.path.join(os.sep, "usr", "local", "etc", "dadvision")
 ConfigFile = os.path.join(ConfigDir, '{}.cfg'.format(__pgmname__))
 host = socket.gethostname()
 
-log = logging.getLogger(__pgmname__)
+log = logger.logging.getLogger(__pgmname__)
 
 class Settings(object):
     """
@@ -280,14 +263,12 @@ if __name__ == '__main__':
     log.info('EpisodeAdjList: {}'.format(config.EpisodeAdjList))
     log.info('TraktAPIKey: {}'.format(config.TraktAPIKey))
     log.info('TraktUserID: {}'.format(config.TraktUserID))
-    log.info('TraktPassWord: {}'.format(config.TraktPassWord))
     log.info('TraktAuthorization: {}'.format(config.TraktAuthorization))
 
     config.ReloadFromFiles()
 
     config.ReloadHostConfig('tigger')
     log.info('TraktUserID: {}'.format(config.TraktUserID))
-    log.info('TraktPassWord: {}'.format(config.TraktPassWord))
     log.info('TraktAuthorization: {}'.format(config.TraktAuthorization))
 
     log.info(config.GetHostConfig(['tigger']))

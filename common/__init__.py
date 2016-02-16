@@ -1,14 +1,14 @@
 # -*- coding: UTF-8 -*-
 '''
-    Initialization Routine for library
+    Initialization Routine for common
 
     Routine is call on any import of a module in the library
 
 '''
+from common.settings import Settings
+from common.cmdoptions import CmdOptions
 
-from common import Common
-
-__pgmname__     = 'library.__init__'
+__pgmname__     = 'common.__init__'
 __version__     = '@version: $Rev$'
 
 __author__      = "@author: AJ Reynolds"
@@ -20,11 +20,8 @@ __status__      = "@status: Development"
 __credits__     = []
 
 
-class Library(object):
+class Common(object):
 
-    settings = Common.settings
-    options = Common.options
-    args = {}
 
     def __init__(self):
         pass

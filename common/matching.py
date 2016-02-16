@@ -6,10 +6,8 @@ Purpose:
 """
 
 import sys
-import logging
 
 from fuzzywuzzy import fuzz
-
 from common import logger
 
 
@@ -25,7 +23,7 @@ __maintainer__ = "@organization: AJ Reynolds"
 __status__ = "@status: Development"
 __credits__ = []
 
-log = logging.getLogger(__pgmname__)
+log = logger.logging.getLogger(__pgmname__)
 
 
 def matching(value1, value2, factor=None):
@@ -77,10 +75,10 @@ if __name__ == "__main__":
 
 	library = Library()
 
-	Library.args = library.options.parser.parse_args(sys.argv[1:])
+	library.args = library.cmdoptions.parser.parse_args(sys.argv[1:])
 	log.debug("Parsed command line: {!s}".format(library.args))
 
-	log_level = logging.getLevelName(library.args.loglevel.upper())
+	log_level = logger.logging.getLevelName(library.args.loglevel.upper())
 
 	if library.args.logfile == 'daddyvision.log':
 		log_file = '{}.log'.format(__pgmname__)

@@ -5,14 +5,14 @@ Purpose:
 	 Parse a filename that is passed to it and return the movie name and year if available.
 """
 from __future__ import division
-import logging
 import fnmatch
 import os
 import re
 
-from library import Library
+from movie import Movie
 from common.exceptions import InvalidFilename, RegxSelectionError
 from common import logger
+from guessit import guessit
 
 
 __pgmname__ = 'fileparser'
@@ -27,7 +27,7 @@ __maintainer__ = "@organization: AJ Reynolds"
 __status__ = "@status: Development"
 __credits__ = []
 
-log = logging.getLogger(__pgmname__)
+log = logger.logging.getLogger(__pgmname__)
 
 def uselibrarylogging(func):
 	def wrapper(self, *args, **kw):
@@ -42,7 +42,7 @@ def uselibrarylogging(func):
 	return wrapper
 
 
-class FileParser(Library):
+class FileParser(Movie):
 	"""
 	Runs path via configured regex, extracting data from groups.
 	Returns an Dictionary instance containing extracted data.
@@ -54,8 +54,6 @@ class FileParser(Library):
 
 		super(FileParser, self).__init__()
 
-		self.library = super(FileParser, self)
-
 		self.regex_repack = re.compile('^.*(repack|proper).*$', re.IGNORECASE)
 		self.RegxParse = self.GetRegx()
 
@@ -65,6 +63,7 @@ class FileParser(Library):
 		log.trace("GetFileDetails: File: {}".format(fq_name))
 
 		_path, _file_name = os.path.split(fq_name)
+		_movie = guessit(_file_name)
 
 		_parse_details = None
 		self.RegExNumber = 0
@@ -273,17 +272,17 @@ if __name__ == '__main__':
 
 	logger.initialize()
 
-	library = FileParser()
-	Library.args = library.options.parser.parse_args(sys.argv[1:])
+	movies = FileParser()
+	movies.args = movies.cmdoptions.parser.parse_args(sys.argv[1:])
 	log.trace("MAIN: -------------------------------------------------")
-	log.debug("Parsed command line: {!s}".format(library.args))
+	log.debug("Parsed command line: {!s}".format(movies.args))
 
-	log_level = logging.getLevelName(library.args.loglevel.upper())
+	log_level = logger.logging.getLevelName(movies.args.loglevel.upper())
 
-	if library.args.logfile == 'daddyvision.log':
+	if movies.args.logfile == 'daddyvision.log':
 		log_file = '{}.log'.format(__pgmname__)
 	else:
-		log_file = os.path.expanduser(library.args.logfile)
+		log_file = os.path.expanduser(movies.args.logfile)
 
 	# If an absolute path is not specified, use the default directory.
 	if not os.path.isabs(log_file):
@@ -291,10 +290,10 @@ if __name__ == '__main__':
 
 	logger.start(log_file, log_level, timed=True)
 
-	_lib_paths = library.args.library
+	_lib_paths = movies.args.library
 
-	_lib_path = _lib_paths[0]
-	_answer = library.getFileDetails(_lib_path)
-
-	print
-	print _answer
+	if _lib_paths:
+		_lib_path = _lib_paths[0]
+		_answer = movies.getFileDetails(_lib_path)
+		print
+		print _answer

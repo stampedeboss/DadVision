@@ -4,10 +4,9 @@
 cmd_options -- Command Line Options Handler for DaddyVision
 
 '''
-import logging
 import sys
 import os
-from argparse import ArgumentParser, SUPPRESS
+from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
 from common import logger
 
@@ -40,15 +39,13 @@ or conditions of any kind, either express or implied.
 USAGE
 ''' % (str(__date__))
 
-log = logging.getLogger(__pgmname__)
+log = logger.logging.getLogger(__pgmname__)
 
 class CmdOptions(ArgumentParser):
     '''Define Standard Options for All Command lines.'''
     def __init__(self, **kwargs):
 
         super(CmdOptions, self).__init__(self, **kwargs)
-
-        args = ''
 
         # Setup argument parser
         self.parser = ArgumentParser(description=program_license,

@@ -7,12 +7,12 @@ Purpose:
     structure or conent
 '''
 from __future__ import division
-from daddyvision.common import logger
+from common import logger
 from subprocess import Popen, check_call as Call, PIPE
-from daddyvision.common.countfiles import countFiles
-from daddyvision.common.chkvideo import chkAVId
-from daddyvision.common.options import OptionParser
-from daddyvision.common.settings import Settings
+from common.countfiles import countFiles
+from common.chkvideo import chkAVId
+from common.options import OptionParser
+from common.settings import Settings
 import logging
 import os
 import tempfile

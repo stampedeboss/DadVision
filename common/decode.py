@@ -24,19 +24,6 @@ __status__ = "Development"
 __date__ = '2015-03-19'
 __updated__ = '2015-03-19'
 
-program_version_message = '%%(prog)s %s (%s)' % (__version__, __updated__)
-program_license = '''
-
-Created by AJ Reynolds on %s.
-Copyright 2014 AJ Reynolds. All rights reserved.
-
-Licensed under the GPL License
-
-Distributed on an "AS IS" basis without warranties
-or conditions of any kind, either express or implied.
-
-USAGE
-''' % (str(__date__))
 
 def decode(coded_text):
 

@@ -6,6 +6,7 @@
 
 '''
 import re
+from library import Library
 
 
 __pgmname__ = 'movie'
@@ -20,7 +21,7 @@ __license__ = "@license: GPL"
 __maintainer__ = "@organization: AJ Reynolds"
 __credits__ = []
 
-class Movie(object):
+class Movie(Library):
 
 	def __init__(self, **kwargs):
 
