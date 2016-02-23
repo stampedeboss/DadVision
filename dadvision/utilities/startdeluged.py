@@ -5,26 +5,26 @@ Purpose:
         Program to Sync Remote Hosts
 
 '''
-from library import Library
-from common import logger
-from subprocess import Popen, call as Call, check_call, CalledProcessError
 import logging
 import os
-import psutil
-import re
 import sys
 import time
+from subprocess import Popen
+
+import psutil
+
+import logger
+from dadvision.library import Library
 
 __pgmname__ = 'startdeluged'
-__version__ = '@version: $Rev: 306 $'
 
-__author__ = "@author: AJ Reynolds"
-__copyright__ = "@copyright: Copyright 2014, AJ Reynolds"
-__status__ = "@status: Development"
-__license__ = "@license: GPL"
+__author__ = "AJ Reynolds"
+__email__ = "stampedeboss@gmail.com"
 
-__maintainer__ = "@organization: AJ Reynolds"
-__credits__ = []
+__maintainer__ = __author__
+
+__copyright__ = "Copyright 2011, AJ Reynolds"
+__license__ = "GPL"
 
 log = logging.getLogger(__pgmname__)
 
@@ -63,7 +63,7 @@ class StartDeluged(Library):
 
 
 
-if __name__ == '__main__':	
+if __name__ == '__main__':
 
     logger.initialize()
     library = StartDeluged()

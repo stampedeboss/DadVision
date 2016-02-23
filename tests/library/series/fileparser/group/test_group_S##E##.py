@@ -1,8 +1,8 @@
 import unittest
-from logging import INFO, WARNING, ERROR, DEBUG
+from logging import INFO
 
-from library.series.fileparser import FileParser
-from common import logger
+import logger
+from series import FileParser
 
 
 class KnownValues(unittest.TestCase):

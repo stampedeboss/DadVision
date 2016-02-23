@@ -7,29 +7,28 @@ Purpose:
 
 """
 
-from common import Common
-from common import logger
-import logging
 import os
-import psutil
-import subprocess
 import sys
 import time
 
+import psutil
+
+import logger
+from dadvision.library import Library
+
 __pgmname__     = 'chkrun'
-__version__     = '$Rev$'
 
-__author__ = "@author: AJ Reynolds"
-__copyright__ = "@copyright: Copyright 2011, AJ Reynolds"
-__license__ = "@license: GPL"
+__author__ = "AJ Reynolds"
+__email__ = "stampedeboss@gmail.com"
 
-__maintainer__ = "@organization: AJ Reynolds"
-__status__ = "@status: Development"
-__credits__ = []
+__maintainer__ = __author__
 
-log = logging.getLogger(__pgmname__)
+__copyright__ = "Copyright 2011, AJ Reynolds"
+__license__ = "GPL"
 
-class chkStatus(Common):
+log = logger.logging.getLogger(__pgmname__)
+
+class chkStatus(Library):
 	def __init__(self):
 		super(chkStatus, self).__init__()
 
@@ -52,9 +51,15 @@ class chkStatus(Common):
 					elif p.name() == 'python':
 						if os.path.basename(p.cmdline()[1]) == 'syncrmt':
 							continue
-						log.info('{:>6d} {:<8s} {} {}'.format(p.pid, p.terminal(), os.path.basename(cmdline), cmdline))
+						log.info('{:>6d} {:<8s} {} {}'.format(p.pid,
+						                                      p.terminal(),
+						                                      os.path.basename(cmdline),
+						                                      cmdline))
 					elif p.name == 'rsync':
-						log.info('{:>6d} {:<8s} {} {}'.format(p.pid, p.terminal(), p.name(), cmdline))
+						log.info('{:>6d} {:<8s} {} {}'.format(p.pid,
+						                                      p.terminal(),
+						                                      p.name(),
+						                                      cmdline))
 			except:
 				pass
 

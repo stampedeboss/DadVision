@@ -1,9 +1,10 @@
 import unittest
 
-from library.series.seriesinfo import SeriesInfo
 from common.exceptions import InvalidArgumentType, DictKeyError
 from common.exceptions import SeriesNotFound
-from common import logger
+
+import logger
+from series import SeriesInfo
 
 
 # A level more detailed than DEBUG

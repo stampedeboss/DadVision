@@ -7,29 +7,28 @@ Purpose:
 
 '''
 from __future__ import division
-from common import logger
-from common.exceptions import UnexpectedErrorOccured
-from library import Library
-from library.series.fileparser import FileParser
+
 import logging
 import os
 import re
 import sqlite3
 import sys
-import tempfile
-import time
+
+from common.exceptions import UnexpectedErrorOccured
+from library import Library
+
+import logger
+from series import FileParser
 
 __pgmname__ = 'dbclean'
-__version__ = '$Rev$'
 
 __author__ = "AJ Reynolds"
-__copyright__ = "Copyright 2011, AJ Reynolds"
-__credits__ = []
-__license__ = "GPL"
-
-__maintainer__ = "AJ Reynolds"
 __email__ = "stampedeboss@gmail.com"
-__status__ = "Development"
+
+__maintainer__ = __author__
+
+__copyright__ = "Copyright 2011, AJ Reynolds"
+__license__ = "GPL"
 
 TRACE = 5
 VERBOSE = 15

@@ -6,26 +6,28 @@ Purpose:
 
 '''
 from __future__ import division
-from library import Library
-from common import logger
-from common.exceptions import UnexpectedErrorOccured
+
 import logging
 import os
 import re
-import sys
 import sqlite3
+import sys
 import unicodedata
 
+from common.exceptions import UnexpectedErrorOccured
+
+import logger
+from dadvision.library import Library
+
 __pgmname__ = 'library.dbclean_dnld'
-__version__ = '@version: $Rev$'
 
-__author__ = "@author: AJ Reynolds"
-__copyright__ = "@copyright: Copyright 2011, AJ Reynolds"
-__license__ = "@license: GPL"
+__author__ = "AJ Reynolds"
+__email__ = "stampedeboss@gmail.com"
 
-__maintainer__ = "@organization: AJ Reynolds"
-__status__ = "@status: Development"
-__credits__ = []
+__maintainer__ = __author__
+
+__copyright__ = "Copyright 2011, AJ Reynolds"
+__license__ = "GPL"
 
 log = logging.getLogger(__pgmname__)
 

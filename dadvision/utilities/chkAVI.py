@@ -7,28 +7,25 @@ Purpose:
     structure or conent
 '''
 from __future__ import division
-from common import logger
-from subprocess import Popen, check_call as Call, PIPE
-from common.countfiles import countFiles
-from common.chkvideo import chkAVId
-from common.options import OptionParser
-from common.settings import Settings
+
 import logging
 import os
-import tempfile
-import re
+
+from common.options import OptionParser
+from common.settings import Settings
+
+import logger
+from chkvideo import chkAVId
 
 __pgmname__ = 'chkAVI'
-__version__ = '$Rev$'
 
 __author__ = "AJ Reynolds"
-__copyright__ = "Copyright 2011, AJ Reynolds"
-__credits__ = []
-__license__ = "GPL"
-
-__maintainer__ = "AJ Reynolds"
 __email__ = "stampedeboss@gmail.com"
-__status__ = "Development"
+
+__maintainer__ = __author__
+
+__copyright__ = "Copyright 2011, AJ Reynolds"
+__license__ = "GPL"
 
 log = logging.getLogger(__pgmname__)
 logger.initialize()

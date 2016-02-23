@@ -5,24 +5,23 @@ Purpose:
      Scan MKV Files and identify those that may need remuxed
 
 '''
-from library import Library
-from common import logger
-from subprocess import Popen, call as Call, check_call, CalledProcessError, PIPE
-import fnmatch
 import logging
 import os
 import sys
+from subprocess import Popen, CalledProcessError, PIPE
+
+import logger
+from dadvision.library import Library
 
 __pgmname__ = 'library.scanmkv'
-__version__ = '@version: $Rev$'
 
-__author__ = "@author: AJ Reynolds"
-__copyright__ = "@copyright: Copyright 2013, AJ Reynolds"
-__license__ = "@license: GPL"
+__author__ = "AJ Reynolds"
+__email__ = "stampedeboss@gmail.com"
 
-__maintainer__ = "@organization: AJ Reynolds"
-__status__ = "@status: Development"
-__credits__ = []
+__maintainer__ = __author__
+
+__copyright__ = "Copyright 2011, AJ Reynolds"
+__license__ = "GPL"
 
 log = logging.getLogger(__pgmname__)
 
@@ -80,12 +79,6 @@ class scanLibrary(Library):
         for _entry in _list:
             print _entry
 #        print _need_researched
-
-    def _ignored(self, name):
-        """ Check for ignored pathnames.
-        """
-        return any(fnmatch.fnmatch(name.lower(), pattern) for pattern in self.settings.ExcludeList)
-
 
 
 if __name__ == '__main__':

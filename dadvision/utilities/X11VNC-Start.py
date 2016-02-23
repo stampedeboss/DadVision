@@ -3,8 +3,7 @@
 
 """
 Purpose:
-MEDS - Nursing assistant, Maintain a Medication List for a Patients
-        Upgrade environment to support the latest published version
+
  """
 import os, sys, datetime, time, socket, string
 import shlex, subprocess

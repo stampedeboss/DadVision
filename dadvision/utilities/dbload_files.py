@@ -7,46 +7,34 @@ Purpose:
 
 '''
 from __future__ import division
-from library import Library
-from common import logger
-from common.exceptions import UnexpectedErrorOccured, DuplicateRecord, InvalidFilename
-from common.countfiles import countFiles
-from library.series.fileparser import FileParser
+
 import logging
 import os
 import sqlite3
 import sys
-import time
-import datetime
-import fnmatch
+
+from common.countfiles import countFiles
+from common.exceptions import UnexpectedErrorOccured, DuplicateRecord, InvalidFilename
+from library import Library
+
+import logger
+from series import FileParser
 
 __pgmname__ = 'dbload_files'
-__version__ = '$Rev$'
 
 __author__ = "AJ Reynolds"
-__copyright__ = "Copyright 2011, AJ Reynolds"
-__credits__ = []
-__license__ = "GPL"
-
-__maintainer__ = "AJ Reynolds"
 __email__ = "stampedeboss@gmail.com"
-__status__ = "Development"
+
+__maintainer__ = __author__
+
+__copyright__ = "Copyright 2011, AJ Reynolds"
+__license__ = "GPL"
 
 log = logging.getLogger(__pgmname__)
 
 logger.initialize()
 TRACE = 5
 VERBOSE = 15
-
-
-def _ignored(name):
-	""" Check for ignored pathnames.
-	"""
-	rc = []
-	if name == 'New': rc.append(True)
-	rc.append(any(fnmatch.fnmatch(name.lower(), pattern) for pattern in library.settings.ExcludeList))
-	rc.append(any(fnmatch.fnmatch(name.lower(), pattern) for pattern in library.settings.IgnoreGlob))
-	return any(rc)
 
 
 class DownloadDatabase(Library):
@@ -80,7 +68,7 @@ class DownloadDatabase(Library):
 				_dirs.sort()
 				for _dir in _dirs[:]:
 					# Process Enbedded Directories
-					if _ignored(_dir):
+					if self._ignored(_dir):
 						_dirs.remove(_dir)
 
 			for _file_name in _files:

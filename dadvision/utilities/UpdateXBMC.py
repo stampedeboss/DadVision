@@ -23,16 +23,14 @@ import sys
 import time
 
 __pgmname__ = 'UpdateXBMC'
-__version__ = '$Rev$'
 
 __author__ = "AJ Reynolds"
-__copyright__ = "Copyright 2011, AJ Reynolds"
-__credits__ = []
-__license__ = "GPL"
-
-__maintainer__ = "AJ Reynolds"
 __email__ = "stampedeboss@gmail.com"
-__status__ = "Development"
+
+__maintainer__ = __author__
+
+__copyright__ = "Copyright 2011, AJ Reynolds"
+__license__ = "GPL"
 
 TRACE = 5
 VERBOSE = 15

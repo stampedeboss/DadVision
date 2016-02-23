@@ -1,7 +1,7 @@
 import unittest
 
-from library.series.fileparser import FileParser
-from common import logger
+import logger
+from series import FileParser
 
 
 class KnownValues(unittest.TestCase):

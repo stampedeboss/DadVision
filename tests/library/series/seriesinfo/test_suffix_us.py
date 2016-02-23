@@ -1,7 +1,7 @@
 import unittest
 
-from library.series.seriesinfo import SeriesInfo
-from common import logger
+import logger
+from series import SeriesInfo
 
 
 # A level more detailed than DEBUG
