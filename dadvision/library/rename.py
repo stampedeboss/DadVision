@@ -6,19 +6,19 @@ Program to rename files associated with Movie Content
 
 """
 import filecmp
-import os
+import logging
 import re
 import shutil
 import sys
+from os.path import exists, abspath, isfile, isdir
+from os import walk
 
+from chkvideo import chkVideoFile
 from common.exceptions import (InvalidPath, InvalidFilename, UnexpectedErrorOccured,
 							MovieNotFound, NotMediaFile)
-
-import logger
-from chkvideo import chkVideoFile
-from dadvision.library import Library
-from movie.fileinfo import FileInfo
-from movie.tmdbinfo import TMDBInfo
+from movie import Movie, uselibrarylogging
+from movie.cmdoptions import CmdOptions
+from library import ignored
 
 __pgmname__ = 'rename'
 
@@ -27,22 +27,10 @@ __email__ = "stampedeboss@gmail.com"
 
 __maintainer__ = __author__
 
-__copyright__ = "Copyright 2011, AJ Reynolds"
+__copyright__ = "Copyright 2016, AJ Reynolds"
 __license__ = "GPL"
 
-log = logger.logging.getLogger(__pgmname__)
-
-
-def uselibrarylogging(func):
-	def wrapper(self, *args, **kw):
-		# Set the library name in the logger
-		# from daddyvision.common import logger
-		logger.set_library('movie')
-		try:
-			return func(self, *args, **kw)
-		finally:
-			logger.set_library('')
-	return wrapper
+log = logging.getLogger(__pgmname__)
 
 
 def _del_dir(pathname, Tree=False):
@@ -72,12 +60,12 @@ def _del_file(pathname):
 		log.warn('Delete File: Unable to Delete requested file: %s' % (sys.exc_info()[1]))
 
 
-class RenameMovie(Library):
+class RenameMovie(Movie):
 	def __init__(self):
 
 		super(RenameMovie, self).__init__()
 
-		rename_group = Library.cmdoptions.parser.add_argument_group("Rename Options", description=None)
+		rename_group = DadVision.cmdoptions.parser.add_argument_group("Rename Options", description=None)
 		rename_group.add_argument("--force-rename", dest="force_rename",
 								  action="store_true", default=False,
 								  help="Force Renames for Files That Already Exist")
@@ -97,20 +85,20 @@ class RenameMovie(Library):
 		                          nargs='?', default=None,
 								  help="Rename and place in this directory")
 
-		self.fileinfo = FileInfo()
-		self.tmdbinfo = TMDBInfo()
+		self.movieopts = CmdOptions()
+		self.movie = Movie()
 
 		self.regex_repack = re.compile('^.*(repack|proper).*$', re.IGNORECASE)
-		self.regex_NewMoviesDir = re.compile('^{}.*$'.format(self.settings.NewMoviesDir, re.IGNORECASE))
+		self.regex_NewMoviesDir = re.compile('^{}.*$'.format(DadVision.settings.NewMoviesDir, re.IGNORECASE))
 
 		return
 
 	@uselibrarylogging
 	def renameMovie(self, pathname):
 
-		pathname = os.path.abspath(pathname)
+		pathname = abspath(pathname)
 
-		if os.path.isfile(pathname):
+		if isfile(pathname):
 			log.debug("-----------------------------------------------")
 			log.debug("Movie Directory: %s" % os.path.split(pathname)[0])
 			log.debug("Movie Filename:  %s" % os.path.split(pathname)[1])
@@ -120,14 +108,14 @@ class RenameMovie(Library):
 			except (MovieNotFound, InvalidFilename, NotMediaFile, NoValidFilesFound):
 				raise
 
-		elif os.path.isdir(pathname):
+		elif isdir(pathname):
 			log.debug("-----------------------------------------------")
 			log.debug("Movie Directory: %s" % pathname)
-			for _root, _dirs, _files in os.walk(os.path.abspath(pathname)):
+			for _root, _dirs, _files in walk(abspath(pathname)):
 				_dirs.sort()
 				for _dir in _dirs[:]:
 					# Process Enbedded Directories
-					if self._ignored(_dir):
+					if self.ignored(_dir):
 						_dirs.remove(_dir)
 						if self.regex_NewMoviesDir.match(_dir):
 							log.trace("Deleting Excluded Directory: {}".format(os.path.join(_root, _dir)))
@@ -176,14 +164,14 @@ class RenameMovie(Library):
 		except (MovieNotFound):
 			raise
 		try:
-			_movie_details = self.tmdbinfo.retrieve_tmdb_info(_movie_details)
+			_movie_details = self.tmdbinfo.tmdb(_movie_details)
 		except MovieNotFound:
 			try:
 				# Movie wasn't found by filename try Directory Name
 				_dir_name = os.path.dirname(pathname) + '.' + _ext
 				_directory_details = self.fileparser.getFileDetails(_dir_name)
 				_movie_details['MovieName'] = _directory_details['MovieName']
-				_movie_details = self.tmdbinfo.retrieve_tmdb_info(_movie_details)
+				_movie_details = self.tmdbinfo.tmdb(_movie_details)
 			except (InvalidFilename, UnexpectedErrorOccured, RegxSelectionError):
 				raise
 
@@ -197,7 +185,7 @@ class RenameMovie(Library):
 		_directory_details = self.fileparser.getFileDetails(directory + '.avi')
 		_directory_details['FileName'] = directory
 
-		_directory_details = self.tmdbinfo.retrieve_tmdb_info(_directory_details)
+		_directory_details = self.tmdbinfo.tmdb(_directory_details)
 
 		if 'Year' in _directory_details:
 			_new_dir = '%s (%s)' % (_directory_details['MovieName'], _directory_details['Year'])
@@ -325,22 +313,25 @@ class RenameMovie(Library):
 
 if __name__ == "__main__":
 
-	logger.initialize()
-
-	TMDB_group = TMDBInfo.cmdoptions.parser.add_argument_group("Get TMDB Information Options",
-																	   description=None)
-	TMDB_group.add_argument("--movie", type=str, dest='MovieName', nargs='?')
-	TMDB_group.add_argument("--year", type=int, dest='Year', nargs='?')
+	from sys import argv
+	from dadvision import DadVision
+	from logging import DEBUG; TRACE = 5; VERBOSE = 15
+	DadVision.logger.initialize(level=DEBUG)
 
 	renamemovie = RenameMovie()
 
-	Library.args = Library.cmdoptions.ParseArgs(sys.argv[1:])
-	if len(Library.args.filespec) < 1:
-		log.warn('No pathname supplied for rename: Using default: {}'.format(Library.settings.NewMoviesDir))
-		RenameMovie.args.filespec = [Library.settings.NewMoviesDir]
+	DadVision.args = DadVision.cmdoptions.ParseArgs(argv[1:])
+	DadVision.logger.start(DadVision.args.logfile, DEBUG, timed=DadVision.args.timed)
 
-	for _lib_path in Library.args.filespec:
-		if os.path.exists(_lib_path):
-			renamemovie.renameMovie(_lib_path)
-		else:
-			log.error('Skipping Rename: Unable to find File/Directory: {}'.format(_lib_path))
+	if len(DadVision.args.pathname) < 1:
+		log.warn('No pathname supplied for rename: Using default: {}'.format(DadVision.settings.NewMoviesDir))
+		DadVision.args.pathname = [DadVision.settings.NewMoviesDir]
+
+	if len(DadVision.args.pathname) > 0:
+		for pathname in DadVision.args.pathname:
+			if exists(pathname):
+				renamemovie.renameMovie(pathname)
+			else:
+				log.error('Skipping Rename: Unable to find File/Directory: {}'.format(pathname))
+	else:
+		log.error('Skipping Rename: Unable to find File/Directory: {}'.format(pathname))

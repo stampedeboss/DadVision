@@ -19,7 +19,7 @@ __email__ = "stampedeboss@gmail.com"
 
 __maintainer__ = __author__
 
-__copyright__ = "Copyright 2011, AJ Reynolds"
+__copyright__ = "Copyright 2016, AJ Reynolds"
 __license__ = "GPL"
 
 log = logger.logging.getLogger(__pgmname__)
@@ -75,11 +75,6 @@ class CheckMovies(Library):
 				log.info('Possible Dups Found: {}'.format(_root))
 				for _file in _file_names:
 					log.info('    FileName: {}'.format(_file))
-
-	def ignored(self, name):
-		""" Check for ignored pathnames.
-		"""
-		return any(fnmatch.fnmatch(name.lower(), pattern) for pattern in (self.settings.ExcludeList + self.settings.ExcludeScanList) + self.settings.IgnoreGlob)
 
 
 if __name__ == '__main__':
