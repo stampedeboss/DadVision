@@ -18,19 +18,17 @@ __email__ = "stampedeboss@gmail.com"
 
 __maintainer__ = __author__
 
-__copyright__ = "Copyright 2011, AJ Reynolds"
+__copyright__ = "Copyright 2016, AJ Reynolds"
 __license__ = "GPL"
 
 
 class DadVision(object):
 
 	from common import logger
-
 	settings = Settings()
 	cmdoptions = CmdOptions()
 	args = {}
 
-	logger.initialize()
 
 	def __init__(self):
 		super(DadVision, self).__init__()
@@ -38,14 +36,18 @@ class DadVision(object):
 
 if __name__ == '__main__':
 
-	import sys
-	log = DadVision.logger.logging.getLogger(__pgmname__)
-	DadVision.logger.initialize()
+	from sys import argv
+	from dadvision import DadVision
+	from logging import INFO, DEBUG, ERROR; TRACE = 5; VERBOSE = 15
+	from common import logger
+	logger.initialize(level=DEBUG)
+	DadVision.args = DadVision.cmdoptions.ParseArgs(argv[1:])
 
-	DadVision.args = DadVision.cmdoptions.ParseArgs(sys.argv[1:])
+	log = logger.logging.getLogger(__pgmname__)
+	logger.start(DadVision.args.logfile, DadVision.args.loglevel, timed=DadVision.args.timed)
 
 	log.verbose("*** LOGGING STARTED ***")
 
-	_lib_paths = DadVision.args.filespec
+	_lib_paths = DadVision.args.pathname
 
 	pass

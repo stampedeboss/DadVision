@@ -2,11 +2,9 @@
 # -*- coding: UTF-8 -*-
 '''
 Purpose:
-    Runs path via configured regex, extracting data from groups.
-    Returns an Dictionary instance containing extracted data.
+	Runs path via configured regex, extracting data from groups.
+	Returns an Dictionary instance containing extracted data.
 
-Created on Dec 4, 2011
-@author: AJ Reynolds
 
 '''
 
@@ -20,10 +18,11 @@ import unicodedata
 from collections import OrderedDict
 
 from common.exceptions import SeriesNotFound, InvalidFilename, RegxSelectionError
-from guessit import guess_file_info
+from guessit import guessit
 
 import logger
-from dadvision.library import Library
+from dadvision import DadVision
+from series import Series
 
 __pgmname__ = 'fileparser'
 
@@ -37,253 +36,249 @@ __license__ = "GPL"
 
 log = logging.getLogger(__pgmname__)
 
-class FileParser(Library, dict):
-    """
-    Runs path via configured regex, extracting data from groups.
-    Returns an Dictionary instance containing extracted data.
-    """
-    def __init__(self):
+class FileParser(Series, dict):
+	"""
+	Runs path via configured regex, extracting data from groups.
+	Returns an Dictionary instance containing extracted data.
+	"""
+	def __init__(self):
 
-        super(FileParser, self).__init__()
+		super(FileParser, self).__init__()
 
-        self.RegxParse = GetRegx()
-        self.check_suffix = re.compile('^(?P<SeriesName>.+?)[ \._\-](?P<Year>[0-9][0-9][0-9][0-9]|US)$', re.X|re.I)
-        self.new_SeriesDir = re.compile('^{}/New/.*$'.format(self.settings.SeriesDir), re.IGNORECASE)
+		self.RegxParse = GetRegx()
+		self.check_suffix = re.compile('^(?P<SeriesName>.+?)[ \._\-](?P<Year>[0-9][0-9][0-9][0-9]|US)$', re.X|re.I)
+		self.new_SeriesDir = re.compile('^{}/New/.*$'.format(DadVision.settings.SeriesDir), re.IGNORECASE)
 
-    def getFileDetails(self, fq_name):
-        log.trace("GetFileDetails: File: %s" % (fq_name))
+	def getFileDetails(self, fq_name):
+		log.trace("GetFileDetails: File: %s" % (fq_name))
 
-        try:
-            _dir, _fn = os.path.split(fq_name)
-            if os.path.basename(_dir)[:6] == 'Season':
-                _fn = os.path.relpath(fq_name, self.settings.SeriesDir)
+		try:
+			_dir, _fn = os.path.split(fq_name)
+			if os.path.basename(_dir)[:6] == 'Season':
+				_fn = os.path.relpath(fq_name, DadVision.settings.SeriesDir)
 
-            fileDetails = self._guess(_fn)
-            fileDetails['fileName'] = fq_name
-        except SeriesNotFound:
-            fileDetails = self._regx_search(fq_name)
+			fileDetails = self._guess(_fn)
+			fileDetails['fileName'] = fq_name
+		except SeriesNotFound:
+			fileDetails = self._regx_search(fq_name)
 
-        return fileDetails
+		return fileDetails
 
-    def _guess(self, fq_name):
+	def _guess(self, fq_name):
 
-#		if self.RegxParse['Standard Library: Regx #1'].match(fq_name) \
-#				or self.RegxParse['Standard Library: Regx #2'].match(fq_name):
-        _series = guess_file_info(fq_name)
-#		else:
-#			_series = guess_file_info(os.path.basename(fq_name))
+		_series = guessit(fq_name)
 
-        if _series['type'] == u'episode':
-            fileDetails = {}
-            fileDetails['fileName'] = fq_name
-            if u'series' in _series:
-                if u'year' in _series:
-                    fileDetails['title'] = '{} ({})'.format(unicodedata.normalize('NFKD',
-                                                                              _series['series']).encode('ascii',
-                                                                                                        'ignore'),
-                                                                              _series['year'])
-                else:
-                    fileDetails['title'] = unicodedata.normalize('NFKD', _series['series']).encode('ascii', 'ignore')
-            if u'season' in _series:
-                fileDetails['seasonNum'] = _series['season']
-            else:
-                fileDetails['seasonNum'] = 1
-            if u'episodeList' in _series:
-                fileDetails['episodeNums'] = _series['episodeList']
-            elif u'episodeNumber' in _series:
-                fileDetails['episodeNums'] = [_series['episodeNumber']]
-            if u'container' in _series:
-                fileDetails['ext'] = str(_series['container'])
-            elif u'extension' in _series:
-                fileDetails['ext'] = str(_series['extension'])
-            if u'country' in _series:
-                fileDetails['country'] = _series['country']
-                if _series['country'] == 'GB':
-                    fileDetails['title'] = fileDetails['title'].translate(None, "()")
+		if _series['type'] == u'episode':
+			fileDetails = {}
+			fileDetails['fileName'] = fq_name
+			if u'series' in _series:
+				if u'year' in _series:
+					fileDetails['title'] = '{} ({})'.format(unicodedata.normalize('NFKD',
+																			  _series['series']).encode('ascii',
+																										'ignore'),
+																			  _series['year'])
+				else:
+					fileDetails['title'] = unicodedata.normalize('NFKD', _series['series']).encode('ascii', 'ignore')
+			if u'season' in _series:
+				fileDetails['seasonNum'] = _series['season']
+			else:
+				fileDetails['seasonNum'] = 1
+			if u'episodeList' in _series:
+				fileDetails['episodeNums'] = _series['episodeList']
+			elif u'episodeNumber' in _series:
+				fileDetails['episodeNums'] = [_series['episodeNumber']]
+			if u'container' in _series:
+				fileDetails['ext'] = str(_series['container'])
+			elif u'extension' in _series:
+				fileDetails['ext'] = str(_series['extension'])
+			if u'country' in _series:
+				fileDetails['country'] = _series['country']
+				if _series['country'] == 'GB':
+					fileDetails['title'] = fileDetails['title'].translate(None, "()")
 
-            if not 'series' in _series:
-                _series2 = _series = guess_file_info(os.path.dirname(fq_name))
-                if u'series' in _series2:
-                    if u'year' in _series2:
-                        fileDetails['title'] = '{} ({})'.format(unicodedata.normalize('NFKD',
-                                                                              _series2['series']).encode('ascii',
-                                                                                                        'ignore'),
-                                                                              _series2['year'])
-                    else:
-                        fileDetails['title'] = unicodedata.normalize('NFKD', _series2['series']).encode('ascii', 'ignore')
+			if not 'series' in _series:
+				_series2 = guessit(os.path.dirname(fq_name))
+				if u'series' in _series2:
+					if u'year' in _series2:
+						fileDetails['title'] = '{} ({})'.format(unicodedata.normalize('NFKD',
+																			  _series2['series']).encode('ascii',
+																										'ignore'),
+																			  _series2['year'])
+					else:
+						fileDetails['title'] = unicodedata.normalize('NFKD', _series2['series']).encode('ascii', 'ignore')
 
-                if u'country' in _series2:
-                    fileDetails['country'] = _series['country']
-                    if _series['country'] == 'GB':
-                        fileDetails['title'] = fileDetails['title'].translate(None, "()")
+				if u'country' in _series2:
+					fileDetails['country'] = _series['country']
+					if _series['country'] == 'GB':
+						fileDetails['title'] = fileDetails['title'].translate(None, "()")
 
-            if not set(['title', 'seasonNum', 'episodeNums', 'ext', ]) - set(fileDetails.keys()):
-                return fileDetails
-            else:
-                raise SeriesNotFound(fq_name)
+			if not set(['title', 'seasonNum', 'episodeNums', 'ext', ]) - set(fileDetails.keys()):
+				return fileDetails
+			else:
+				raise SeriesNotFound(fq_name)
 
-    def _regx_search(self, fq_name):
+	def _regx_search(self, fq_name):
 
-        _path, _file_name = os.path.split(os.path.abspath(fq_name))
-        _check_path = _path
-        _check_name = _file_name
-        _parse_details = None
-        _directory_name = None
+		_path, _file_name = os.path.split(os.path.abspath(fq_name))
+		_check_path = _path
+		_check_name = _file_name
+		_parse_details = None
+		_directory_name = None
 
-        #Walk up the pathname adding to file name if necessary
-        while _check_path != os.path.sep:
-            _parse_details = self._parse_file_name(_check_name)
-            if _parse_details:
-                break
-            _check_path, _directory_name = os.path.split(_check_path)
-            _check_name = os.path.join(_directory_name, _check_name)
+		#Walk up the pathname adding to file name if necessary
+		while _check_path != os.path.sep:
+			_parse_details = self._parse_file_name(_check_name)
+			if _parse_details:
+				break
+			_check_path, _directory_name = os.path.split(_check_path)
+			_check_name = os.path.join(_directory_name, _check_name)
 
-        if not _parse_details:
-            _error_msg = "No Matching Regx - Unable to parse Filename: {}".format(fq_name)
-            log.trace(_error_msg)
-            raise InvalidFilename('FileParser:' + _error_msg)
+		if not _parse_details:
+			_error_msg = "No Matching Regx - Unable to parse Filename: {}".format(fq_name)
+			log.trace(_error_msg)
+			raise InvalidFilename('FileParser:' + _error_msg)
 
-        _parsed_keys = _parse_details.groupdict().keys()
-        _series_name = self._get_series_name(_parsed_keys, _parse_details)
-        _season_num = self._get_season_number(_parsed_keys, _parse_details)
-        _episode_nums = self._get_episode_numbers(_parsed_keys, _parse_details)
-        _air_date = self._get_date_aired(_parsed_keys, _parse_details)
-        _ext = self._get_ext(_parsed_keys, _parse_details, _file_name)
+		_parsed_keys = _parse_details.groupdict().keys()
+		_series_name = self._get_series_name(_parsed_keys, _parse_details)
+		_season_num = self._get_season_number(_parsed_keys, _parse_details)
+		_episode_nums = self._get_episode_numbers(_parsed_keys, _parse_details)
+		_air_date = self._get_date_aired(_parsed_keys, _parse_details)
+		_ext = self._get_ext(_parsed_keys, _parse_details, _file_name)
 
-        if _check_path != '/srv/DadVision/Series/New':
-            if _directory_name is not None:
-                _series_name = _directory_name
+		if _check_path != '/srv/DadVision/Series/New':
+			if _directory_name is not None:
+				_series_name = _directory_name
 
-        self.File_Details = {}
-        self.File_Details['fileName'] = fq_name
-        self.File_Details['title'] = _series_name
+		self.File_Details = {}
+		self.File_Details['fileName'] = fq_name
+		self.File_Details['title'] = _series_name
 
-        if _air_date:
-            self.File_Details['first_aired'] = _air_date
-        elif _season_num and _episode_nums:
-            self.File_Details['seasonNum'] = _season_num
-            self.File_Details['episodeNums'] = _episode_nums
-        else:
-            raise RegxSelectionError('FileParser: {}: No Season & Episode Numbers or Date Aired in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
+		if _air_date:
+			self.File_Details['first_aired'] = _air_date
+		elif _season_num and _episode_nums:
+			self.File_Details['seasonNum'] = _season_num
+			self.File_Details['episodeNums'] = _episode_nums
+		else:
+			raise RegxSelectionError('FileParser: {}: No Season & Episode Numbers or Date Aired in File Name, Named Groups: {}'.format(self.LogHeader, _parsed_keys))
 
-        if _ext:
-            self.File_Details['Ext'] = _ext
-        else:
-            raise RegxSelectionError('FileParser: {}: Unable to Identify Extension for Filename: {}'.format(self.LogHeader,
-                                                                                                            fq_name))
+		if _ext:
+			self.File_Details['Ext'] = _ext
+		else:
+			raise RegxSelectionError('FileParser: {}: Unable to Identify Extension for Filename: {}'.format(self.LogHeader,
+																											fq_name))
 
-        log.trace('{}: File Details Found: {}'.format(self.LogHeader, self.File_Details))
+		log.trace('{}: File Details Found: {}'.format(self.LogHeader, self.File_Details))
 
-        return self.File_Details
+		return self.File_Details
 
-    def _parse_file_name(self, pathname):
-        for _title, _pattern in self.RegxParse.iteritems():
-            _parse_details = _pattern.match(pathname)
-            if not _parse_details:
-                continue
-            else:
-                self.LogHeader = 'RegEx {}'.format(_title)
-                log.verbose('{}: Matched'.format(self.LogHeader))
-                return _parse_details
+	def _parse_file_name(self, pathname):
+		for _title, _pattern in self.RegxParse.iteritems():
+			_parse_details = _pattern.match(pathname)
+			if not _parse_details:
+				continue
+			else:
+				self.LogHeader = 'RegEx {}'.format(_title)
+				log.verbose('{}: Matched'.format(self.LogHeader))
+				return _parse_details
 
-        return None
+		return None
 
-    def _get_series_name(self, _parsed_keys, _parse_details):
-        log.trace("{}: _get_series_name: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
+	def _get_series_name(self, _parsed_keys, _parse_details):
+		log.trace("{}: _get_series_name: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
 
-        if 'SeriesName' in _parsed_keys and _parse_details.group('SeriesName') != None:
-            _series_name = _parse_details.group('SeriesName')
-        else:
-            raise RegxSelectionError('FileParser: {}: Parse Did Not Find Series Name: {1}'.format(self.LogHeader, _parsed_keys))
+		if 'SeriesName' in _parsed_keys and _parse_details.group('SeriesName') != None:
+			_series_name = _parse_details.group('SeriesName')
+		else:
+			raise RegxSelectionError('FileParser: {}: Parse Did Not Find Series Name: {1}'.format(self.LogHeader, _parsed_keys))
 
-        # Cleans up series name by removing any . and _
-        # characters, along with any trailing hyphens.
+		# Cleans up series name by removing any . and _
+		# characters, along with any trailing hyphens.
 
-        _series_name = re.sub("(\D)[.](\D)", "\\1 \\2", _series_name)
-        _series_name = re.sub("(\D)[.]", "\\1 ", _series_name)
-        _series_name = re.sub("[.](\D)", " \\1", _series_name)
-        _series_name = _series_name.replace("_", " ")
-        _series_name = re.sub("-$", "", _series_name)
-        _suffix = self.check_suffix.match(_series_name.rstrip())
+		_series_name = re.sub("(\D)[.](\D)", "\\1 \\2", _series_name)
+		_series_name = re.sub("(\D)[.]", "\\1 ", _series_name)
+		_series_name = re.sub("[.](\D)", " \\1", _series_name)
+		_series_name = _series_name.replace("_", " ")
+		_series_name = re.sub("-$", "", _series_name)
+		_suffix = self.check_suffix.match(_series_name.rstrip())
 
-        if _suffix:
-            _series_name = '%s (%s)' % (_suffix.group('SeriesName'), _suffix.group('Year').upper())
+		if _suffix:
+			_series_name = '%s (%s)' % (_suffix.group('SeriesName'), _suffix.group('Year').upper())
 
-        _series_name = re.sub("(^|\s)(\S)", self._repl_func, _series_name)
+		_series_name = re.sub("(^|\s)(\S)", self._repl_func, _series_name)
 
-        log.trace('{}: Series Name: {}'.format(self.LogHeader, _series_name.strip()))
+		log.trace('{}: Series Name: {}'.format(self.LogHeader, _series_name.strip()))
 
-        return _series_name.strip()
+		return _series_name.strip()
 
-    def _get_season_number(self, _parsed_keys, _parse_details):
-        log.trace("{}: _get_season_number: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
+	def _get_season_number(self, _parsed_keys, _parse_details):
+		log.trace("{}: _get_season_number: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
 
-        if 'SeasonNum' in _parsed_keys:
-            _season_num = int(_parse_details.group('SeasonNum'))
-        else:
-            _season_num = ''
+		if 'SeasonNum' in _parsed_keys:
+			_season_num = int(_parse_details.group('SeasonNum'))
+		else:
+			_season_num = ''
 
-        return _season_num
+		return _season_num
 
-    def _get_episode_numbers(self, _parsed_keys, _parse_details):
-        log.trace("{}: _get_episode_numbers: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
+	def _get_episode_numbers(self, _parsed_keys, _parse_details):
+		log.trace("{}: _get_episode_numbers: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
 
-        _episode_list = []
-        if 'EpisodeNum1' in _parsed_keys:
-            # Multiple episodes, have EpisodeNum1
-            for _entry in _parsed_keys:
-                _ep_no_match = re.match('EpisodeNum(\d+)', _entry)
-                if _ep_no_match:
-                    _episode_list.append(int(_parse_details.group(_entry)))
-            _episode_numbers = sorted(_episode_list)
-        elif 'EpisodeNumStart' in _parsed_keys:
-            # Range of episodes, regex specifies start and end number
-            _start = int(_parse_details.group('EpisodeNumStart'))
-            _end = int(_parse_details.group('EpisodeNumEnd'))
-            if _start > _end:
-                _start, _end = _end, _start
-            _episode_numbers = range(_start, _end + 1)
-        elif 'EpisodeNum' in _parsed_keys:
-            _episode_numbers = [int(_parse_details.group('EpisodeNum')), ]
-        else:
-            _episode_numbers = []
+		_episode_list = []
+		if 'EpisodeNum1' in _parsed_keys:
+			# Multiple episodes, have EpisodeNum1
+			for _entry in _parsed_keys:
+				_ep_no_match = re.match('EpisodeNum(\d+)', _entry)
+				if _ep_no_match:
+					_episode_list.append(int(_parse_details.group(_entry)))
+			_episode_numbers = sorted(_episode_list)
+		elif 'EpisodeNumStart' in _parsed_keys:
+			# Range of episodes, regex specifies start and end number
+			_start = int(_parse_details.group('EpisodeNumStart'))
+			_end = int(_parse_details.group('EpisodeNumEnd'))
+			if _start > _end:
+				_start, _end = _end, _start
+			_episode_numbers = range(_start, _end + 1)
+		elif 'EpisodeNum' in _parsed_keys:
+			_episode_numbers = [int(_parse_details.group('EpisodeNum')), ]
+		else:
+			_episode_numbers = []
 
-        return _episode_numbers
+		return _episode_numbers
 
-    def _get_date_aired(self, _parsed_keys, _parse_details):
-        log.trace("{}: _get_date_aired: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
+	def _get_date_aired(self, _parsed_keys, _parse_details):
+		log.trace("{}: _get_date_aired: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
 
-        if all(['year' in _parsed_keys, 'month' in _parsed_keys, 'day' in _parsed_keys]):
-            _date_aired = datetime.datetime(int(_parse_details.group('year')),
-                                            int(_parse_details.group('month')),
-                                            int(_parse_details.group('day')))
-        else:
-            _date_aired = ''
+		if all(['year' in _parsed_keys, 'month' in _parsed_keys, 'day' in _parsed_keys]):
+			_date_aired = datetime.datetime(int(_parse_details.group('year')),
+											int(_parse_details.group('month')),
+											int(_parse_details.group('day')))
+		else:
+			_date_aired = ''
 
-        return _date_aired
+		return _date_aired
 
-    def _get_ext(self, _parsed_keys, _parse_details, _file_name):
-        log.trace("{}: _get_date_aired: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
+	def _get_ext(self, _parsed_keys, _parse_details, _file_name):
+		log.trace("{}: _get_date_aired: {} {}".format(self.LogHeader, _parsed_keys, _parse_details))
 
-        if 'Ext' in _parsed_keys:
-            _ext = _parse_details.group('Ext').lower()
-        elif _file_name[-4] == '.':
-            _ext = _file_name[-3:]
-        else:
-            _ext = ''
-        return _ext
+		if 'Ext' in _parsed_keys:
+			_ext = _parse_details.group('Ext').lower()
+		elif _file_name[-4] == '.':
+			_ext = _file_name[-3:]
+		else:
+			_ext = ''
+		return _ext
 
-    def _repl_func(self, m):
-        """process regular expression match groups for word upper-casing problem"""
-        return m.group(1) + m.group(2).upper()
+	def _repl_func(self, m):
+		"""process regular expression match groups for word upper-casing problem"""
+		return m.group(1) + m.group(2).upper()
 
 
 def GetRegx():
 
 # My Library Standard
-    RegxParse = OrderedDict()
-    RegxParse['Standard Library: Regx #1'] = re.compile(
-    '''									# /xxx/xxx/xxx/series/Season #/E##-E## Title.ext
+	RegxParse = OrderedDict()
+	RegxParse['Standard Library: Regx #1'] = re.compile(
+	'''									# /xxx/xxx/xxx/series/Season #/E##-E## Title.ext
 ^(/.*/)*                                # Directory
 (?P<SeriesName>.*)                      # Series Name
 (/Season)                               # Season
@@ -297,10 +292,10 @@ def GetRegx():
 [/\._\ \-]                              # Optional Sep 1
 (?P<EpisodeName>.+)                     # Optional Title
 \.(?P<Ext>....?)$                       # extension
-    ''',re.X|re.I)
+	''',re.X|re.I)
 
-    RegxParse['Standard Library: Regx #2'] = re.compile(
-    '''                                 # /xxx/xxx/xxx/series/Season #/E## Title.ext
+	RegxParse['Standard Library: Regx #2'] = re.compile(
+	'''                                 # /xxx/xxx/xxx/series/Season #/E## Title.ext
 ^(/.*/)*                                # Directory
 (?P<SeriesName>.*)                      # Series Name
 (/Season)                               # Season
@@ -312,12 +307,12 @@ def GetRegx():
 [/\._\ \-]?                             # Optional Sep 1
 (?P<EpisodeName>.+)?                    # Optional Title
 \.(?P<Ext>....?)$                       # extension
-    ''',re.X|re.I)
+	''',re.X|re.I)
 
 #----------------------------------------------------------------------------------------
 # DATE AIRED
-    RegxParse['DATE AIRED: Regx #1'] = re.compile(
-    '''                                # SeriesName yyyy-mm-dd Title.ext
+	RegxParse['DATE AIRED: Regx #1'] = re.compile(
+	'''                                # SeriesName yyyy-mm-dd Title.ext
 ^(/.*/)?                               # Optional Directory
 (?P<SeriesName>.+?)                    # Series name
 [/\._ \-]                              # Sep 1
@@ -329,12 +324,12 @@ def GetRegx():
 [/\._ \-]?                             # Optional Sep 1
 (?P<EpisodeName>.*)                    # Optional Title
 \.(?P<Ext>....?)$                      # Extension
-    ''', re.X | re.I)
+	''', re.X | re.I)
 
 #----------------------------------------------------------------------------------------
 # Multiepisode
-    RegxParse['Multiepisode: Regx #1'] = re.compile(
-    '''                                 # foo.s01e23e24* foo.s01e23-24*
+	RegxParse['Multiepisode: Regx #1'] = re.compile(
+	'''                                 # foo.s01e23e24* foo.s01e23-24*
 ^(/.*/)?                                # Optional Directory
 (?P<SeriesName>.*)                      # Series Name
 [/\._ \-]                               # Sep 1
@@ -350,10 +345,10 @@ def GetRegx():
 [\.\- ]                                 # Sep 1
 (?P<EpisodeName>.*)                     # Optional Title
 \.(?P<Ext>....?)$                       # Extension
-    ''',re.X | re.I)
+	''',re.X | re.I)
 
-    RegxParse['Multiepisode: Regx #2'] = re.compile(
-    '''                                 # foo s01e23 s01e24 s01e25 *
+	RegxParse['Multiepisode: Regx #2'] = re.compile(
+	'''                                 # foo s01e23 s01e24 s01e25 *
 ^(/.*/)?                                # Optional Directory
 (?P<SeriesName>.*)                      # Series Name
 [/\._ \-]                               # Sep 1
@@ -368,10 +363,10 @@ def GetRegx():
 [\.\- ]                                 # Sep 1
 (?P<EpisodeName>.*)                     # Optional Title
 \.(?P<Ext>....?)$                       # Extension
-    ''', re.X | re.I)
+	''', re.X | re.I)
 
-    RegxParse['Multiepisode: Regx #3'] = re.compile(
-    '''                                 # foo.1x23x24*
+	RegxParse['Multiepisode: Regx #3'] = re.compile(
+	'''                                 # foo.1x23x24*
 ^(/.*/)?                                # Optional Directory
 ((?P<SeriesName>.+?)[ \._\-])?          # show name
 (?P<SeasonNum>[0-9]+)                   # 1
@@ -383,26 +378,26 @@ def GetRegx():
 [/\._ \-]?                              # Optional Sep 1
 (?P<EpisodeName>.+)                     # Optional Title
 \.(?P<Ext>....?)$                       # extension
-    ''', re.X | re.I)
+	''', re.X | re.I)
 
-    RegxParse['Multiepisode: Regx #4'] = re.compile(
-    '''                                 # foo.1x23-24*
+	RegxParse['Multiepisode: Regx #4'] = re.compile(
+	'''                                 # foo.1x23-24*
 ^(/.*/)?                                # Optional Directory
 ((?P<SeriesName>.+?)[ \._\-])?          # show name
 (?P<SeasonNum>[0-9]+)                   # 1
 [x](?P<EpisodeNumStart>[0-9][0-9]+)     # first x23
 (                                       # -24 etc
-    [\-][0-9][0-9]+
+	[\-][0-9][0-9]+
 )*
-    [\-]                                # separator
-    (?P<EpisodeNumEnd>[0-9][0-9]+)      # final episode num
+	[\-]                                # separator
+	(?P<EpisodeNumEnd>[0-9][0-9]+)      # final episode num
 ([\.\- ].*                              # must have a separator (prevents 1x01-720p from being 720 episodes)
 \.(?P<Ext>....?)$                       # Extension
 $)
-    ''', re.X | re.I)
+	''', re.X | re.I)
 
-    RegxParse['Multiepisode: Regx #5'] = re.compile(
-    '''                                 # foo.1x23 1x24 1x25
+	RegxParse['Multiepisode: Regx #5'] = re.compile(
+	'''                                 # foo.1x23 1x24 1x25
 ^(/.*/)?                                # Optional Directory
 ((?P<SeriesName>.+?)[ \._\-])?          # show name
 (?P<SeasonNum>[0-9]+)                   # 1
@@ -416,28 +411,28 @@ $)
 (?P<EpisodeName>.+)                     # Optional Title
 \.(?P<Ext>....?)$                       # Extension
 [^\/]*$
-    ''', re.X | re.I)
+	''', re.X | re.I)
 
-    RegxParse['Multiepisode: Regx #6'] = re.compile(
-    '''                                 # foo.123-24*
+	RegxParse['Multiepisode: Regx #6'] = re.compile(
+	'''                                 # foo.123-24*
 ^(/.*/)?                                # Optional Directory
 ((?P<SeriesName>.+?)[ \._\-])?          # show name
 (?P<SeasonNum>[0-9]+)                   # 1
 (?P<EpisodeNumStart>[0-9][0-9]+)        # first x23
 (                                       # -24 etc
-    [\-][0-9][0-9]+
+	[\-][0-9][0-9]+
 )*
-    [\-]                                # separator
-    (?P<EpisodeNumEnd>[0-9][0-9]+)      # final episode num
+	[\-]                                # separator
+	(?P<EpisodeNumEnd>[0-9][0-9]+)      # final episode num
 ([\.\- ].*                              # must have a separator (prevents 1x01-720p from being 720 episodes)
 \.(?P<Ext>....?)$                       # Extension
 $)
-    ''', re.X | re.I)
+	''', re.X | re.I)
 
 #----------------------------------------------------------------------------------------
 # Groups
-    RegxParse['Groups: Regx #1'] = re.compile(
-    '''                                 #
+	RegxParse['Groups: Regx #1'] = re.compile(
+	'''                                 #
 ^(/.*/)?                                # Optional Directory
 ([\[|{].*[\]}])                         # { GROUP NAME }
 [\._ \-]?[\._ \-]?[\._ \-]?             # Optional Sep 1-3
@@ -452,10 +447,10 @@ $)
 [/\._ \-]?                              # Optional Sep 1
 (?P<EpisodeName>.+)?                    # Optional Title
 \.(?P<Ext>....?)$                       # extension
-    ''', re.X | re.I)
+	''', re.X | re.I)
 
-    RegxParse['Groups: Regx #2'] = re.compile(
-    '''                                 #
+	RegxParse['Groups: Regx #2'] = re.compile(
+	'''                                 #
 ^(/.*/)?                                # Optional Directory
 ([\[|{].*[\]}])                         # { GROUP NAME }
 [\._ \-]?[\._ \-]?[\._ \-]?             # Optional Sep 1-3
@@ -470,12 +465,12 @@ $)
 [/\._ \-]?                              # Optional Sep 1
 (?P<EpisodeName>.+)?                    # Optional Title
 \.(?P<Ext>....?)$                       # extension
-    ''', re.X | re.I)
+	''', re.X | re.I)
 
 #----------------------------------------------------------------------------------------
 # Single Episode with S or Season
-    RegxParse['Single Episode: Regx #1'] = re.compile(
-    '''                                 #
+	RegxParse['Single Episode: Regx #1'] = re.compile(
+	'''                                 #
 ^(\/.*\/)?                              # Optional Directory
 (?P<SeriesName>.*?)                     # Series Name
 [\._ \-]                                # Sep 1
@@ -487,10 +482,10 @@ $)
 [\._ \-]?                               # Optional Sep 1
 (?P<EpisodeName>.*)                     # Optional Title
 \.(?P<Ext>....?)$                       # Extension
-    ''', re.X | re.I)
+	''', re.X | re.I)
 
-    RegxParse['Single Episode: Regx #2'] = re.compile(
-    '''                                 #
+	RegxParse['Single Episode: Regx #2'] = re.compile(
+	'''                                 #
 ^(/.*/)?
 (?P<SeriesName>.*?)
 [/\._ \-]
@@ -504,12 +499,12 @@ $)
 [/\._ \-]?
 (?P<EpisodeName>.*)
 \.(?P<Ext>....?)$
-    ''', re.X | re.I)
+	''', re.X | re.I)
 
 #----------------------------------------------------------------------------------------
 # Single Episode No S or Season
-    RegxParse['Single Episode No S: Regx #1'] = re.compile(
-    '''                                 # foo ##e|x##
+	RegxParse['Single Episode No S: Regx #1'] = re.compile(
+	'''                                 # foo ##e|x##
 ^(/.*/)?                                # Optional Directory
 (?P<SeriesName>.*[0-9][0-9][0-9][0-9])  # Series Name with Year
 [/\._ \-]+                              # Sep 1 or More
@@ -519,10 +514,10 @@ $)
 [/\._ \-]*                              # Optional Sep 1 or more
 (?P<EpisodeName>.+)?                    # Optional Title
 \.(?P<Ext>....?)$                       # Extension
-    ''', re.X | re.I)
+	''', re.X | re.I)
 
-    RegxParse['Single Episode No S: Regx #2'] = re.compile(
-    '''                                 # foo ##e|x##
+	RegxParse['Single Episode No S: Regx #2'] = re.compile(
+	'''                                 # foo ##e|x##
 ^(/.*/)?                                # Optional Directory
 (?P<SeriesName>.*?)                     # Series Name
 [/\._ \-]+                              # Sep 1 or More
@@ -532,10 +527,10 @@ $)
 [/\._ \-]*                              # Optional Sep 1 or more
 (?P<EpisodeName>.+)?                    # Optional Title
 \.(?P<Ext>....?)$                       # Extension
-    ''', re.X | re.I)
+	''', re.X | re.I)
 
-    RegxParse['Single Episode No S: Regx #3'] = re.compile(
-    '''                                 # foo #e|x##
+	RegxParse['Single Episode No S: Regx #3'] = re.compile(
+	'''                                 # foo #e|x##
 ^(/.*/)?                                # Optional Directory
 (?P<SeriesName>.*?)                     # Series Name
 [/\._ \-]+                              # Sep
@@ -545,10 +540,10 @@ $)
 [/\._ \-]?                              # Optional Sep 1
 (?P<EpisodeName>.+)?                    # Optional Title
 \.(?P<Ext>....?)$                       # Extension
-    ''', re.X | re.I)
+	''', re.X | re.I)
 
-    RegxParse['Single Episode No S: Regx #4'] = re.compile(
-    '''                                      # foo.s0101, foo.0201
+	RegxParse['Single Episode No S: Regx #4'] = re.compile(
+	'''                                      # foo.s0101, foo.0201
 ^(/.*/)?                                # Optional Directory
 (?P<SeriesName>.+?)[ \._\-]
 [/\._ \-]+                              # Sep
@@ -556,30 +551,30 @@ $)
 [\.\- ]?
 (?P<EpisodeNum>[0-9]{2})
 [^0-9]*$
-    ''', re.X|re.I)
+	''', re.X|re.I)
 
-    RegxParse['Single Episode No S: Regx #5'] = re.compile(
-    '''                                      # foo.s01.e01, foo.s01_e01
+	RegxParse['Single Episode No S: Regx #5'] = re.compile(
+	'''                                      # foo.s01.e01, foo.s01_e01
 ^((?P<SeriesName>.+?)[ \._\-])?
 \[?
 [Ss](?P<SeasonNum>[0-9][0-9]+)[\.\- ]?
 [Ee]?(?P<EpisodeNum>[0-9][0-9]+)
 \]?
 [^\\/]*$
-    ''',
-    re.X|re.I)
+	''',
+	re.X|re.I)
 
-    RegxParse['Single Episode No S: Regx #6'] = re.compile(
-    '''                                      # Foo - S2 E 02 - etc
+	RegxParse['Single Episode No S: Regx #6'] = re.compile(
+	'''                                      # Foo - S2 E 02 - etc
 ^(?P<SeriesName>.+?)[ ]?[ \._\-][ ]?
 [Ss](?P<SeasonNum>[0-9]+)[\.\- ]?
 [Ee]?[ ]?(?P<EpisodeNum>[0-9][0-9]+)
 [^\\/]*$
-    ''',
-    re.X|re.I)
+	''',
+	re.X|re.I)
 
-    RegxParse['Single Episode No S: Regx #7'] = re.compile(
-    '''                                      # foo.1x09*
+	RegxParse['Single Episode No S: Regx #7'] = re.compile(
+	'''                                      # foo.1x09*
 ^((?P<SeriesName>.+?)[ \._\-])?          # show name and padding
 \[?                                      # [ optional
 (?P<SeasonNum>[0-9]+)                    # season
@@ -587,11 +582,11 @@ $)
 (?P<EpisodeNum>[0-9][0-9]+)              # episode
 \]?                                      # ] optional
 [^\\/]*$
-    ''',
-    re.X|re.I)
+	''',
+	re.X|re.I)
 
-    RegxParse['Single Episode No S: Regx #8'] = re.compile(
-    '''                                 # foo.103*
+	RegxParse['Single Episode No S: Regx #8'] = re.compile(
+	'''                                 # foo.103*
 ^(?:/.*/)?                              # Optional Directory
 (?P<SeriesName>.+?)                     # Series Name
 [ \._\-]*                               # One or More Sep
@@ -600,17 +595,17 @@ $)
 [/\._\ \-]*                             # Optional Sep 1
 (?P<EpisodeName>.+)?                    # Optional Title
 \.(?P<Ext>.{2,4})$                     # extension
-    ''',
-    re.X|re.I)
+	''',
+	re.X|re.I)
 
-    RegxParse['Single Episode No S: Regx #9'] = re.compile(
-    '''                                      # foo.0103*
+	RegxParse['Single Episode No S: Regx #9'] = re.compile(
+	'''                                      # foo.0103*
 ^(?P<SeriesName>.+)[ \._\-]
 (?P<SeasonNum>[0-9]{2})
 (?P<EpisodeNum>[0-9]{2,3})
 [\._ -][^\\/]*$
-    ''',
-    re.X|re.I)
+	''',
+	re.X|re.I)
 
 #----------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------
@@ -666,40 +661,41 @@ $)
 #            ''',
 #            re.X|re.I))
 
-    return RegxParse
+	return RegxParse
 
 if __name__ == '__main__':
 
-    import sys
-    import pprint
+	import sys
+	import pprint
 
-    logger.initialize()
+	logger.initialize()
 
-    library = FileParser()
-    Library.args = library.options.parser.parse_args(sys.argv[1:])
-    log.debug("Parsed command line: {!s}".format(library.args))
+	library = FileParser()
+	Library.args = library.options.parser.parse_args(sys.argv[1:])
+	log.debug("Parsed command line: {!s}".format(library.args))
 
-    log_level = logging.getLevelName(library.args.loglevel)
+	log_level = logging.getLevelName(library.args.loglevel)
 
-    if library.args.logfile == 'daddyvision.log':
-        log_file = '{}.log'.format(__pgmname__)
-    else:
-        log_file = os.path.expanduser(library.args.logfile)
+	if library.args.logfile == 'daddyvision.log':
+		log_file = '{}.log'.format(__pgmname__)
+	else:
+		log_file = os.path.expanduser(library.args.logfile)
 
-    # If an absolute path is not specified, use the default directory.
-    if not os.path.isabs(log_file):
-        log_file = os.path.join(logger.LogDir, log_file)
+	# If an absolute path is not specified, use the default directory.
+	if not os.path.isabs(log_file):
+		log_file = os.path.join(logger.LogDir, log_file)
 
-    logger.start(log_file, log_level, timed=True)
+	logger.start(log_file, log_level, timed=True)
 
-    _lib_paths = library.args.library
+	_lib_paths = library.args.library
 
-    if _lib_paths == []:
-        library.options.parser.error('Pathname for Library is required')
+	if _lib_paths == []:
+		library.options.parser.error('Pathname for Library is required')
 
-    _lib_path = _lib_paths[0]
-    _answer = library.getFileDetails(_lib_path)
+	_lib_path = _lib_paths[0]
+	_answer = library.getFileDetails(_lib_path)
 
-    pp = pprint.PrettyPrinter(indent=1, depth=2)
-    print '-'*80
-    pp.pprint(_answer)
+	import pprint
+	pp = pprint.PrettyPrinter(indent=1, depth=2)
+	print '-'*80
+	pp.pprint(_answer)

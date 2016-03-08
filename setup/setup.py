@@ -8,7 +8,7 @@ with open('HISTORY.rst') as f:
     history = f.read()
 
 packages = ['dadvision']
-requires = ['tmdb3', 'tvdb', 'tvrage', 'trakt', 'psutil', 'fuzzywuzzy', 'rpyc']
+requires = ['tmdb3', 'tvdb', 'tvrage', 'MyTrakt', 'psutil', 'fuzzywuzzy', 'rpyc']
 description = 'Python application designed to assst with maintaining a viddeo library.'
 
 setup(

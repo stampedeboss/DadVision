@@ -13,16 +13,17 @@ import logging
 import sys
 from urllib2 import Request, urlopen, HTTPError
 
-from dadvision.common import UnexpectedErrorOccured
+from dadvision import DadVision
+from common.exceptions import UnexpectedErrorOccured
 
-__pgmname__ = 'trakt'
+__pgmname__ = 'MyTrakt'
 
 __author__ = "AJ Reynolds"
 __email__ = "stampedeboss@gmail.com"
 
 __maintainer__ = __author__
 
-__copyright__ = "Copyright 2011, AJ Reynolds"
+__copyright__ = "Copyright 2016, AJ Reynolds"
 __license__ = "GPL"
 
 log = logging.getLogger(__pgmname__)
@@ -37,8 +38,8 @@ def getBase(url, userid='', authorization='', rtn=dict):
 
     headers = {
       'Content-Type': 'application/json',
-      'trakt-api-version': '2',
-      'trakt-api-key': client_id,
+      'MyTrakt-api-version': '2',
+      'MyTrakt-api-key': client_id,
       'Authorization': authorization
     }
 
@@ -103,7 +104,7 @@ def postBase(_url, userid='', authorization='', entries=None):
             if hasattr(entry, 'tmdb_id'):
                 show_entry['tmdb'] = entry.tmdb_id
             if hasattr(entry, 'trakt_id'):
-                show_entry['trakt'] = entry.trakt_id
+                show_entry['MyTrakt'] = entry.trakt_id
 
         if type(entry) is Series:
             _list['shows'].append({'ids': show_entry})
@@ -121,8 +122,8 @@ def postBase(_url, userid='', authorization='', entries=None):
 
     headers = {
                 'Content-Type': 'application/json',
-                'trakt-api-version': '2',
-                'trakt-api-key': client_id,
+                'MyTrakt-api-version': '2',
+                'MyTrakt-api-key': client_id,
                 'Authorization': authorization,
                 'Content-Length': clen
             }
@@ -176,8 +177,8 @@ def modifyBase(url, userid='', authorization='', entries=None, entrytype=None):
 
     headers = {
                 'Content-Type': 'application/json',
-                'trakt-api-version': '2',
-                'trakt-api-key': client_id,
+                'MyTrakt-api-version': '2',
+                'MyTrakt-api-key': client_id,
                 'Authorization': authorization,
                 'Content-Length': clen
             }

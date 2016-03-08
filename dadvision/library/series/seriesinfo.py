@@ -13,18 +13,18 @@ import sys
 import traceback
 from collections import defaultdict
 
-from common import matching
+from library import matching
 from common.exceptions import InvalidArgumentType, InvalidArgumentValue, DictKeyError, GetOutOfLoop
 from common.exceptions import SeriesNotFound, EpisodeNotFound
 from library import Library
 from pytvdbapi import api, error
 from pytvdbapi.error import TVDBAttributeError, TVDBIndexError, TVDBValueError
-from trakt.tv import TVShow
-from trakt.users import User
+from MyTrakt.tv import TVShow
+from MyTrakt.users import User
 from tvrage import feeds
 
 import logger
-import trakt
+import MyTrakt
 from series import Series
 
 __pgmname__ = 'seriesinfo'
@@ -79,12 +79,12 @@ class SeriesInfo(Library):
 		seriesinfo_group.add_argument("--tvrage", dest="processes",
 				action="append_const", const='tvrage',
 				help="Information to come from TVRage")
-		seriesinfo_group.add_argument("--trakt", dest="processes",
-				action="append_const", const='trakt',
-				help="Information to come from trakt.tv")
+		seriesinfo_group.add_argument("--MyTrakt", dest="processes",
+				action="append_const", const='MyTrakt',
+				help="Information to come from MyTrakt.tv")
 		seriesinfo_group.add_argument("--series-only", "--so", dest="get_episodes",
 				action="store_false", default=False,
-				help="Information to come from trakt.tv")
+				help="Information to come from MyTrakt.tv")
 
 		self.db = api.TVDB("959D8E76B796A1FB")
 
@@ -106,10 +106,10 @@ class SeriesInfo(Library):
 			if self.args.processes is not None:
 				processOrder = self.args.processes
 			elif type(processOrder) == list:
-				_s = set(['tvdb', 'trakt', 'tvrage'])
+				_s = set(['tvdb', 'MyTrakt', 'tvrage'])
 				_diff = [_x for _x in processOrder if _x not in _s]
 				if _diff:
-					raise InvalidArgumentValue('processOrder must be: {}'.format('tvdb, trakt, tvrage'))
+					raise InvalidArgumentValue('processOrder must be: {}'.format('tvdb, MyTrakt, tvrage'))
 		except:
 			raise InvalidArgumentType('processOrder must be list, received: {}'.format(type(processOrder)))
 
@@ -176,7 +176,7 @@ class SeriesInfo(Library):
 			self.last_series = Series(title=self.series.title)
 
 		options = {'tvdb': self._tvdbGetInfo,
-				   'trakt': self._traktGetInfo,
+				   'MyTrakt': self._traktGetInfo,
 				   'tvrage': self._tvrageGetInfo}
 
 		try:
@@ -211,22 +211,22 @@ class SeriesInfo(Library):
 
 		try:
 			if not self.trakt_user:
-				trakt.api_key = self.settings.TraktAPIKey
-				trakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
+				MyTrakt.api_key = self.settings.TraktAPIKey
+				MyTrakt.authenticate(self.settings.TraktUserID, self.settings.TraktPassWord)
 				self.trakt_user = User(self.settings.TraktUserID)
 		except:
-			raise SeriesNotFound('trakt: Unable to connect to trakt service: {}'.format(self.settings.TraktUserID))
+			raise SeriesNotFound('MyTrakt: Unable to connect to MyTrakt service: {}'.format(self.settings.TraktUserID))
 
 		show = TVShow(self.series.title)
 		if not show.tvdb_id:
-			raise SeriesNotFound('trakt: Unable to locate series: {}'.format(self.series.title))
+			raise SeriesNotFound('MyTrakt: Unable to locate series: {}'.format(self.series.title))
 
 		_title = self.decode(show.title)
 		if not matching(self.series.title.lower(), _title.lower(), factor=85):
-			raise SeriesNotFound('trakt: Unable to locate series: {}'.format(self.series.title))
+			raise SeriesNotFound('MyTrakt: Unable to locate series: {}'.format(self.series.title))
 
 		if not self.series.source:
-			self.series.source = 'trakt'
+			self.series.source = 'MyTrakt'
 			self.series.title = show.title
 
 		if show.tvdb_id and self.series.tvdb_id is None:

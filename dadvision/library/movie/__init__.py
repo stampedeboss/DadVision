@@ -6,6 +6,8 @@
 
 '''
 
+import logging
+
 from os.path import dirname, split, splitext, exists, join
 
 from unidecode import unidecode
@@ -29,7 +31,7 @@ __maintainer__ = __author__
 __copyright__ = "Copyright 2011, AJ Reynolds"
 __license__ = "GPL"
 
-log = DadVision.logger.getLogger(__pgmname__)
+log = logging.getLogger(__pgmname__)
 
 
 def uselibrarylogging(func):
@@ -55,7 +57,7 @@ class Movie(object):
 
 		self.title = None
 		self.alternate_title = None
-		self.ids = {"imdb": None, "tmdb": None, "trakt": None, "slug": None}
+		self.ids = {"imdb": None, "tmdb": None, "MyTrakt": None, "slug": None}
 		self.year = None
 		self.plays = None
 		self.cast = None
@@ -125,13 +127,13 @@ class Movie(object):
 
 	@property
 	def trakt_id(self):
-		"""The series trakt id."""
-		return self.ids['trakt']
+		"""The series MyTrakt id."""
+		return self.ids['MyTrakt']
 	@trakt_id.setter
 	def trakt_id(self, value):
 		if value is None:
 			return
-		self.ids['trakt'] = int(value)
+		self.ids['MyTrakt'] = int(value)
 		return
 
 	@property

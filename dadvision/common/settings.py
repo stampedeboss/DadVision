@@ -22,7 +22,7 @@ import time
 
 from configobj import ConfigObj
 
-from common.exceptions import ConfigValueError, ConfigNotFound, InvalidArgumentValue, InvalidArgumentType
+from common.exceptions import ConfigValueError, ConfigNotFound
 
 __pgmname__ = 'settings'
 
@@ -31,7 +31,7 @@ __email__ = "stampedeboss@gmail.com"
 
 __maintainer__ = __author__
 
-__copyright__ = "Copyright 2011, AJ Reynolds"
+__copyright__ = "Copyright 2016, AJ Reynolds"
 __license__ = "GPL"
 
 ConfigDir = os.path.join(os.sep, "usr", "local", "etc", "dadvision")
@@ -61,6 +61,7 @@ class Settings(object):
 		self.MovieGlob = Media['MovieGlob']
 		self.MovieGlob2 = Media['MovieGlob2']
 		self.IgnoreGlob = Media['IgnoreGlob']
+		self.AdditionalGlob = Media['AdditionalGlob']
 		self.Predicates = Media['Predicates']
 		self.CountryCodes = Media['CountryCodes']
 
@@ -165,7 +166,7 @@ class Settings(object):
 	def ReloadHostConfig(self, hostname):
 		log.debug('Reloading Settings on request for hostname: {}'.format(hostname))
 		if hostname not in self.Hostnames:
-			raise InvalidArgumentValue('Requested Hostname not found: {}'.format(hostname))
+			raise ConfigValueError('Requested Hostname not found: {}'.format(hostname))
 
 		hostConfig = self.config[hostname]
 		self.UserID = hostConfig['UserId']
@@ -187,9 +188,9 @@ class Settings(object):
 		log.debug("Retrieving Host Information: {}".format(requested_host))
 
 		if type(requested_host) != list:
-			raise InvalidArgumentType('Invalid Request Must be LIST of hostnames to be returned')
+			raise ConfigValueError('Invalid Request Must be LIST of hostnames to be returned')
 		if tuple(set(requested_host) - set(self.Hostnames + ['all'])):
-			raise InvalidArgumentValue('Requested Hostname not found: {}'.format(requested_host))
+			raise ConfigValueError('Requested Hostname not found: {}'.format(requested_host))
 		if requested_host == ['all']:
 			requested_host = self.Hostnames
 
@@ -211,7 +212,8 @@ class Settings(object):
 			if 'TraktToken' in _HOSTNAME:
 				_token = _HOSTNAME['TraktToken']
 				if 'token_type' in _token and 'access_token' in _token:
-					_host_config['TraktAuthorization'] = '{} {}'.format(_token['token_type'], _token['access_token'])
+					_host_config['TraktAuthorization'] = '{} {}'.format(_token['token_type'],
+					                                                    _token['access_token'])
 				else:
 					_host_config['TraktAuthorization'] = ''
 
@@ -233,9 +235,10 @@ def touch(path):
 
 if __name__ == '__main__':
 
+	from logging import INFO, DEBUG, ERROR; TRACE = 5; VERBOSE = 15
 	from common import logger
+	logger.initialize(level=DEBUG)
 
-	logger.initialize()
 	settings = Settings()
 	log.info('HostNames: {}'.format(settings.Hostnames))
 	log.info('SeriesDir: {}'.format(settings.SeriesDir))
@@ -270,10 +273,11 @@ if __name__ == '__main__':
 
 	try:
 		log.info(settings.GetHostConfig(['mickey']))
-	except InvalidArgumentValue, msg:
+	except ConfigValueError, msg:
 		log.error('GetHostConfig Failed: {}'.format(msg))
 		try:
 			settings.ReloadHostConfig('mickey')
-		except InvalidArgumentValue, msg:
+		except ConfigValueError, msg:
 			log.error('ReloadHostConfig Failed: {}'.format(msg))
+
 	sys.exit(0)

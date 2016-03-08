@@ -18,7 +18,7 @@ from common.exceptions import (SeriesNotFound)
 from library import Library
 from library.series import Series
 from library.series.fileparser import FileParser
-from library.trakt.user import *
+from library.MyTrakt.user import *
 from tqdm import tqdm
 
 import logger

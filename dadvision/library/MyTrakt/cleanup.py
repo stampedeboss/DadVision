@@ -19,15 +19,16 @@ import os
 
 import tmdb3
 import unidecode
+from dadvision import DadVision
 from library import Library
-from library.trakt.show import getShow
-from library.trakt.user import *
+from library.MyTrakt.show import getShow
+from library.MyTrakt.user import *
 from pytvdbapi import api, error
 from slugify import Slugify
 from tqdm import tqdm
 
 import logger
-from movie import TMDBInfo
+#from movie import TMDBInfo
 
 __pgmname__ = 'cleanup'
 
@@ -49,10 +50,10 @@ class CleanUp(Library):
 
 		super(CleanUp, self).__init__()
 
-		trakt_auth_group = self.options.parser.add_argument_group("Profiles", description=None)
+		trakt_auth_group = DadVision.cmdoptions.parser.add_argument_group("Profiles", description=None)
 		trakt_auth_group.add_argument("-y", "--grumpy", dest="HostName",
 			action="append_const", const="grumpy",
-			help="Entires for Grumpy")
+			help="Entries for Grumpy")
 		trakt_auth_group.add_argument("-t", "--tigger", dest="HostName",
 			action="append_const", const="tigger",
 			help="Entires for Tigger")
@@ -66,7 +67,7 @@ class CleanUp(Library):
 			action="append_const", const="pluto",
 			help="Entries for Pluto")
 
-		trakt_options_group = self.options.parser.add_argument_group("Options", description=None)
+		trakt_options_group = DadVision.cmdoptions.parser.add_argument_group("Options", description=None)
 		trakt_options_group.add_argument("-c", "--clear", dest="Clear", nargs='*',
 			 action='store', default='None',
 						 help='Clear/Delete all entries in requested area: shows, movies')
@@ -78,7 +79,7 @@ class CleanUp(Library):
 		tmdb3.set_cache(filename='tmdb3.cache')
 
 		self.db = api.TVDB("959D8E76B796A1FB")
-		self.tmdbinfo = TMDBInfo()
+		#self.tmdbinfo = TMDBInfo()
 
 		self._collectedShows = []
 		self._watchedShows = []
@@ -93,17 +94,17 @@ class CleanUp(Library):
 
 	def ProcessRequest(self):
 
-		if not self.args.HostName:
-			self.args.HostName = ['grumpy']
+		if not DadVision.args.HostName:
+			DadVision.args.HostName = ['grumpy']
 
-		for self._hostname in self.args.HostName:
-			profiles = self.settings.GetHostConfig(requested_host=[self._hostname])
-			self.args.TraktUserID = profiles[self._hostname]['TraktUserID']
-			self.args.TraktAuthorization = profiles[self._hostname]['TraktAuthorization']
+		for self._hostname in DadVision.args.HostName:
+			profiles = DadVision.settings.GetHostConfig(requested_host=[self._hostname])
+			DadVision.args.TraktUserID = profiles[self._hostname]['TraktUserID']
+			DadVision.args.TraktAuthorization = profiles[self._hostname]['TraktAuthorization']
 
-			log.info('Processing entires for: {}'.format(self.args.TraktUserID))
+			log.info('Processing entires for: {}'.format(DadVision.args.TraktUserID))
 
-			if 'movies' in self.args.Clear:
+			if 'movies' in DadVision.args.Clear:
 				self.clear_movies()
 				sys.exit(0)
 
@@ -116,8 +117,8 @@ class CleanUp(Library):
 	def getTrakt(self):
 
 		log.info('Retrieving Shows in Collection')
-		self._collectedShows = getCollection(self.args.TraktUserID,
-										self.args.TraktAuthorization,
+		self._collectedShows = getCollection(DadVision.args.TraktUserID,
+										DadVision.args.TraktAuthorization,
 										entrytype='shows',
 										rtn=dict)
 		if type(self._collectedShows) == HTTPError:
@@ -125,8 +126,8 @@ class CleanUp(Library):
 			sys.exit(99)
 
 		log.info('Retrieving Shows that are marked as Watched')
-		self._watchedShows = getWatched(self.args.TraktUserID,
-							 self.args.TraktAuthorization,
+		self._watchedShows = getWatched(DadVision.args.TraktUserID,
+							 DadVision.args.TraktAuthorization,
 							 entrytype='shows',
 							 rtn=dict)
 		if type(self._watchedShows) == HTTPError:
@@ -134,8 +135,8 @@ class CleanUp(Library):
 			sys.exit(99)
 
 		log.info('Retrieving Shows on WatchList')
-		self._watchlistShows = getWatchList(self.args.TraktUserID,
-								 self.args.TraktAuthorization,
+		self._watchlistShows = getWatchList(DadVision.args.TraktUserID,
+								 DadVision.args.TraktAuthorization,
 								 entrytype='shows',
 								 rtn=dict)
 		if type(self._watchlistShows) == HTTPError:
@@ -146,20 +147,20 @@ class CleanUp(Library):
 			return
 
 
-		self._trakt_720P = getList(self.args.TraktUserID,
-										  self.args.TraktAuthorization,
-										  list=self.settings.TraktFollowed720,
+		self._trakt_720P = getList(DadVision.args.TraktUserID,
+										  DadVision.args.TraktAuthorization,
+										  list=DadVision.settings.TraktFollowed720,
 										  rtn=dict)
 		if type(self._trakt_720P) == HTTPError:
-			log.error('{}: Invalid Return Code - {}'.format(self.settings.TraktFollowed720, self._trakt_720P))
+			log.error('{}: Invalid Return Code - {}'.format(DadVision.settings.TraktFollowed720, self._trakt_720P))
 			sys.exit(99)
 
-		self._trakt_sdtv = getList(self.args.TraktUserID,
-										   self.args.TraktAuthorization,
-										   list=self.settings.TraktFollowed,
+		self._trakt_sdtv = getList(DadVision.args.TraktUserID,
+										   DadVision.args.TraktAuthorization,
+										   list=DadVision.settings.TraktFollowed,
 										   rtn=dict)
 		if type(self._trakt_sdtv) == HTTPError:
-			log.error('{}: Invalid Return Code - {}'.format(self.settings.TraktFollowed, self._trakt_sdtv))
+			log.error('{}: Invalid Return Code - {}'.format(DadVision.settings.TraktFollowed, self._trakt_sdtv))
 			sys.exit(99)
 
 		self._trakt_list = dict(self._trakt_720P)
@@ -184,8 +185,8 @@ class CleanUp(Library):
 
 		#Cleanup Show History
 		if _removeFromHistory:
-			_rc = removeFromHistory(self.args.TraktUserID,
-			                        self.args.TraktAuthorization,
+			_rc = removeFromHistory(DadVision.args.TraktUserID,
+			                        DadVision.args.TraktAuthorization,
 			                        entries=_removeFromHistory)
 			log.info('Seen Shows Cleaned Up: {}  Not Found: {}'.format(_rc['deleted']['episodes'],
 																	  _rc['not_found']['shows']))
@@ -194,8 +195,8 @@ class CleanUp(Library):
 
 	# 	#Cleanup Shows Watchlist
 		if _removeFromWatchlist:
-			_rc = removeFromWatchlist(self.args.TraktUserID,
-									   self.args.TraktAuthorization,
+			_rc = removeFromWatchlist(DadVision.args.TraktUserID,
+									   DadVision.args.TraktAuthorization,
 									   entries=_removeFromWatchlist)
 			log.info('Show Watchlist Cleaned Up: {}  Not Found: {}'.format(_rc['deleted']['shows'],
 																		  _rc['not_found']['shows']))
@@ -206,7 +207,7 @@ class CleanUp(Library):
 			return
 
 		_remove_shows = []
-		for _entry in tqdm(self._trakt_sdtv, desc=self.settings.TraktFollowed):
+		for _entry in tqdm(self._trakt_sdtv, desc=DadVision.settings.TraktFollowed):
 			if _entry in self._collectedShows:
 				continue
 			_remove_shows.append(self._trakt_sdtv[_entry])
@@ -214,19 +215,19 @@ class CleanUp(Library):
 
 		if _remove_shows:
 			for _entry in _remove_shows:
-				log.info('{} - Removing: {}'.format(self.settings.TraktFollowed, _entry.title))
+				log.info('{} - Removing: {}'.format(DadVision.settings.TraktFollowed, _entry.title))
 				del self._trakt_sdtv[_entry.slug]
 
-			_rc = removeFromList(self.args.TraktUserID,
-								self.args.TraktAuthorization,
-								list=self.settings.TraktFollowed, entries=_remove_shows)
+			_rc = removeFromList(DadVision.args.TraktUserID,
+								DadVision.args.TraktAuthorization,
+								list=DadVision.settings.TraktFollowed, entries=_remove_shows)
 
-			log.info('{} Removed: {}  Not Found: {}'.format(self.settings.TraktFollowed,
+			log.info('{} Removed: {}  Not Found: {}'.format(DadVision.settings.TraktFollowed,
 															_rc['deleted']['shows'],
 															_rc['not_found']['shows']))
 
 		_remove_shows = []
-		for _entry  in tqdm(self._trakt_720P, desc=self.settings.TraktFollowed720):
+		for _entry  in tqdm(self._trakt_720P, desc=DadVision.settings.TraktFollowed720):
 			if _entry in self._collectedShows:
 				continue
 			_remove_shows.append(self._trakt_720P[_entry])
@@ -236,11 +237,11 @@ class CleanUp(Library):
 			for _entry in _remove_shows:
 				log.info('Removing: {}'.format(_entry.title))
 				del self._trakt_720P[_entry.slug]
-			_rc = removeFromList(self.args.TraktUserID,
-								self.args.TraktAuthorization,
-								list=self.settings.TraktFollowed720, entries=_remove_shows)
+			_rc = removeFromList(DadVision.args.TraktUserID,
+								DadVision.args.TraktAuthorization,
+								list=DadVision.settings.TraktFollowed720, entries=_remove_shows)
 
-			log.info('{} Removed: {}  Not Found: {}'.format(self.settings.TraktFollowed720,
+			log.info('{} Removed: {}  Not Found: {}'.format(DadVision.settings.TraktFollowed720,
 															_rc['deleted']['shows'],
 															_rc['not_found']['shows']))
 
@@ -255,7 +256,7 @@ class CleanUp(Library):
 
 		_missing = sorted(self._collectedShows)
 
-		for _dir in tqdm(sorted(os.listdir(self.settings.SeriesDir)), desc='Check Lists'):
+		for _dir in tqdm(sorted(os.listdir(DadVision.settings.SeriesDir)), desc='Check Lists'):
 
 			if self._ignored(_dir): continue
 
@@ -284,10 +285,10 @@ class CleanUp(Library):
 
 		if _new_shows:
 			for _entry in _new_shows:
-				log.info('Adding to {}: {}'.format(self.settings.TraktFollowed, _entry.title))
-			_rc = addToList(self.args.TraktUserID,
-							self.args.TraktAuthorization,
-							list=self.settings.TraktFollowed, entries=_new_shows)
+				log.info('Adding to {}: {}'.format(DadVision.settings.TraktFollowed, _entry.title))
+			_rc = addToList(DadVision.args.TraktUserID,
+							DadVision.args.TraktAuthorization,
+							list=DadVision.settings.TraktFollowed, entries=_new_shows)
 
 			log.info('New Shows Added: {}  Existed: {}  Not Found: {}'.format(_rc['added']['shows'],
 																			  _rc['existing']['shows'],
@@ -296,8 +297,8 @@ class CleanUp(Library):
 		if _newly_collected:
 			for _entry in _newly_collected:
 				log.info('Adding to Collection: {}'.format(_entry.title))
-			_rc = addToCollection(self.args.TraktUserID,
-							self.args.TraktAuthorization,
+			_rc = addToCollection(DadVision.args.TraktUserID,
+							DadVision.args.TraktAuthorization,
 							entries=_newly_collected)
 
 			log.info('New Episodes Added: {}  Existed: {}  Not Found: {}'.format(_rc['added']['episodes'],
@@ -307,17 +308,17 @@ class CleanUp(Library):
 		if _remove_shows:
 			for _entry in _remove_shows:
 				log.info('Removing: {}'.format(_entry.title))
-			_rc = removeFromList(self.args.TraktUserID,
-								self.args.TraktAuthorization,
-								list=self.settings.TraktFollowed720, entries=_remove_shows)
-			log.info('{} Removed: {}  Not Found: {}'.format(self.settings.TraktFollowed720,
+			_rc = removeFromList(DadVision.args.TraktUserID,
+								DadVision.args.TraktAuthorization,
+								list=DadVision.settings.TraktFollowed720, entries=_remove_shows)
+			log.info('{} Removed: {}  Not Found: {}'.format(DadVision.settings.TraktFollowed720,
 			                                                _rc['deleted']['shows'],
 															_rc['not_found']['shows']))
 
-			_rc = removeFromList(self.args.TraktUserID,
-								self.args.TraktAuthorization,
-								list=self.settings.TraktFollowed, entries=_remove_shows)
-			log.info('{} Removed: {}  Not Found: {}'.format(self.settings.TraktFollowed,
+			_rc = removeFromList(DadVision.args.TraktUserID,
+								DadVision.args.TraktAuthorization,
+								list=DadVision.settings.TraktFollowed, entries=_remove_shows)
+			log.info('{} Removed: {}  Not Found: {}'.format(DadVision.settings.TraktFollowed,
 			                                                _rc['deleted']['shows'],
 															_rc['not_found']['shows']))
 
@@ -327,10 +328,10 @@ class CleanUp(Library):
 				_remove_shows.append(self._collectedShows[key])
 				del self._collectedShows[key]
 
-			_rc = removeFromCollection(userid=self.args.TraktUserID,
-									   authorization=self.args.TraktAuthorization,
+			_rc = removeFromCollection(userid=DadVision.args.TraktUserID,
+									   authorization=DadVision.args.TraktAuthorization,
 									   entries=_remove_shows)
-			log.info('{} Removed: {}  Not Found: {}'.format(self.settings.TraktFollowed,
+			log.info('{} Removed: {}  Not Found: {}'.format(DadVision.settings.TraktFollowed,
 			                                                _rc['deleted']['episodes'],
 															_rc['not_found']['shows']))
 
@@ -360,8 +361,8 @@ class CleanUp(Library):
 		# NEW SHOW
 		_show_list = getShow(_dir,
 		                     list,
-							 self.args.TraktUserID,
-							 self.args.TraktAuthorization,
+							 DadVision.args.TraktUserID,
+							 DadVision.args.TraktAuthorization,
 							)
 		if type(_show_list) == HTTPError:
 			self.errorLog.append('Unable to locate Series: {}'.format(_dir))
@@ -380,22 +381,22 @@ class CleanUp(Library):
 
 
 	def cleanup_movies(self):
-		_watched = getWatched(self.args.TraktUserID,
-							 self.args.TraktAuthorization,
+		_watched = getWatched(DadVision.args.TraktUserID,
+							 DadVision.args.TraktAuthorization,
 							 entrytype='movies',
 							 rtn=dict)
 		if type(_watched) == HTTPError:
 			log.error('Watched: Invalid Return Code - {}'.format(_watched))
 
-		_collectedMovies = getCollection(self.args.TraktUserID,
-								  self.args.TraktAuthorization,
+		_collectedMovies = getCollection(DadVision.args.TraktUserID,
+								  DadVision.args.TraktAuthorization,
 								  entrytype='movies',
 								  rtn=dict)
 		if type(_collectedMovies) == HTTPError:
 			log.error('Collected: Invalid Return Code - {}'.format(_collectedMovies))
 
-		_watchlist = getWatchList(self.args.TraktUserID,
-								 self.args.TraktAuthorization,
+		_watchlist = getWatchList(DadVision.args.TraktUserID,
+								 DadVision.args.TraktAuthorization,
 								 entrytype='movies',
 								 rtn=dict)
 		if type(_watchlist) == HTTPError:
@@ -404,7 +405,7 @@ class CleanUp(Library):
 		_remove_movies = [_watched[x] for x in _watched if x not in _collectedMovies]
 		_unwatchlist_movies = [_collectedMovies[x] for x in _watchlist if x in _collectedMovies]
 
-		if 'movies' in self.args.list:
+		if 'movies' in DadVision.args.list:
 			for key, val in _collectedMovies.items():
 				log.info(key)
 
@@ -414,8 +415,8 @@ class CleanUp(Library):
 
 		# Remove Movies
 		if _remove_movies:
-			_rc = removeFromHistory(self.args.TraktUserID,
-								   self.args.TraktAuthorization,
+			_rc = removeFromHistory(DadVision.args.TraktUserID,
+								   DadVision.args.TraktAuthorization,
 								   entries=_remove_movies)
 			log.info('Movie History Cleaned Up: {}  Not Found: {}'.format(_rc['deleted']['movies'],
 																		  _rc['not_found']['movies']))
@@ -424,8 +425,8 @@ class CleanUp(Library):
 
 		#Cleanup Movie Watchlist
 		if _unwatchlist_movies:
-			_rc = removeFromWatchlist(self.args.TraktUserID,
-									   self.args.TraktAuthorization,
+			_rc = removeFromWatchlist(DadVision.args.TraktUserID,
+									   DadVision.args.TraktAuthorization,
 									   entries=_unwatchlist_movies)
 
 			log.info('Movies Watchlist Cleaned Up: {}  Not Found: {}'.format(_rc['deleted']['movies'],
@@ -436,29 +437,29 @@ class CleanUp(Library):
 
 	def clear_movies(self):
 
-		_watched = getWatched(self.args.TraktUserID,
-							 self.args.TraktAuthorization,
+		_watched = getWatched(DadVision.args.TraktUserID,
+							 DadVision.args.TraktAuthorization,
 							 entrytype='movies')
 		if type(_watched) == HTTPError:
 			log.error('Watched: Invalid Return Code - {}'.format(_watched))
 
-		_collectedShows = getCollection(self.args.TraktUserID,
-								  self.args.TraktAuthorization,
+		_collectedShows = getCollection(DadVision.args.TraktUserID,
+								  DadVision.args.TraktAuthorization,
 								  entrytype='movies')
 		if type(_collectedShows) == HTTPError:
 			log.error('Watched: Invalid Return Code - {}'.format(_collectedShows))
 
 		# Remove Watched Entries for Movies
 		if _watched:
-			_rc = removeFromHistory(self.args.TraktUserID,
-								   self.args.TraktAuthorization,
+			_rc = removeFromHistory(DadVision.args.TraktUserID,
+								   DadVision.args.TraktAuthorization,
 								   entries=_watched)
 			log.info(_rc)
 
 		# Remove Collection Entries for Movies
 		if _collectedShows:
-			_rc = removeFromCollection(self.args.TraktUserID,
-									   self.args.TraktAuthorization,
+			_rc = removeFromCollection(DadVision.args.TraktUserID,
+									   DadVision.args.TraktAuthorization,
 									   entries=_collectedShows)
 			log.info(_rc)
 
@@ -467,26 +468,30 @@ class CleanUp(Library):
 
 if __name__ == "__main__":
 
-	logger.initialize()
-	library = CleanUp()
+	import pprint
+	from sys import argv
+	from logging import DEBUG; TRACE = 5; VERBOSE = 15
 
-	Library.args = library.options.parser.parse_args(sys.argv[1:])
-	log.debug("Parsed command line: {!s}".format(library.args))
+	DadVision.logger.initialize(level=DEBUG)
+	cleanup = CleanUp()
+	DadVision.args = DadVision.cmdoptions.ParseArgs(argv[1:])
 
-	log_level = logging.getLevelName(library.args.loglevel.upper())
+	DadVision.logger.start(DadVision.args.logfile, DEBUG, timed=DadVision.args.timed)
 
-	if library.args.logfile == 'daddyvision.log':
-		log_file = '{}.log'.format(__pgmname__)
-	else:
-		log_file = os.path.expanduser(library.args.logfile)
+	cleanup.ProcessRequest()
 
-	# If an absolute path is not specified, use the default directory.
-	if not os.path.isabs(log_file):
-		logger.LogDir = os.path.join(logger.LogDir, 'trakt')
-		log_file = os.path.join(logger.LogDir, log_file)
+	'''
+	if len(DadVision.args.pathname) > 0:
+		for pathname in DadVision.args.pathname:
+			try:
+				#series.media_details(pathname)
+				series.search(title='Star Trek TNG')
+				#series.rename()
+			except Exception, e:
+				an_error = traceback.format_exc()
+				raise
+	pp = pprint.PrettyPrinter(indent=1, depth=2)
+	print '-'*80
+	pp.pprint(series.__dict__)
 
-	library.args.logfile = log_file
-
-	logger.start(log_file, log_level, timed=False)
-
-	library.ProcessRequest()
+	'''

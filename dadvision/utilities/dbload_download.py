@@ -13,7 +13,7 @@ import os
 import sqlite3
 import sys
 
-from common.countfiles import countFiles
+from library import countFiles
 from common.exceptions import UnexpectedErrorOccured, DuplicateRecord, InvalidFilename
 from common.options import OptionParser, OptionGroup
 from common.settings import Settings

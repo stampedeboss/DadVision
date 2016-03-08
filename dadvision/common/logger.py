@@ -7,7 +7,6 @@ Purpose:
 """
 import logging
 import logging.handlers
-from logging import WARNING
 import os
 import re
 import sys
@@ -131,7 +130,7 @@ _mem_handler = None
 _logging_started = False
 
 
-def initialize(unit_test=False, level=TRACE, console=True):
+def initialize(level=TRACE, console=True):
     """Prepare logging.
     """
     global _logging_configured, _mem_handler
@@ -157,13 +156,7 @@ def initialize(unit_test=False, level=TRACE, console=True):
         console.set_name('Console')
         log.addHandler(console)
 
-    if unit_test:
-        log.setLevel(level)
-        return
-
     if '--trace' in sys.argv:
-        log.setLevel(TRACE)
-    elif '--debug-trace' in sys.argv:
         log.setLevel(TRACE)
     elif '--debug' in sys.argv:
         log.setLevel(logging.DEBUG)
@@ -175,6 +168,8 @@ def initialize(unit_test=False, level=TRACE, console=True):
         log.setLevel(logging.ERROR)
     elif '--critical' in sys.argv:
         log.setLevel(logging.CRITICAL)
+    elif level:
+        log.setLevel(level)
     else:
         log.setLevel(logging.INFO)
 
@@ -216,7 +211,7 @@ def start(filename=None, level=logging.INFO, timed=False, errorlog=False):
         error_handler.doRollover()
         error_handler.set_name('Error')
         log.addHandler(error_handler)
-        error_handler.setLevel(WARNING)
+        error_handler.setLevel(logging.WARNING)
 
     # flush what we have stored from the plugin initialization
     _mem_handler.flush()

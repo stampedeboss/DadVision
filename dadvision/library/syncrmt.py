@@ -18,7 +18,7 @@ from subprocess import check_call, CalledProcessError
 import psutil
 from common.exceptions import ConfigValueError
 from library import Library
-from library.trakt.user import *
+from library.MyTrakt.user import *
 from pytvdbapi import api
 from tqdm import tqdm
 
@@ -415,7 +415,7 @@ class SyncLibrary(Library):
             self.args.TraktAuthorization = profiles[host_tgt]['TraktAuthorization']
 
             if not self.args.TraktUserID:
-                msg = 'Missing: trakt.tv account and the userid/authorization entered in the config file'
+                msg = 'Missing: MyTrakt.tv account and the userid/authorization entered in the config file'
                 log.error(msg)
                 raise ConfigValueError(msg)
 
@@ -550,7 +550,7 @@ class SyncLibrary(Library):
                         _show = self.db.get_series(_entry.tvdb_id, 'en')
                         _title = self.decode(_show.SeriesName)
                         if not os.path.exists('{}'.format(os.path.join(self.settings.SeriesDir, _title))):
-                            _warn_msgs.append('Series Not Available: trakt - {}  tvdb - {}'.format(_entry.title, _title))
+                            _warn_msgs.append('Series Not Available: MyTrakt - {}  tvdb - {}'.format(_entry.title, _title))
                             continue
                 else:
                     _title = "{} ({})".format(self.decode(_entry.title),_entry.year)

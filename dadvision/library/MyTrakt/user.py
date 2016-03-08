@@ -13,7 +13,7 @@ Current functions:
  Repopulate the std-shows list
 """
 
-from trakt import *
+from MyTrakt import *
 
 __pgmname__ = 'user'
 
@@ -30,7 +30,7 @@ log = logging.getLogger(__pgmname__)
 def getCollection(userid='', authorization='', entrytype='shows', rtn=dict):
 
 #	_url = 'https://api-v2launch.trakt.tv/users/{}/collection/{}?extended=full'.format(userid, entrytype)
-    _url = 'https://api-v2launch.trakt.tv/sync/collection/{}?extended=full'.format(entrytype)
+    _url = 'https://api-v2launch.MyTrakt.tv/sync/collection/{}?extended=full'.format(entrytype)
 
     _list = getBase(_url, userid, authorization, rtn)
 
@@ -38,7 +38,7 @@ def getCollection(userid='', authorization='', entrytype='shows', rtn=dict):
 
 def addToCollection(userid='', authorization='', entries=None):
 
-    _url = 'https://api-v2launch.trakt.tv/sync/collection'
+    _url = 'https://api-v2launch.MyTrakt.tv/sync/collection'
     data = postBase(_url, userid=userid, authorization=authorization, entries=entries)
 
     return data
@@ -46,7 +46,7 @@ def addToCollection(userid='', authorization='', entries=None):
 
 def removeFromCollection(userid='', authorization='', entries=None):
 
-    _url = 'https://api-v2launch.trakt.tv/sync/collection/remove'
+    _url = 'https://api-v2launch.MyTrakt.tv/sync/collection/remove'
     data = postBase(_url, userid=userid, authorization=authorization, entries=entries)
 
     return data
@@ -54,49 +54,49 @@ def removeFromCollection(userid='', authorization='', entries=None):
 
 def getList(userid='', authorization='', list='stdshows', rtn=dict):
 
-    _url = 'https://api-v2launch.trakt.tv/users/{}/lists/{}/items?extended=full'.format(userid, list)
+    _url = 'https://api-v2launch.MyTrakt.tv/users/{}/lists/{}/items?extended=full'.format(userid, list)
     _list = getBase(_url, userid, authorization, rtn)
 
     return _list
 
 def getWatchList(userid='', authorization='', entrytype='shows', rtn=dict):
 
-    _url = 'https://api-v2launch.trakt.tv/users/{}/watchlist/{}?extended=full'.format(userid, entrytype)
+    _url = 'https://api-v2launch.MyTrakt.tv/users/{}/watchlist/{}?extended=full'.format(userid, entrytype)
     _list = getBase(_url, userid, authorization, rtn)
 
     return _list
 
 def getWatched(userid='', authorization='', entrytype='shows', rtn=dict):
 
-    _url = 'https://api-v2launch.trakt.tv/users/{}/watched/{}?extended=full'.format(userid, entrytype)
+    _url = 'https://api-v2launch.MyTrakt.tv/users/{}/watched/{}?extended=full'.format(userid, entrytype)
     _list = getBase(_url, userid, authorization, rtn)
 
     return _list
 
 def addToList(userid='', authorization='', list='stdshows', entries=None):
 
-    _url = 'https://api-v2launch.trakt.tv/users/{}/lists/{}/items'.format(userid, list)
+    _url = 'https://api-v2launch.MyTrakt.tv/users/{}/lists/{}/items'.format(userid, list)
     data = postBase(_url, userid=userid, authorization=authorization, entries=entries)
 
     return data
 
 def removeFromWatchlist(userid='', authorization='', entries=None):
 
-    _url = 'https://api-v2launch.trakt.tv/sync/watchlist/remove'
+    _url = 'https://api-v2launch.MyTrakt.tv/sync/watchlist/remove'
     data = postBase(_url, userid=userid, authorization=authorization, entries=entries)
 
     return data
 
 def removeFromList(userid='', authorization='', list='stdshows', entries=None):
 
-    _url = 'https://api-v2launch.trakt.tv/users/{}/lists/{}/items/remove'.format(userid, list)
+    _url = 'https://api-v2launch.MyTrakt.tv/users/{}/lists/{}/items/remove'.format(userid, list)
     data = postBase(_url, userid=userid, authorization=authorization, entries=entries)
 
     return data
 
 def removeFromHistory(userid='', authorization='', entries=None, entrytype=None):
 
-    _url = 'https://api-v2launch.trakt.tv/sync/history/remove'
+    _url = 'https://api-v2launch.MyTrakt.tv/sync/history/remove'
     data = postBase(_url, userid=userid, authorization=authorization, entries=entries)
 
     return data

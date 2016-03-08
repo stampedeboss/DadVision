@@ -13,7 +13,7 @@ import logging
 import os
 import sys
 
-from common.countfiles import countFiles
+from library import countFiles
 from common.exceptions import InvalidPath
 
 import logger

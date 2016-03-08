@@ -29,6 +29,26 @@ class GetOutOfLoop(BaseDaddyVisionException):
 	pass
 
 
+class TitleFromFileError(BaseDaddyVisionException):
+	"""Raised when no valid files are found that parse correctly.
+	"""
+	pass
+
+class NotMediaFile(BaseDaddyVisionException):
+	"""Raised when an argument is not expected value for object
+	"""
+	pass
+
+class FailedVideoCheck(BaseDaddyVisionException):
+	"""Raised when files failed Video Checks.
+	"""
+	pass
+
+class RenameError(BaseDaddyVisionException):
+	"""Raised when eror is encoutered during rename
+	"""
+	pass
+
 class InvalidPath(BaseDaddyVisionException):
 	"""Raised when an argument is a non-existent file or directory path
 	"""
@@ -64,27 +84,9 @@ class DictKeyError(BaseDaddyVisionException):
 	"""
 	pass
 
-class InvalidArgumentType(BaseDaddyVisionException):
-	"""Raised when an argument is not expected type of object
-	"""
+
+class RegxSelectionError(BaseDaddyVisionException):
 	pass
-
-class InvalidArgumentValue(BaseDaddyVisionException):
-	"""Raised when an argument is not expected value for object
-	"""
-	pass
-
-class NotMediaFile(BaseDaddyVisionException):
-	"""Raised when an argument is not expected value for object
-	"""
-	pass
-
-class FailedVideoCheck(BaseDaddyVisionException):
-	"""Raised when files failed Video Checks.
-	"""
-	pass
-
-
 
 # Configuration Exceptions
 class BaseConfigError(BaseDaddyVisionException):
@@ -100,11 +102,6 @@ class ConfigNotFound(BaseConfigError):
 
 class ConfigValueError(BaseConfigError):
 	"""Raised if the config file is malformed or unreadable
-	"""
-	pass
-
-class RegxSelectionError(BaseConfigError):
-	"""Raised if the the Regx is unable to return all data from FileParse
 	"""
 	pass
 

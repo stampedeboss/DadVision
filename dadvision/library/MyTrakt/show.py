@@ -19,7 +19,7 @@ from urllib import urlencode
 
 import unidecode
 
-from trakt import *
+from MyTrakt import *
 
 __pgmname__ = 'show'
 
@@ -45,7 +45,7 @@ def getShow(show, rtn=dict, userid='', authorization=''):
 	if type(show) in [str, unicode, dict]:
 		show = myslug(show)
 
-	_url = 'https://api-v2launch.trakt.tv/shows/{}?extended=full'.format(show)
+	_url = 'https://api-v2launch.MyTrakt.tv/shows/{}?extended=full'.format(show)
 	_list = getBase(_url, userid, authorization, rtn)
 
 	return _list
@@ -57,7 +57,7 @@ def searchShow(show, year=None, rtn=dict, userid='', authorization=''):
 
 	show = urlencode(show)
 
-	_url = 'https://api-v2launch.trakt.tv/search?{}'.format(show)
+	_url = 'https://api-v2launch.MyTrakt.tv/search?{}'.format(show)
 	_list = getBase(_url, userid, authorization, rtn)
 
 	return _list
@@ -65,7 +65,7 @@ def searchShow(show, year=None, rtn=dict, userid='', authorization=''):
 
 def getSeasons(trakt_id, rtn=dict, userid='', authorization=''):
 
-	_url = 'https://api-v2launch.trakt.tv/shows/{}/seasons?extended=episodes,full'.format(trakt_id)
+	_url = 'https://api-v2launch.MyTrakt.tv/shows/{}/seasons?extended=episodes,full'.format(trakt_id)
 	_list = getBase(_url, userid, authorization, rtn)
 
 	return _list
@@ -73,7 +73,7 @@ def getSeasons(trakt_id, rtn=dict, userid='', authorization=''):
 
 def getEpisode(trakt_id, season, episode,rtn=str, userid='', authorization=''):
 
-	_url = 'https://api-v2launch.trakt.tv/shows/{}/seasons/{}/episodes/{}?extended=full'.format(trakt_id, season, episode)
+	_url = 'https://api-v2launch.MyTrakt.tv/shows/{}/seasons/{}/episodes/{}?extended=full'.format(trakt_id, season, episode)
 	_list = getBase(_url, userid, authorization, rtn)
 
 	return _list

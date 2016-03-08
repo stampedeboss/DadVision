@@ -66,8 +66,8 @@ class getToken(Library):
             help="Use Refresh Key if available, if not start New")
 
         #PIN Based
-        self.PIN_URL = 'https://trakt.tv/pin/1617'
-        self.GET_TOKEN_URL = 'https://api-v2launch.trakt.tv/oauth/token'
+        self.PIN_URL = 'https://MyTrakt.tv/pin/1617'
+        self.GET_TOKEN_URL = 'https://api-v2launch.MyTrakt.tv/oauth/token'
         self.config_file = os.path.join(os.sep,
                                        "usr",
                                        "local",
@@ -112,7 +112,7 @@ class getToken(Library):
 
             headers = {
                 'Content-Type': 'application/json',
-                'trakt-api-version': '2',
+                'MyTrakt-api-version': '2',
                 'Content-Length': clen
             }
 
@@ -146,7 +146,7 @@ if __name__ == "__main__":
 
     # If an absolute path is not specified, use the default directory.
     if not os.path.isabs(log_file):
-        logger.LogDir = os.path.join(logger.LogDir, 'trakt')
+        logger.LogDir = os.path.join(logger.LogDir, 'MyTrakt')
         log_file = os.path.join(logger.LogDir, log_file)
 
     library.args.logfile = log_file

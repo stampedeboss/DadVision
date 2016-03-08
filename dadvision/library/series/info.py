@@ -60,7 +60,7 @@ class seriesInfo(Library):
 
 		seriesinfo_group.add_argument("--series-only", "--so", dest="get_episodes",
 				action="store_false", default=False,
-				help="Information to come from trakt.tv")
+				help="Information to come from MyTrakt.tv")
 		'''
 		seriesinfo_group.add_argument("--tvdb", dest="processes",
 				action="append_const", const='tvdb',
@@ -68,9 +68,9 @@ class seriesInfo(Library):
 		seriesinfo_group.add_argument("--tvrage", dest="processes",
 				action="append_const", const='tvrage',
 				help="Information to come from TVRage")
-		seriesinfo_group.add_argument("--trakt", dest="processes",
-				action="append_const", const='trakt',
-				help="Information to come from trakt.tv")
+		seriesinfo_group.add_argument("--MyTrakt", dest="processes",
+				action="append_const", const='MyTrakt',
+				help="Information to come from MyTrakt.tv")
 		'''
 
 		self.parser = FileParser()
