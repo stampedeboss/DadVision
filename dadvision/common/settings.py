@@ -34,7 +34,7 @@ __maintainer__ = __author__
 __copyright__ = "Copyright 2016, AJ Reynolds"
 __license__ = "GPL"
 
-ConfigDir = os.path.join(os.sep, "usr", "local", "etc", "dadvision")
+ConfigDir = os.path.join(os.sep, "usr", "local", "config", "dadvision")
 ConfigFile = os.path.join(ConfigDir, '{}.cfg'.format(__pgmname__))
 host = socket.gethostname()
 
@@ -56,57 +56,61 @@ class Settings(object):
 
 		self.config = ConfigObj(ConfigFile, unrepr=True, interpolation=False)
 
-		Media = self.config['Media']
-		self.MediaExt = Media['MediaExt']
-		self.MovieGlob = Media['MovieGlob']
-		self.MovieGlob2 = Media['MovieGlob2']
-		self.IgnoreGlob = Media['IgnoreGlob']
-		self.AdditionalGlob = Media['AdditionalGlob']
-		self.Predicates = Media['Predicates']
-		self.CountryCodes = Media['CountryCodes']
+		try:
+			Media = self.config['Media']
+			self.MediaExt = Media['MediaExt']
+			self.MovieKW = Media['MovieGlob']
+			self.MovieGlob = Media['MovieGlob2']
+			self.IgnoreGlob = Media['IgnoreGlob']
+			self.Predicates = Media['Predicates']
+			self.CountryCodes = Media['CountryCodes']
 
-		self.SeriesAliasList = {}
-		self.SeriesAliasFile = os.path.join(ConfigDir, Media['SeriesAliasFile'])
+			self.SeriesAliasList = {}
+			self.SeriesAliasFile = os.path.join(ConfigDir, Media['SeriesAliasFile'])
 
 
-		self.ExcludeList = []
-		self.exclude_file = os.path.join(ConfigDir, Media['ExcludeFile'])
+			self.ExcludeList = []
+			self.exclude_file = os.path.join(ConfigDir, Media['ExcludeFile'])
 
-		self.ExcludeScanList = []
-		self.exclude_scan_file = os.path.join(ConfigDir, Media['ExcludeScanFile'])
+			self.ExcludeScanList = []
+			self.exclude_scan_file = os.path.join(ConfigDir, Media['ExcludeScanFile'])
 
-		self.SpecialHandlingList = []
-		self.spl_hand_file = os.path.join(ConfigDir, Media['SplHandFile'])
+			self.SpecialHandlingList = []
+			self.spl_hand_file = os.path.join(ConfigDir, Media['SplHandFile'])
 
-		self.EpisodeAdjList = []
-		self.episode_adj_file = os.path.join(ConfigDir, Media['EpisodeAdjFile'])
+			self.EpisodeAdjList = []
+			self.episode_adj_file = os.path.join(ConfigDir, Media['EpisodeAdjFile'])
 
-		self.ConversionsPatterns = self.config['Conversions']
+			self.ConversionsPatterns = self.config['Conversions']
 
-		self.Hostnames = self.config['Hostnames']['Hostnames']
+			self.Hostnames = self.config['Hostnames']['Hostnames']
 
-		hostConfig = self.config[host]
-		self.UserID = hostConfig['UserId']
-		self.SeriesDir = hostConfig['SeriesDir']
-		self.MoviesDir = hostConfig['MovieDir']
-		self.DownloadDir = hostConfig['DownloadDir']
-		self.UnpackDir = hostConfig['UnpackDir']
-		self.DownloadMovies = hostConfig['DownloadMovies']
-		self.DownloadSeries = hostConfig['DownloadSeries']
-		self.TraktUserID = hostConfig['TraktUserID']
-		self.TraktAuthorization = " ".join([hostConfig['TraktToken']['token_type'],
-											hostConfig['TraktToken']['access_token']])
+			hostConfig = self.config[host]
+			self.UserID = hostConfig['UserId']
+			self.SeriesDir = hostConfig['SeriesDir']
+			self.MoviesDir = hostConfig['MovieDir']
+			self.DownloadDir = hostConfig['DownloadDir']
+			self.UnpackDir = hostConfig['UnpackDir']
+			self.DownloadMovies = hostConfig['DownloadMovies']
+			self.DownloadSeries = hostConfig['DownloadSeries']
+			self.TraktUserID = hostConfig['TraktUserID']
+			self.TraktAuthorization = " ".join([hostConfig['TraktToken']['token_type'],
+												hostConfig['TraktToken']['access_token']])
 
-		Program = self.config['Program']
-		self.DBFile = Program['DBFile']
-		self.TraktAPIKey = Program['TraktClientID']
-		self.TraktClientID = Program['TraktClientID']
-		self.TraktClientSecret = Program['TraktClientSecret']
-		self.TraktFollowed = Program['TraktFollowed']
-		self.TraktFollowed720 = Program['TraktFollowed720']
+			Program = self.config['Program']
+			self.DBFile = Program['DBFile']
+			self.TraktAPIKey = Program['TraktClientID']
+			self.TraktClientID = Program['TraktClientID']
+			self.TraktClientSecret = Program['TraktClientSecret']
+			self.TraktFollowed = Program['TraktFollowed']
+			self.TraktFollowed720 = Program['TraktFollowed720']
 
-		self.NewMoviesDir = os.path.join(self.MoviesDir, Program['NewDir'])
-		self.NewSeriesDir = os.path.join(self.SeriesDir, Program['NewDir'])
+			self.NewMoviesDir = os.path.join(self.MoviesDir, Program['NewDir'])
+			self.NewSeriesDir = os.path.join(self.SeriesDir, Program['NewDir'])
+		except KeyError, e:
+			msg = 'Invalid Key Requested: {}'.format(e)
+			log.critical(msg)
+			raise ConfigValueError(msg)
 
 		self.ReloadFromFiles()
 

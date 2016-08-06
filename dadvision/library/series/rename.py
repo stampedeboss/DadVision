@@ -23,7 +23,6 @@ from exceptions import IOError
 from common.exceptions import (SeriesNotFound, SeasonNotFound, EpisodeNotFound,
 							   DuplicateFilesFound, InvalidFilename,
 							   UnexpectedErrorOccured)
-from dadvision import DadVision
 from library import Library, ignored
 from library.series import Series
 from library.series.fileparser import FileParser
@@ -38,7 +37,7 @@ __email__ = "stampedeboss@gmail.com"
 
 __maintainer__ = __author__
 
-__copyright__ = "Copyright 2011, AJ Reynolds"
+__copyright__ = "Copyright 2016, AJ Reynolds"
 __license__ = "GPL"
 
 log = logging.getLogger(__pgmname__)

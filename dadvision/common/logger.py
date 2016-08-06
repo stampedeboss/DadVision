@@ -29,13 +29,13 @@ TRACE = 5
 VERBOSE = 15
 
 
-class DaddyVisionLogger(logging.Logger):
-    """Custom logger that adds library and execution info to log records."""
+class MyLogger(logging.Logger):
+    """Custom logger that adds module and execution info to log records."""
     local = threading.local()
 
     def makeRecord(self, name, level, fn, lno, msg, args, exc_info, func=None, extra=None):
-        extra = {'library': getattr(DaddyVisionLogger.local, 'library', u''),
-                 'execution': getattr(DaddyVisionLogger.local, 'execution', '')}
+        extra = {'library': getattr(MyLogger.local, 'library', u''),
+                 'execution': getattr(MyLogger.local, 'execution', '')}
         return logging.Logger.makeRecord(self, name, level, fn, lno, msg, args, exc_info, func, extra)
 
     def trace(self, msg, *args, **kwargs):
@@ -50,31 +50,28 @@ class DaddyVisionLogger(logging.Logger):
     debugall = trace
 
 
-class DaddyVisionFormatter(logging.Formatter):
-    """Custom formatter that can handle both regular log records and those created by DaddyVisionLogger"""
+class MyFormatter(logging.Formatter):
+    """Custom formatter that can handle both regular log records and those created by MyLogger"""
     plain_fmt = '%(asctime)-15s %(levelname)-8s %(name)-22s %(message)s'
-    daddyvision_fmt = '%(asctime)-15s %(levelname)-8s %(name)-12s %(library)-9s %(message)s'
+    extended_fmt = '%(asctime)-15s %(levelname)-8s %(name)-12s %(library)-9s %(message)s'
 
     def __init__(self):
         logging.Formatter.__init__(self, self.plain_fmt, '%Y-%m-%d %H:%M')
 
     def format(self, record):
-        extra_list = ['rename', 'fileparser', 'gettmdb', 'check', 'distribute', 'syncrmt', 'seriesinfo']
-#        print getattr(record, 'name')
-#        if hasattr(record, 'name'):
-        if getattr(record, 'name') in extra_list:
-            self._fmt = self.daddyvision_fmt
+        if hasattr(MyLogger.local, 'library'):
+            self._fmt = self.extended_fmt
         else:
             self._fmt = self.plain_fmt
         return logging.Formatter.format(self, record)
 
 
 def set_execution(execution):
-    DaddyVisionLogger.local.execution = execution
+    MyLogger.local.execution = execution
 
 
 def set_library(library):
-    DaddyVisionLogger.local.library = library
+    MyLogger.local.library = library
 
 
 class PrivacyFilter(logging.Filter):
@@ -144,7 +141,7 @@ def initialize(level=TRACE, console=True):
 
     # root logger
     log = logging.getLogger()
-    formatter = DaddyVisionFormatter()
+    formatter = MyFormatter()
 
     _mem_handler = logging.handlers.MemoryHandler(1000 * 1000, 100)
     _mem_handler.setFormatter(formatter)
@@ -229,4 +226,4 @@ def flush_logging_to_console():
     _mem_handler.flush()
 
 # Set our custom logger class as default
-logging.setLoggerClass(DaddyVisionLogger)
+logging.setLoggerClass(MyLogger)

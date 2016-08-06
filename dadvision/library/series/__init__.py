@@ -6,14 +6,14 @@
 '''
 
 import datetime
+import logging
 import traceback
 
 from dateutil import parser
 from os.path import basename, dirname, relpath, split
 
-from dadvision import DadVision
 from common.exceptions import SeriesNotFound, SeasonNotFound, EpisodeNotFound, NotMediaFile, GetOutOfLoop
-from library import rename_file, duplicate, matching, media, decode
+from library import matching, media, decode
 from MyTrakt.show import getShow, searchShow, getSeasons, getEpisode
 
 __pgmname__ = 'series'
@@ -26,6 +26,7 @@ __maintainer__ = __author__
 __copyright__ = "Copyright 2016, AJ Reynolds"
 __license__ = "GPL"
 
+log = logging.getLogger(__pgmname__)
 
 class Series(object):
 
@@ -231,6 +232,8 @@ class Series(object):
 
 	def media_details(self, pathname):
 		from guessit import guessit
+		from common.settings import Settings
+		settings = Settings()
 
 		if not media(pathname):
 			raise NotMediaFile
@@ -238,7 +241,7 @@ class Series(object):
 		try:
 			_dir, _fn = split(pathname)
 			if basename(_dir)[:6] == 'Season':
-				_fn = relpath(pathname, DadVision.settings.SeriesDir)
+				_fn = relpath(pathname, settings.SeriesDir)
 
 			_series = guessit(pathname, '-t episode')
 			self.media_info = MediaInfo(self, filename=pathname, **_series)
@@ -678,24 +681,22 @@ class Episode(object):
 
 if __name__ == '__main__':
 
+	from library import Library
 	import pprint
+
 	from sys import argv
-	from logging import DEBUG; TRACE = 5; VERBOSE = 15
+	from logging import INFO, DEBUG, ERROR; TRACE = 5; VERBOSE = 15
+	Library.logger.initialize(level=DEBUG)
+	Library.args = Library.cmdoptions.ParseArgs(argv[1:])
+	Library.logger.start(Library.args.logfile, Library.args.loglevel, timed=Library.args.timed)
 
-	DadVision.logger.initialize(level=DEBUG)
-
-#	from common.cmdoptions_rn import CmdOptionsRn
-#	from series.cmdoptions import CmdOptions
-#	rnCmd = CmdOptionsRn()
-#	movieCmd = CmdOptions()
-	DadVision.args = DadVision.cmdoptions.ParseArgs(argv[1:])
-
-	DadVision.logger.start(DadVision.args.logfile, DEBUG, timed=DadVision.args.timed)
+	log.info("*** LOGGING STARTED ***")
 
 	series = Series()
+	series.search(title='Star Trek TNG')
 
-	if len(DadVision.args.pathname) > 0:
-		for pathname in DadVision.args.pathname:
+	if len(Library.args.pathname) > 0:
+		for pathname in Library.args.pathname:
 			try:
 				#series.media_details(pathname)
 				series.search(title='Star Trek TNG')

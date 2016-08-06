@@ -16,7 +16,7 @@ __email__ = "stampedeboss@gmail.com"
 
 __maintainer__ = __author__
 
-__copyright__ = "Copyright 2011, AJ Reynolds"
+__copyright__ = "Copyright 2016, AJ Reynolds"
 __license__ = "GPL"
 
 
@@ -82,10 +82,6 @@ class UnexpectedErrorOccured(BaseDaddyVisionException):
 class DictKeyError(BaseDaddyVisionException):
 	"""Raised if the Request dict is malformed
 	"""
-	pass
-
-
-class RegxSelectionError(BaseDaddyVisionException):
 	pass
 
 # Configuration Exceptions

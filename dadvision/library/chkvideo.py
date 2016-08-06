@@ -11,11 +11,9 @@ import re
 import tempfile
 import logging
 
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, call
 
-from library import countFiles
-
-from dadvision import DadVision
+from library import Library, countFiles
 
 __pgmname__ = 'chkvideo'
 
@@ -31,7 +29,7 @@ log = logging.getLogger(__pgmname__)
 
 FilesWithIssues = {}
 
-class ChkVideo(DadVision):
+class ChkVideo(Library):
 	def __init__(self):
 
 		super(ChkVideo, self).__init__()
@@ -123,26 +121,27 @@ def chkAVI(pathname):
 def chkMKV(pathname):
 	NULLF = open('/dev/null', 'w')
 	cmd = ['mkvinfo', pathname]
-	process = Popen(cmd, shell=False, stdin=None, stdout=NULLF, stderr=NULLF, cwd=None)
-	rc = process.returncode
+	rc = call(cmd, stdin=None, stdout=NULLF, stderr=NULLF)
 	return rc
+
 
 
 if __name__ == '__main__':
 	from sys import argv
-	from os.path import isdir, walk, exists
-	from dadvision import DadVision
-	from logging import DEBUG; TRACE = 5; VERBOSE = 15
-	DadVision.logger.initialize(level=DEBUG)
+	from logging import INFO, DEBUG, ERROR; TRACE = 5; VERBOSE = 15
+	Library.logger.initialize(level=DEBUG)
 
 	library = ChkVideo()
-	DadVision.args = DadVision.cmdoptions.ParseArgs(argv[1:])
-#	DadVision.logger.start(DadVision.args.logfile, DEBUG, timed=DadVision.args.timed)
 
-	if len(DadVision.args.pathname) > 0:
-		for pathname in DadVision.args.pathname:
+	Library.args = Library.cmdoptions.ParseArgs(argv[1:])
+	Library.logger.start(Library.args.logfile, Library.args.loglevel, timed=Library.args.timed)
+
+	log.info("*** LOGGING STARTED ***")
+
+	if len(Library.args.pathname) > 0:
+		for pathname in Library.args.pathname:
 			if os.path.exists(pathname):
-				if isdir(pathname):
+				if os.path.isdir(pathname):
 					FilesWithIssues = chkVideoDir(pathname, library.args.deep)
 				else:
 					rc = chkVideoFile(pathname, library.args.deep)
@@ -152,6 +151,6 @@ if __name__ == '__main__':
 	if len(FilesWithIssues) > 0:
 		for _entry in sorted(FilesWithIssues):
 			log.info(_entry)
-		og.info('Number Files Identified: %s' % len(FilesWithIssues))
+		log.info('Number Files Identified: %s' % len(FilesWithIssues))
 	else:
 		log.info('No errors found')

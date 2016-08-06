@@ -14,14 +14,13 @@ import re
 import traceback
 from datetime import datetime, date, timedelta
 
-from common.exceptions import (SeriesNotFound)
-from library import Library
-from library.series import Series
-from library.series.fileparser import FileParser
-from library.MyTrakt.user import *
 from tqdm import tqdm
 
-import logger
+from common.exceptions import (SeriesNotFound)
+from library import Library
+from library.MyTrakt.user import *
+from library.series import Series
+from library.series.fileparser import FileParser
 from series.rename import RenameSeries
 
 __pgmname__ = 'check'
@@ -31,7 +30,7 @@ __email__ = "stampedeboss@gmail.com"
 
 __maintainer__ = __author__
 
-__copyright__ = "Copyright 2011, AJ Reynolds"
+__copyright__ = "Copyright 2011,2016, AJ Reynolds"
 __license__ = "GPL"
 
 log = logging.getLogger(__pgmname__)
@@ -44,7 +43,7 @@ class CheckSeries(Library):
 
 		super(CheckSeries, self).__init__()
 
-		check_group1= self.options.parser.add_argument_group("Series Unique Options", description=None)
+		check_group1= self.cmdoptions.parser.add_argument_group("Series Unique Options", description=None)
 		check_group1.add_argument("-a", "--all-shows", dest="all_shows",
 								  action="store_true", default=False,
 								  help="Process all shows not just Continuing")
@@ -569,26 +568,17 @@ class CheckSeries(Library):
 
 if __name__ == "__main__":
 
-
-	logger.initialize(console=False)
+	from sys import argv
+	from logging import DEBUG; TRACE = 5; VERBOSE = 15
+	Library.logger.initialize(level=DEBUG)
 
 	library = CheckSeries()
 
-	Library.args = library.options.parser.parse_args(sys.argv[1:])
-	log.debug("Parsed command line: {!s}".format(library.args))
+	Library.args = Library.cmdoptions.ParseArgs(argv[1:])
+	Library.logger.start(Library.args.logfile, Library.args.loglevel, timed=Library.args.timed)
 
-	log_level = logging.getLevelName(library.args.loglevel.upper())
+	log.info("*** LOGGING STARTED ***")
 
-	if library.args.logfile == 'daddyvision.log':
-		log_file = '{}.log'.format('check_series')
-	else:
-		log_file = os.path.expanduser(library.args.logfile)
-
-	# If an absolute path is not specified, use the default directory.
-	if not os.path.isabs(log_file):
-		log_file = os.path.join(logger.LogDir, log_file)
-
-	logger.start(log_file, log_level, timed=False)
 
 	if library.args.no_excludes:
 		library.settings.ExcludeScanList = []

@@ -25,7 +25,7 @@ __license__ = "GPL"
 log = logging.getLogger(__pgmname__)
 
 try:
-	_p = Popen(["git", "describe", "HEAD", "--long", "--tags"],
+	_p = Popen(["git", "describe", "--all", "--long", "--tags"],
 			   cwd=dirname(dirname(__file__)),
 			   stdout=PIPE)
 	__version__ = _p.communicate()[0].strip('\n').strip()
@@ -48,7 +48,7 @@ program_version_message = '%%(prog)s %s (%s)' % (__version__, __commit_date__)
 program_license = '''
 
 Created by AJ Reynolds.
-Copyright 2013 AJ Reynolds. All rights reserved.
+Copyright 2016 AJ Reynolds. All rights reserved.
 
 Licensed under the GPL License
 
@@ -73,14 +73,14 @@ class CmdOptions(ArgumentParser):
 						 action='version',
 						 version=program_version_message)
 		self.parser.add_argument('--logdir', action='store',
-						 dest='logdir', default='/srv/log',
+						 dest='logdir', default='/var/log/dv',
 						 help='Specify a log directory [default: %(default)s]')
 		self.parser.add_argument('--logfile', action='store',
 						 dest='logfile', default=None,
 						 help='Specify a custom logfile filename [default: %(default)s]')
 		self.parser.add_argument("--Error-Log", dest="errorlog", action="store_true", default=False,
 								help="Create Seperate Log for Errors")
-		self.parser.add_argument("--timed", "--timed-roll-over", dest="timed",
+		self.parser.add_argument("--timed-logs", dest="timed",
 		                         action="store_true", default=False,
 								help="Logs will start new daily at midnight")
 		self.parser.add_argument('pathname', metavar="pathname", nargs='*',

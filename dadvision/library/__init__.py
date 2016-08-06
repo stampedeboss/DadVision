@@ -32,12 +32,12 @@ __email__ = "stampedeboss@gmail.com"
 
 __maintainer__ = __author__
 
-__copyright__ = "Copyright 2011, AJ Reynolds"
+__copyright__ = "Copyright 2016, AJ Reynolds"
 __license__ = "GPL"
 
 log = logging.getLogger(__pgmname__)
 
-class Library(object):
+class Library(DadVision):
 
 	regex_repack = re.compile('^.*(repack|proper).*$', re.IGNORECASE)
 
@@ -66,7 +66,7 @@ def countFiles(pathname, types=[], exclude_list=[]):
 					_dirs.remove(_dir)
 
 		for _file in _files:
-			ext = os.path.splitext(_file)[1][1:]
+			ext = splitext(_file)[1][1:]
 			if types != []:
 				if ext.lower() in types:
 					_file_count += 1
@@ -267,11 +267,16 @@ def rename_file(old, new):
 if __name__ == '__main__':
 
 	from sys import argv
-	from logging import DEBUG; TRACE = 5; VERBOSE = 15
-	from common import logger
-	logger.initialize(level=DEBUG)
-	DadVision.args = DadVision.cmdoptions.ParseArgs(argv[1:])
+	from logging import INFO, DEBUG, ERROR; TRACE = 5; VERBOSE = 15
+	Library.logger.initialize(level=DEBUG)
+	Library.args = Library.cmdoptions.ParseArgs(argv[1:])
+	Library.logger.start(Library.args.logfile, Library.args.loglevel, timed=Library.args.timed)
+
+	log.info("*** LOGGING STARTED ***")
+
+
+	_lib_paths = Library.args.pathname
 
 	library = Library()
 
-	log.info(" ")
+	log.info("Library Initialized")

@@ -17,7 +17,7 @@ import re
 import unicodedata
 from collections import OrderedDict
 
-from common.exceptions import SeriesNotFound, InvalidFilename, RegxSelectionError
+from common.exceptions import SeriesNotFound, InvalidFilename
 from guessit import guessit
 
 import logger

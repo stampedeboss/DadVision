@@ -37,16 +37,15 @@ class DadVision(object):
 if __name__ == '__main__':
 
 	from sys import argv
-	from dadvision import DadVision
 	from logging import INFO, DEBUG, ERROR; TRACE = 5; VERBOSE = 15
 	from common import logger
+	log = logger.logging.getLogger(__pgmname__)
 	logger.initialize(level=DEBUG)
 	DadVision.args = DadVision.cmdoptions.ParseArgs(argv[1:])
 
-	log = logger.logging.getLogger(__pgmname__)
 	logger.start(DadVision.args.logfile, DadVision.args.loglevel, timed=DadVision.args.timed)
 
-	log.verbose("*** LOGGING STARTED ***")
+	log.info("*** LOGGING STARTED ***")
 
 	_lib_paths = DadVision.args.pathname
 
